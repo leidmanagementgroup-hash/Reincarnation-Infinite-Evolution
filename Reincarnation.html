@@ -1846,6 +1846,8 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
         ramp=zone+blur<lushAt?art.lushRgb:zone+blur>.66?art.dryRgb:art.soilRgb;
         if(arid&&wet<1.5+blur*4)ramp=r.palette==='shore'?art.dryRgb:art.lushRgb;
         if(snowy)tone+=(broad-.5)*.3;
+        // Bande di duna sui suoli aridi (idea recuperata dal lavoro non committato di Codex).
+        if(arid)tone+=Math.sin(y*.115+x*.037+broad*5)*.035;
       }
       const color=pick(ramp,tone),k=(i+j*mw)*4;
       pixels.data[k]=color>>16;pixels.data[k+1]=(color>>8)&255;pixels.data[k+2]=color&255;pixels.data[k+3]=255;
@@ -15115,6 +15117,7 @@ window.Lantern = (() => {
   };
   let screen='title',panel=null,prevFocus,prevLoc='',clock=0,uiClock=0,prev=0,toastTimer,zoneTimer,renderEffects=true,guidance=true;
   let running=false,practiceHold=null,practiceCleanup=null;
+  const reducedMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)');
   try {renderEffects=localStorage.getItem('lumora-effects')!=='off';guidance=localStorage.getItem('lumora-guidance')!=='off';} catch {}
   function paintSymbols(root=document) {
     root.querySelectorAll('[data-symbol]').forEach(el=>{
@@ -15413,7 +15416,8 @@ window.Lantern = (() => {
     if(!under&&dusk>.01){ctx.fillStyle='rgba('+sky.dusk+','+(.13*dusk)+')';ctx.fillRect(0,0,cam.w,cam.h);}
     if(under||night>.01){ctx.fillStyle='rgba('+sky.night+','+(sky.depth*(under?1:night))+')';ctx.fillRect(0,0,cam.w,cam.h);}
     WorldLight.draw(ctx,{x:Math.round(cam.x),y:Math.round(cam.y),w:cam.w,h:cam.h},t,v.region,{night:under?1:night,dusk:under?0:dusk,minutes,calm:!renderEffects});
-    if(!renderEffects)return;
+    // Con la riduzione del movimento del sistema le particelle si fermano come con gli effetti ridotti (da Codex).
+    if(!renderEffects||reducedMotion?.matches)return;
     if(v.region==='quarry'||v.region==='rift'){
       const quarry=v.region==='quarry';
       for(let i=0;i<24;i++){
@@ -15465,10 +15469,13 @@ window.Lantern = (() => {
     const p=Game.s.player,px=Math.max(0,Math.min(World.width-cam.w,p.x-cam.w*.5)),py=Math.max(0,Math.min(World.height-cam.h,p.y-cam.h*.52));
     if(!Number.isFinite(cam.x)||cam.region!==World.region||Math.abs(cam.x-px)>cam.w*.9||Math.abs(cam.y-py)>cam.h*.9){cam.x=px;cam.y=py;cam.region=World.region;}else{const a=1-Math.exp(-12*dt);cam.x+=(px-cam.x)*a;cam.y+=(py-cam.y)*a;}
     const c={...cam,x:Math.round(cam.x),y:Math.round(cam.y)};
-    ctx.save();ctx.translate(-c.x,-c.y);World.drawGround(ctx,c,clock);World.drawFront(ctx,c,clock,Game.actors(clock));Game.drawFX(ctx,clock);
+    ctx.save();ctx.translate(-c.x,-c.y);World.drawGround(ctx,c,clock);World.drawFront(ctx,c,clock,Game.actors(clock));ctx.restore();
+    // Atmosfera e luci prima degli avvisi di combattimento: aree di pericolo e colpi restano leggibili di notte (da Codex).
+    const v=Game.view({detailed:false});atmosphere(clock,v);
+    ctx.save();ctx.translate(-c.x,-c.y);Game.drawFX(ctx,clock);
     if(placement&&!panel){const point=placementPoint(placement.clientX,placement.clientY);Build.preview(ctx,Game.s,placement.plan,point.x,point.y,placement.id);}
     ctx.restore();
-    const v=Game.view({detailed:false});atmosphere(clock,v);paintObjective(v,p,c);
+    paintObjective(v,p,c);
     uiClock-=dt;if(uiClock<=0){syncHud();uiClock=.14;}
   }
   Game.onEvent=(type,data)=>{

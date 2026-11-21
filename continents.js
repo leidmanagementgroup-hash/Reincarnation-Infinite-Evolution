@@ -276,6 +276,8 @@
         ramp=zone+blur<lushAt?art.lushRgb:zone+blur>.66?art.dryRgb:art.soilRgb;
         if(arid&&wet<1.5+blur*4)ramp=r.palette==='shore'?art.dryRgb:art.lushRgb;
         if(snowy)tone+=(broad-.5)*.3;
+        // Bande di duna sui suoli aridi (idea recuperata dal lavoro non committato di Codex).
+        if(arid)tone+=Math.sin(y*.115+x*.037+broad*5)*.035;
       }
       const color=pick(ramp,tone),k=(i+j*mw)*4;
       pixels.data[k]=color>>16;pixels.data[k+1]=(color>>8)&255;pixels.data[k+2]=color&255;pixels.data[k+3]=255;
