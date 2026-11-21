@@ -9,7 +9,7 @@
 - [ ] Ampliare la suite condivisa con casi per i minigiochi e l’intera campagna, e configurarne l’esecuzione automatica.
 
 ## Esiti della revisione 2026-11-21 (da decidere)
-- [ ] RISK-006: decidere se un salvataggio con stato del Santuario incoerente debba essere riparato o segnalato invece di essere rifiutato.
+- [x] RISK-006: lo stato incoerente del Santuario ora produce un avviso invece del rifiuto del salvataggio (2026-11-21).
 - [ ] RISK-007: confermare la morte permanente dei compagni di gilda e documentarla in `GAME_DESIGN.md`.
 - [ ] Estendere il test Node a `panels.js`/`interface.js` con un DOM minimo, e aggiungere casi per evoluzione, boss adattivi, minigiochi e mercato.
 - [ ] Creare un harness ripetibile di misura prestazioni (percorso fisso, finestra visibile) come baseline per la grafica.

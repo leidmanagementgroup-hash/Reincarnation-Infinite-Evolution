@@ -1404,7 +1404,8 @@
     d.adaptive=Adaptive.restore(d.adaptive);
     d.conflicts=Conflicts.restore(d.conflicts,d);
     d.reputation=Reputation.restore(d.reputation,d);
-    if(!d.adaptive||!d.conflicts||!d.reputation||!Legendary.validateRegions(d))return null;
+    if(!d.adaptive||!d.conflicts||!d.reputation)return null;
+    if(!Legendary.validateRegions(d))console.warn('Santuario della Marea Muta: stato incoerente nel salvataggio.');
     if(previousVersion===version&&!['urban','cityWorks'].every(id=>Object.hasOwn(d,id)))return null;
     d.urban=UrbanLife.restore(d.urban,d);
     d.cityWorks=UrbanServices.restore(d.cityWorks,d);

@@ -2,6 +2,14 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-21] Salvataggi: il Santuario incoerente non fa più perdere la partita (RISK-006) — Claude
+### Corretto
+- `parseSave` torna a segnalare con un avviso in console l'incoerenza rilevata da `Legendary.validateRegions` invece di rifiutare il salvataggio (file: `engine.js`). Le sezioni strutturali mancanti restano motivo di rifiuto.
+### Aggiunto
+- Test di regressione: salvataggio con vittorie incoerenti caricabile con avviso; salvataggio senza `urban` rifiutato (file: `tests/verifica-integrazione.cjs`).
+### Modificato
+- `Reincarnation.html` ricostruito. Verifiche: `node tests/verifica-integrazione.cjs` OK (il nuovo caso fallisce senza la correzione), `node --check engine.js`, build ripetuta identica.
+
 ## [2026-11-21] Revisione tecnica indipendente dell'integrazione di Velaris — Claude
 ### Documentazione
 - Revisione dei commit `7f182be` e `875ac74` di Codex: test e build ripetuti, compatibilità v5→v7 provata, fuzz di 60 partite, controllo in browser. Nessuna regressione bloccante. Rilievi RISK-006…RISK-010, valutazione e proposte per il piano grafico e istruzioni di avvio in `PROGRESS.md`; `ROADMAP.md` aggiornata.
