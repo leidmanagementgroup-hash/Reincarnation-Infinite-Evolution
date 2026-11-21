@@ -14,6 +14,7 @@
 - [x] RISK-007: morte permanente dei compagni di gilda confermata e documentata in `GAME_DESIGN.md` §4.9 (2026-11-21).
 - [ ] UX-001: decidere come ridurre l'affollamento serale degli NPC nella piazza di Velaris (distanza, punti di sosta, orari). BUG-011: percorsi scartati, serve decisione sul grafo stradale.
 - [ ] Verificare in partita il bilanciamento dei danni ai compagni (quanto spesso scendono in stato critico).
+- [x] Prima prova nel browser con Playwright: `tests/prova-browser.cjs` (menu principali, Atlante, Segna Velaris, salvataggi). Da estendere a combattimento, minigiochi e interni.
 - [ ] Estendere il test Node a `panels.js`/`interface.js` con un DOM minimo, e aggiungere casi per evoluzione, boss adattivi e minigiochi. Il mercato di Velaris è già coperto.
 - [x] Prova di prestazioni a finestra visibile condivisa: `tests/prova-prestazioni.mjs` (2026-11-21). Resta da integrarla in un'esecuzione automatica.
 

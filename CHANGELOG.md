@@ -2,6 +2,10 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-21] Prova nel browser con Playwright — Claude
+### Aggiunto
+- `tests/prova-browser.cjs`: 10 prove nel browser (avvio, Atlante, «Segna Velaris», ingresso a Velaris, menu, salvataggi, nessun errore JS) con `playwright-core` esterno al progetto. Nessun codice del gioco modificato, nessuna dipendenza aggiunta.
+
 ## [2026-11-21] Valutazione di plugin e skill — Claude
 ### Documentazione
 - Registrata in `ROADMAP.md` la ricerca di plugin/skill per il Mega City Overhaul (nulla installato, nessun codice toccato).
