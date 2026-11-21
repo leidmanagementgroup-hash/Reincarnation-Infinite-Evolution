@@ -334,7 +334,7 @@
       ctx.fillStyle=snow?'#eaf6ff85':'#c0e5f16d';
       for(let i=0;i<(snow?42:68);i++){const x=((i*73-t*(snow?12:39)-cam.x*.3)%cam.w+cam.w)%cam.w,y=((i*83+t*(snow?29:130)-cam.y*.5)%cam.h+cam.h)%cam.h;ctx.fillRect(x|0,y|0,1,snow?1:4);}
     }
-    else {ctx.fillStyle=hour>17||hour<6?'#f4e9a9b5':'#ffefad99';for(let i=0;i<16;i++){const x=((i*113+t*3+Math.sin(t+i)*3-cam.x*.8)%cam.w+cam.w)%cam.w,y=((i*77+Math.sin(t*.4+i)*6-cam.y*.8)%cam.h+cam.h)%cam.h;if(Math.sin(i+t*.8)>.1)ctx.fillRect(x|0,y|0,1,1);}}
+    else if(!WorldLight.ambient(ctx,{x:Math.round(cam.x),y:Math.round(cam.y),w:cam.w,h:cam.h},t,v.region,{night:under?1:night,dusk:under?0:dusk,width:World.width,height:World.height})){ctx.fillStyle=hour>17||hour<6?'#f4e9a9b5':'#ffefad99';for(let i=0;i<16;i++){const x=((i*113+t*3+Math.sin(t+i)*3-cam.x*.8)%cam.w+cam.w)%cam.w,y=((i*77+Math.sin(t*.4+i)*6-cam.y*.8)%cam.h+cam.h)%cam.h;if(Math.sin(i+t*.8)>.1)ctx.fillRect(x|0,y|0,1,1);}}
   }
   function paintObjective(view,p,c){
     const target=navigationTarget(view);

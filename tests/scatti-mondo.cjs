@@ -5,6 +5,9 @@
 // fotogrammi per ogni build: requestAnimationFrame è sostituito da un orologio manuale e la simulazione è ferma
 // (Game.step non fa nulla durante gli scatti). Con due build salva anche il confronto PRIMA (sopra) / DOPO (sotto).
 // Non modifica i salvataggi: ogni build usa un contesto del browser nuovo e vuoto.
+// BENCH=1: invece degli scatti misura, per scena e ora, il costo dell'ingresso nella regione (primo disegno incluso)
+// e il tempo CPU di un fotogramma completo (FRAMES fotogrammi, default 240), alternando le build ROUNDS volte (default 2).
+// Usare PW_HEADED=1 per Edge a finestra visibile con GPU.
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require(process.env.PW_CORE || 'playwright-core');
@@ -56,6 +59,7 @@ async function shoot(file) {
     await page.click('#playBtn');
     await page.locator('#dialog button[data-do="resume"]').first().waitFor({ state: 'visible', timeout: 8000 });
     await page.click('#dialog button[data-do="resume"]');
+    if (process.env.BENCH) await page.evaluate(n => { window.__bench = n; }, Number(process.env.FRAMES || 240));
     await page.evaluate(() => {
       const r0 = Math.random; let n = 0; Math.random = () => n++ === 0 ? 19425 / 4294967296 : .24;
       try { Game.newGame(); } finally { Math.random = r0; }
@@ -64,17 +68,20 @@ async function shoot(file) {
     });
     for (const label of scenes) {
       const [region, x, y] = SPOTS[label];
-      const reached = await page.evaluate(id => {
-        const s = Game.s;
+      const [reached, enterMs] = await page.evaluate(id => {
+        const s = Game.s; let ms = 0;
         for (let n = 0; n < 8 && s.region !== id; n++) {
           const gate = World.route(s.region, id, s.campaign.stage);
-          if (!gate) return 'nessun percorso ' + s.region + ' → ' + id;
+          if (!gate) return ['nessun percorso ' + s.region + ' → ' + id, 0];
           Object.assign(s.player, { x: gate.x, y: gate.y });
-          if (!Game.action('interact')) return 'passaggio rifiutato in ' + s.region;
+          const t0 = performance.now();
+          if (!Game.action('interact')) return ['passaggio rifiutato in ' + s.region, 0];
+          __tick(1); ms = performance.now() - t0;
         }
-        return s.region;
+        return [s.region, ms];
       }, region);
       if (reached !== region) { errors.push(label + ': ' + reached); continue; }
+      if (process.env.BENCH) shots[label + '-ingresso'] = enterMs;
       for (const hour of hours) {
         const data = await page.evaluate(([px, py, hour]) => {
           const s = Game.s;
@@ -84,6 +91,12 @@ async function shoot(file) {
           const cur = ((Calendar.timestamp(s.calendar, s.time) % 1440) + 1440) % 1440;
           s.time += ((hour * 60 - cur + 1440) % 1440) / Calendar.minutesPerSecond;
           __tick(24);
+          if (window.__bench) {
+            const n = window.__bench, times = [];
+            for (let i = 0; i < n; i++) { const t0 = performance.now(); __tick(1); times.push(performance.now() - t0); }
+            times.sort((a, b) => a - b);
+            return { med: +times[n >> 1].toFixed(3), p95: +times[Math.floor(n * .95)].toFixed(3), max: +times[n - 1].toFixed(3) };
+          }
           return document.getElementById('field').toDataURL('image/png');
         }, [x, y, hour]);
         shots[label + '-' + String(hour).replace('.', '_')] = data;
@@ -121,7 +134,26 @@ async function compose(pairs, labels) {
 
 const save = (name, data) => fs.writeFileSync(path.join(out, name + '.png'), Buffer.from(data.split(',')[1], 'base64'));
 
+async function bench() {
+  const rounds = Number(process.env.ROUNDS || 2), table = {};
+  for (let r = 0; r < rounds; r++) for (const [i, file] of builds.entries()) {
+    const res = await shoot(file);
+    if (res.errors.length) console.log('errori ' + path.basename(file) + ': ' + res.errors.join('; '));
+    for (const [k, v] of Object.entries(res.shots)) ((table[k] ||= {})[i] ||= []).push(v);
+  }
+  const med = a => { const b = [...a].sort((x, y) => x - y); return b[b.length >> 1]; };
+  const rows = Object.entries(table).map(([k, byBuild]) => [k, ...builds.map((_, i) => {
+    const list = byBuild[i] || [];
+    return typeof list[0] === 'number' ? +med(list).toFixed(1) + ' ms' : `med ${med(list.map(x => x.med)).toFixed(2)} / p95 ${med(list.map(x => x.p95)).toFixed(2)} / max ${med(list.map(x => x.max)).toFixed(1)}`;
+  })]);
+  console.log(['scena', ...builds.map(b => path.basename(b))].join(' | '));
+  for (const r of rows) console.log(r.join(' | '));
+  fs.writeFileSync(path.join(out, 'bench.json'), JSON.stringify({ builds, table }, null, 1));
+  process.exit(0);
+}
+
 (async () => {
+  if (process.env.BENCH) return bench();
   const runs = [];
   for (const file of builds) {
     const t0 = Date.now(), r = await shoot(file); runs.push(r);

@@ -1034,7 +1034,8 @@
     }
     return {lights,windows};
   }
-  window.WorldLight?.provide(rid=>!!advanced[rid]&&current?.r.id===rid,lightSources,rid=>advanced[rid]?.rooms?'under':advanced[rid]?.palette);
+  const biomeOf=rid=>advanced[rid]?.rooms?'under':advanced[rid]?.palette;
+  window.WorldLight?.provide(rid=>!!advanced[rid]&&current?.r.id===rid,lightSources,biomeOf,biomeOf);
   function paintBiomeSprite(c,a,o,t){
     const pal=a.r.palette,type=o.type;
     let key=null,draw=null;

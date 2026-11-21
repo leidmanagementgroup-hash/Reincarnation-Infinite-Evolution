@@ -47,7 +47,8 @@
     return !!motion?.matches;
   }
   // match(regionId) → vero se il fornitore descrive la regione; sources(cam) → {lights:[{x,y,kind,core}], windows:[{x,y,w,h,seed}]}.
-  function provide(match,sources,sky){providers.push({match,sources,sky});}
+  // ambient(regionId) → chiave dell'atmosfera mobile (particelle e nuvole) o null per lasciare quella generica.
+  function provide(match,sources,sky,ambient){providers.push({match,sources,sky,ambient});}
   function find(region){return providers.find(p=>p.match(region));}
   function sky(region){
     const p=find(region),key=p?.sky?.(region);
@@ -93,5 +94,66 @@
     c.restore();
     return used;
   }
-  window.WorldLight={provide,sky,draw,budget,skies};
+  // Atmosfera mobile per bioma: particelle proprie e, di giorno all'aperto, ombre di nuvole che scorrono.
+  // Restituisce false se la regione non ne ha una (resta quella generica di interface.js).
+  const motes={
+    ruin:{n:18,day:'#f6eab0',night:'#d9f58a',fly:true,speed:[4,-1]},
+    pine:{n:14,day:'#c9b25a',night:null,speed:[3,7]},
+    snow:{n:34,day:'#ffffff',night:'#e8f2ff',speed:[-5,11],flake:true},
+    fae:{n:20,day:'#aee8d4',night:'#9ff0dd',fly:true,speed:[1,-4]},
+    star:{n:22,day:'#e3c8ff',night:'#bfe9ff',twinkle:true,speed:[2,-2]},
+    grass:{n:16,day:'#ead39a',night:'#f4c46c',fly:true,speed:[9,0]},
+    root:{n:22,day:'#c9e6a6',night:'#d8f58a',fly:true,speed:[1,-2]},
+    shore:{n:14,day:'#ffffff',night:'#cfe3ff',streak:true,speed:[16,1]},
+    canyon:{n:16,day:'#e7c08f',night:'#c99a75',streak:true,speed:[18,2]},
+    under:{n:12,day:'#9aa7ad',night:'#9aa7ad',speed:[0,3]}
+  };
+  const cloudImages=[];
+  function cloud(i){
+    if(cloudImages[i])return cloudImages[i];
+    const image=canvas(176,96),g=image.getContext('2d');g.fillStyle='#16242c';
+    let seed=4129+i*977;const rnd=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+    for(let k=0;k<9;k++){
+      const cx=30+rnd()*116,cy=26+rnd()*44,rx=18+rnd()*26,ry=10+rnd()*13;
+      for(let j=-Math.round(ry);j<=ry;j++){const d=Math.floor(rx*Math.sqrt(Math.max(0,1-j*j/(ry*ry))));g.fillRect(Math.round(cx-d),Math.round(cy+j),2*d+1,1);}
+    }
+    return cloudImages[i]=image;
+  }
+  function ambient(c,cam,t,region,e){
+    const p=find(region),key=p?.ambient?.(region),m=motes[key];
+    if(!m)return false;
+    if(e.calm||reduced())return true;
+    const nightish=Math.min(1,e.night*1.6+e.dusk*.5),day=Math.max(0,1-e.night*2.2-e.dusk*1.4);
+    c.save();
+    if(key!=='under'&&day>.05&&e.width){
+      // Ombre di nuvole in coordinate del mondo: scorrono piano verso est e si spengono al tramonto.
+      c.globalAlpha=.075*day;
+      for(let i=0;i<4;i++){
+        const span=e.width+420,x=((i*397+t*(5+i*1.3))%span+span)%span-210,y=((i*233+e.height*.2)%(e.height+120))-60+Math.sin(t*.05+i)*20;
+        if(x+176<cam.x||x>cam.x+cam.w||y+96<cam.y||y>cam.y+cam.h)continue;
+        c.drawImage(cloud(i%3),Math.round(x-cam.x),Math.round(y-cam.y));
+      }
+    }
+    const color=nightish>.5?m.night:m.day;
+    if(color){
+      const glowing=m.fly&&nightish>.5;
+      if(glowing)c.globalCompositeOperation='screen';
+      for(let i=0;i<m.n;i++){
+        const x=((i*113+t*m.speed[0]+Math.sin(t*.7+i)*4-cam.x*.85)%cam.w+cam.w)%cam.w;
+        const y=((i*71+t*m.speed[1]+Math.sin(t*.5+i*1.3)*5-cam.y*.85)%cam.h+cam.h)%cam.h;
+        const pulse=Math.sin(t*1.4+i*1.7);
+        if(m.twinkle||glowing){if(pulse<.1)continue;c.globalAlpha=(glowing?.85:.7)*pulse;}
+        else c.globalAlpha=m.flake?.75:.55;
+        c.fillStyle=color;
+        if(m.streak){c.fillRect(x|0,y|0,3+(i%3),1);continue;}
+        c.fillRect(x|0,y|0,1,1);
+        if(m.flake&&i%4===0)c.fillRect((x|0)+1,y|0,1,1);
+        if(m.twinkle&&pulse>.8){c.fillRect((x|0)-1,y|0,3,1);c.fillRect(x|0,(y|0)-1,1,3);}
+        if(glowing){c.globalAlpha=.18*pulse;c.fillRect((x|0)-1,(y|0)-1,3,3);}
+      }
+    }
+    c.restore();
+    return true;
+  }
+  window.WorldLight={provide,sky,draw,ambient,budget,skies};
 })();
