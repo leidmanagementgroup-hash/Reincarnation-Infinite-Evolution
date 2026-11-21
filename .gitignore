@@ -1,0 +1,46 @@
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# Impostazioni locali degli assistenti AI (possono contenere percorsi e permessi personali)
+.claude/settings.local.json
+.claude/worktrees/
+.codex/
+*.local.json
+
+# Segreti e credenziali (non devono mai finire nel repository)
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+secrets*.json
+*.token
+
+# Dipendenze e cache
+node_modules/
+__pycache__/
+*.pyc
+
+# File temporanei, backup e archivi
+*.tmp
+*.bak
+*.log
+*.zip
+Reincarnation_backup_*/
+
+# Salvataggi di prova esportati dal gioco
+*.save.json
+reincarnation-save*.json
+
+# NOTA: Reincarnation.html (build) E' versionato di proposito: e' il prodotto finale
+# autonomo. Va ricostruito con `python build.py Reincarnation.html` ad ogni modifica ai sorgenti.

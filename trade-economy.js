@@ -1,0 +1,253 @@
+/* Mercati regionali e banca comune. I prezzi sono espressi in Scintille. */
+(() => {
+  'use strict';
+
+  const denominations=[
+    {id:'astral',name:'Astrali',factor:1000000n},
+    {id:'solar',name:'Solari',factor:10000n},
+    {id:'lunar',name:'Lunari',factor:100n},
+    {id:'spark',name:'Scintille',factor:1n}
+  ];
+  const denominationById=Object.fromEntries(denominations.map(item=>[item.id,item.factor]));
+  const moneyLimit=1000000000n;
+  const normalHours='07:00–20:00';
+  const profiles=[
+    ['vela','Mercato di Vela','valley',445,627,{
+      herb:[12,3],ore:[6,6],seeds:[10,3],grain:[8,4],work:[8,5],wool:[5,7],potion:[6,8]
+    }],
+    ['filoni','Mercato dei Filoni','frost-pass',455,409,{
+      herb:[5,6],ore:[16,3],seeds:[4,5],grain:[4,7],work:[13,4],wool:[10,5],potion:[5,10]
+    }],
+    ['velaris','Banchi di Velaris','verdant-canopy',455,409,{
+      herb:[14,3],ore:[4,8],essence:[7,9],seeds:[6,4],grain:[5,6],work:[5,7],potion:[10,7]
+    }],
+    ['namar','Mercato di Namar','golden-savanna',455,409,{
+      herb:[9,4],ore:[4,7],seeds:[13,2],grain:[16,3],work:[8,5],wool:[12,5],potion:[5,10]
+    }],
+    ['calis','Scalo di Calis','dune-port',455,409,{
+      herb:[5,6],ore:[9,5],essence:[4,14],seeds:[5,5],grain:[8,5],work:[11,4],wool:[5,8],potion:[7,8]
+    }]
+  ].map(([id,name,region,x,y,goods],index)=>({id,name,region,x,y,goods,continent:'continent-'+(index+1),range:24}));
+  for(const profile of profiles)Object.assign(profile.goods,{bread:[7,5],water:[8,3]});
+  const marketBook=Object.fromEntries(profiles.map(profile=>[profile.id,profile]));
+  const own=(value,id)=>value!==null&&value!==undefined&&Object.hasOwn(value,id);
+  const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
+  const canonical=value=>typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value);
+  const amountOf=value=>typeof value==='bigint'?(value>=0n?value:null):
+    Number.isSafeInteger(value)&&value>=0?BigInt(value):canonical(value)?BigInt(value):null;
+  const format=new Intl.NumberFormat('it-IT');
+  const fail=text=>({ok:false,text});
+  const done=(text,extra={})=>({ok:true,changed:true,text,...extra});
+  const minBig=(a,b)=>a<b?a:b;
+  const shopNear=(s,p)=>s.region===p.region&&Math.hypot(s.player.x-p.x,s.player.y-p.y)<=p.range;
+  const clock=s=>window.Calendar?.view(s.calendar,s.time,s.region)||
+    {day:1+Math.floor((480+s.time*3)/1440),shopOpen:Math.floor(480+s.time*3)%1440>=420&&Math.floor(480+s.time*3)%1440<1200,seasonIndex:0};
+
+  function wallet(gold){
+    const count=amountOf(gold)??0n;
+    let change=count;
+    const coins=denominations.map(({id,name,factor})=>{
+      const units=change/factor;
+      change%=factor;
+      return {id,name,quantity:String(units),formatted:format.format(units)};
+    });
+    const visible=coins.filter(coin=>coin.quantity!=='0');
+    const label=visible.length?visible.map(coin=>coin.formatted+' '+coin.name).join(' · '):'0 Scintille';
+    return {total:String(count),totalFormatted:format.format(count),label,coins};
+  }
+  function initialMarket(profile,seed){
+    const offset=(Math.imul(Number(seed)>>>0,125269)>>>0)%3;
+    return {day:1,stock:Object.fromEntries(Object.entries(profile.goods).map(([id,[target]])=>[id,String(Math.max(1,target-2+offset))]))};
+  }
+  function create(seed=0){
+    return {schema:1,balance:'0',markets:Object.fromEntries(profiles.map(profile=>[profile.id,initialMarket(profile,seed)]))};
+  }
+  function restore(raw,seed,s){
+    if(raw===undefined)return create(seed);
+    if(!object(raw)||raw.schema!==1||!canonical(raw.balance)||!object(raw.markets)||Object.keys(raw.markets).length!==profiles.length)return null;
+    const markets={};
+    for(const profile of profiles){
+      const where=raw.markets[profile.id];
+      if(!object(where)||!Number.isSafeInteger(where.day)||where.day<1||where.day>1e9||!object(where.stock))return null;
+      const stock=Object.create(null);
+      for(const [id,count] of Object.entries(where.stock)){
+        if(!/^[a-z][a-z0-9._:-]{0,95}$/i.test(id)||['constructor','prototype','__proto__'].includes(id)||!canonical(count))return null;
+        const item=s?Inventory.definition(s,id):Inventory.catalog[id];
+        if(s&&item?.id!==id||item?.quest&&count!=='0')return null;
+        if(count!=='0')stock[id]=count;
+      }
+      markets[profile.id]={day:where.day,stock};
+    }
+    return {schema:1,balance:raw.balance,markets};
+  }
+  function restocked(market,profile,day){
+    if(day<=market.day)return market;
+    const elapsed=BigInt(day-market.day),stock={...market.stock};
+    for(const [id,[goal]] of Object.entries(profile.goods)){
+      const count=BigInt(stock[id]||'0'),target=BigInt(goal);
+      if(count<target)stock[id]=String(count+minBig(target-count,elapsed*2n));
+      else if(count>target)stock[id]=String(count-minBig(count-target,elapsed));
+    }
+    return {day,stock};
+  }
+  function tick(s){
+    if(!s?.economy)return;
+    const day=clock(s).day;
+    for(const profile of profiles){
+      const old=s.economy.markets[profile.id];
+      if(day>old.day)s.economy.markets[profile.id]=restocked(old,profile,day);
+    }
+  }
+
+  function actualMarket(s){
+    const continent=window.World?.regions?.[s.region]?.continent;
+    return profiles.find(profile=>profile.continent===continent)||profiles[0];
+  }
+  function info(s,profile,c=clock(s)){
+    return {id:profile.id,name:profile.name,region:profile.region,
+      regionName:window.World?.regions?.[profile.region]?.name||profile.region,
+      continent:profile.continent,x:profile.x,y:profile.y,hours:normalHours,
+      near:shopNear(s,profile),open:c.shopOpen,available:c.shopOpen&&shopNear(s,profile),day:c.day};
+  }
+  function stockAt(where,id){return own(where.stock,id)?BigInt(where.stock[id]):0n;}
+  function shortage(s,marketId,id){
+    const profile=marketBook[marketId],goal=profile?.goods[id]?.[0],market=s.economy?.markets[marketId];
+    if(!goal||!market)return 0;
+    const supplied=stockAt(restocked(market,profile,clock(s).day),id);
+    return supplied<BigInt(goal)?1-Number(supplied)/goal:0;
+  }
+  function updateStock(where,id,qty){
+    if(qty===0n)delete where.stock[id];
+    else where.stock[id]=String(qty);
+  }
+  function tradeAllowed(s,item){
+    return !!item&&!item.quest&&s.player.equipped!==item.id&&s.player.tool!==item.id&&
+      s.player.equippedTool!==item.id&&s.trades?.tool!==item.id&&s.workshop?.weapon!==item.id&&s.workshop?.weapon?.id!==item.id;
+  }
+  function price(profile,where,item,c){
+    const prices={weapons:20,armor:18,materials:6,food:7,ingredients:4,tools:14,magic:11,quests:0};
+    const [target,native]=profile.goods[item.id]||[6,prices[item.category]||5];
+    const stock=stockAt(where,item.id);
+    const scarcity=stock<=BigInt(Math.floor(target/3))?1:stock>=BigInt(target)?-1:0;
+    const quality=item.quality===null?0:typeof item.quality==='number'?Math.max(0,Math.min(6,item.quality|0)):
+      /eccellente|pregiat|magistr|legend/i.test(item.quality||'')?2:0;
+    const winter=c.seasonId==='winter'||c.seasonIndex===3;
+    const season=winter&&['food','ingredients','materials'].includes(item.category)?1:0;
+    const buy=Math.max(2,native+scarcity+quality+season);
+    return {buy,sell:Math.max(1,Math.min(buy-1,Math.floor((native+quality+season)*.72)+scarcity))};
+  }
+  function listings(s,profile,c,where){
+    const ids=new Set([...Object.keys(profile.goods),...Object.keys(where.stock),
+      ...Object.keys(Inventory.catalog),...Object.keys(s.bag?.definitions||{})]);
+    const rows=[];
+    for(const id of ids){
+      const item=Inventory.definition(s,id);
+      if(!item||item.quest)continue;
+      const stock=stockAt(where,id),owned=Inventory.quantity(s,id);
+      if(!stock&&!owned&&!own(profile.goods,id))continue;
+      const {buy,sell}=price(profile,where,item,c);
+      rows.push({...item,stock:String(stock),formattedStock:format.format(stock),
+        owned:String(owned),formattedOwned:format.format(owned),buy,sell,sellable:owned>0n&&tradeAllowed(s,item)});
+    }
+    return rows.sort((a,b)=>a.name.localeCompare(b.name,'it-IT'));
+  }
+  function view(s){
+    if(!s?.economy)return null;
+    const c=clock(s),profile=actualMarket(s),here=info(s,profile,c);
+    const where=restocked(s.economy.markets[profile.id],profile,c.day);
+    const money=wallet(s.economy.balance);
+    return {
+      wallet:wallet(s.player.gold),
+      bank:{balance:money.total,formatted:money.totalFormatted,wallet:money,available:here.available,
+        items:Inventory.view(s,{location:'deposit'})},
+      market:{...here,rows:listings(s,profile,c,where)},
+      markets:profiles.map(entry=>info(s,entry,c))
+    };
+  }
+  function sites(s){
+    if(!s?.economy)return [];
+    const profile=profiles.find(market=>market.region===s.region);
+    if(!profile)return [];
+    return [{id:profile.id,kind:'economy',point:{x:profile.x,y:profile.y},range:profile.range,
+      text:profile.name+' · Mercato e banca'}];
+  }
+  function use(s,id){
+    const market=own(marketBook,id)?marketBook[id]:null;
+    if(!market||!shopNear(s,market))return fail('Avvicinati al mercato.');
+    return {ok:true,panel:'economy'};
+  }
+  function bank(s,data){
+    if(data.currency!==undefined&&!own(denominationById,data.currency))return fail('Seleziona una moneta valida.');
+    const quantity=amountOf(data.amount??1);
+    if(quantity===null||quantity===0n)return fail('Inserisci una quantità intera positiva.');
+    const count=quantity*(denominationById[data.currency||'spark']||1n);
+    const carried=amountOf(s.player.gold),balance=BigInt(s.economy.balance);
+    if(carried===null)return fail('Il borsello richiede un valore intero valido.');
+    if(data.op==='bankDeposit'){
+      if(count>carried)return fail('Fondi insufficienti nel borsello.');
+      s.player.gold=Number(carried-count);
+      s.economy.balance=String(balance+count);
+      return done('Versato · '+wallet(count).label);
+    }
+    if(count>balance)return fail('Fondi insufficienti in banca.');
+    if(carried+count>moneyLimit)return fail('Preleva una somma minore. Puoi conservare il resto in banca.');
+    s.player.gold=Number(carried+count);
+    s.economy.balance=String(balance-count);
+    return done('Prelevato · '+wallet(count).label);
+  }
+  function trade(s,profile,c,data){
+    const id=data.id==='potions'?'potion':data.id;
+    const quantity=amountOf(data.amount??1),item=Inventory.definition(s,id),carried=amountOf(s.player.gold);
+    if(!item||item.quest)return fail('Oggetto non commerciabile.');
+    if(quantity===null||quantity===0n||carried===null)return fail('Inserisci una quantità intera positiva.');
+    const where=restocked(s.economy.markets[profile.id],profile,c.day),stock=stockAt(where,id);
+    const {buy,sell}=price(profile,where,item,c);
+    const buying=data.op==='buy',priceTotal=BigInt(buying?buy:sell)*quantity;
+    if(buying){
+      if(stock<quantity)return fail('Scorte insufficienti.');
+      if(carried<priceTotal)return fail('Fondi insufficienti nel borsello.');
+      if(!Inventory.add(s,id,quantity))return fail('Non è stato possibile aggiungere l’oggetto.');
+      s.player.gold=Number(carried-priceTotal);
+      updateStock(where,id,stock-quantity);
+    }else{
+      if(!tradeAllowed(s,item))return fail('Gli oggetti equipaggiati devono prima essere rimossi.');
+      if(carried+priceTotal>moneyLimit)return fail('Versa parte del borsello in banca prima di questa vendita.');
+      if(!Inventory.take(s,id,quantity))return fail('Quantità posseduta insufficiente.');
+      s.player.gold=Number(carried+priceTotal);
+      updateStock(where,id,stock+quantity);
+    }
+    s.economy.markets[profile.id]=where;
+    return done(item.name+' ×'+format.format(quantity)+' · '+(buying?'Pagato ':'Ricevuto ')+wallet(priceTotal).label,
+      {event:{id:'trade',amount:1,meta:{market:profile.id,item:id,direction:data.op}}});
+  }
+  function command(s,data){
+    if(!s?.economy||!object(data))return fail('Operazione non disponibile.');
+    const profile=actualMarket(s);
+    if(!shopNear(s,profile))return fail('Raggiungi '+profile.name+' per completare l’operazione.');
+    const c=clock(s);
+    if(!c.shopOpen)return fail(profile.name+' è chiuso. Orario '+normalHours+'.');
+    switch(data.op){
+      case 'buy':case 'sell':return trade(s,profile,c,data);
+      case 'bankDeposit':case 'bankWithdraw':return bank(s,data);
+      case 'itemDeposit':case 'itemWithdraw':
+        return Inventory.command(s,{...data,op:data.op==='itemDeposit'?'deposit':'withdraw'});
+      default:return fail('Operazione sconosciuta.');
+    }
+  }
+  function actors(s){
+    return sites(s).map(({point})=>({x:point.x,y:point.y,draw(ctx){
+      const x=point.x,y=point.y;
+      ctx.save();
+      ctx.fillStyle='#222f2d';ctx.fillRect(x-10,y-3,20,4);
+      ctx.fillStyle='#533c32';ctx.fillRect(x-7,y-10,14,9);ctx.fillRect(x-9,y-23,2,18);ctx.fillRect(x+7,y-23,2,18);
+      ctx.fillStyle='#b88754';ctx.fillRect(x-9,y-10,18,3);
+      ctx.fillStyle='#8a413e';ctx.fillRect(x-10,y-24,20,5);
+      ctx.fillStyle='#d69266';ctx.fillRect(x-9,y-24,3,5);ctx.fillRect(x-1,y-24,3,5);ctx.fillRect(x+6,y-24,3,5);
+      ctx.fillStyle='#e1bd74';ctx.fillRect(x-2,y-6,4,3);ctx.fillRect(x-1,y-7,2,5);
+      ctx.restore();
+    }}));
+  }
+
+  window.Economy={create,restore,wallet,view,command,tick,sites,use,actors,shortage};
+})();
+
