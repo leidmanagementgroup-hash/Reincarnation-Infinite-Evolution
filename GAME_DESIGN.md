@@ -122,6 +122,8 @@ Slot arma/armatura/accessorio; sette rarità da Comune a Divino; durabilità, ri
 ### 4.9 Conflitti NPC e rinascita
 Pattuglie, ferite (sano/ferito/critico/morto), soccorsi con oggetti o magia, **morte permanente** degli abitanti, memoriali e rito dell’Eco della Rinascita. Il memoriale di Nerea conserva il percorso alternativo della campagna.
 
+**Compagni di gilda in combattimento (decisione confermata dall'utente il 2026-11-21).** I compagni della squadra sono abitanti a tutti gli effetti e subiscono danno reale tramite `Conflicts.damageNpc` quando sono a contatto con un nemico. Sotto il 42% dei PV diventano *feriti* e si ritirano dallo scontro; a 0 PV diventano *critici* con una scadenza di circa 105 unità di tempo. Se non vengono soccorsi (pozione, erbe o magia di cura) entro la scadenza **muoiono in modo permanente**, con memoriale, e se il giocatore era presente subisce una perdita di reputazione per negligenza (`npc-neglect`). Solo abitanti sani possono essere reclutati. Prima dell'integrazione di Velaris i compagni avevano un minimo di PV e non potevano morire.
+
 ## 5. Comandi
 
 Movimento WASD/frecce · Attacco J/clic · Schivata Spazio · Abilità 1-2-3 · Innata R · Interazione E · Pozione Q · Personaggio C · Inventario I · Abilità K · Evoluzioni V · Bestiario B · Mappa M · Diario L · Mestieri U · Calendario/bisogni N · Abitanti O · Proprietà T · Gilda G · Guida H · Pausa/chiudi Esc. (Fonte: `LEGGIMI.md` e `interface.js`.)
