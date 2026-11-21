@@ -189,6 +189,26 @@ for (const hour of [12, 19.5, 23]) {
   }
 }
 
+// BUG-011: i percorsi dei residenti (raggio 5) esistono e nessun tratto entra nel raggio di un ostacolo,
+// verificato in modo indipendente a passi di 0,25 px (prima i tratti sfioravano ponti e spigoli e venivano scartati).
+{
+  const legal = (points, r) => points.every((p, i) => {
+    if (!i) return true;
+    const q = points[i - 1], n = Math.max(1, Math.ceil(Math.hypot(p.x - q.x, p.y - q.y) / 0.25));
+    for (let k = 0; k <= n; k++) if (!city.canWalk(q.x + (p.x - q.x) * k / n, q.y + (p.y - q.y) * k / n, r)) return false;
+    return true;
+  });
+  const goals = [city.plaza, ...city.services.map(v => v.point)];
+  for (const home of city.residences.slice(0, 12)) for (const goal of goals) {
+    const road = city.path(home, goal, 5);
+    assert(road.length >= 2, 'Percorso del residente da ' + home.id + ' a ' + (goal.id || goal.name || 'piazza'));
+    assert(legal(road, 5), 'Tratto illegale da ' + home.id + ' a ' + (goal.id || goal.name || 'piazza'));
+  }
+  // Caso diagnosticato: ingresso in diagonale sul ponte principale (seme 555).
+  const bridgeRoad = city.path({ x: 888, y: 768 }, { x: 1128, y: 744 }, 5);
+  assert(bridgeRoad.length >= 2 && legal(bridgeRoad, 5), 'Attraversamento del ponte principale');
+}
+
 // Luce e vegetazione di Velaris: disegno di giorno e di notte, con e senza movimento ridotto, al massimo otto luci.
 const drawn = { glows: 0, calls: 0 };
 const counting = new Proxy({

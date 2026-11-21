@@ -2,6 +2,15 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-21] BUG-011: percorsi dei residenti di Velaris senza sfioramenti — Claude
+Branch `claude/bug-011-percorsi` (non unito a `main`).
+### Corretto
+- `path()` verificava i tratti a campioni ogni 4 px e accettava segmenti che sfioravano di 0,03–1,0 px ponti, spigoli di edifici e oggetti solidi; `urban-life.js` li scartava e il residente restava fermo. Nuova verifica esatta `segmentClear()` per tutti i tratti e i passi della griglia, con memoria dei passi (file: `urban-exterior.js`). Residenti fermi: 709/27 072 (2,62%) → 0; tratte senza percorso 116 → 0 e tratte con segmenti illegali 75 → 0 su 3 330 (6 semi, inclusi 555 e 2024); sovrapposizioni 4 → 0.
+### Aggiunto
+- Caso di regressione in `tests/verifica-integrazione.cjs` e sonda `tests/sonda-percorsi.cjs`.
+### Modificato
+- `Reincarnation.html` ricostruito. Nessuna modifica a mappe, collisioni, salvataggi, movimento del giocatore o routine.
+
 ## [2026-11-21] Prova nel browser con Playwright — Claude
 ### Aggiunto
 - `tests/prova-browser.cjs`: 10 prove nel browser (avvio, Atlante, «Segna Velaris», ingresso a Velaris, menu, salvataggi, nessun errore JS) con `playwright-core` esterno al progetto. Nessun codice del gioco modificato, nessuna dipendenza aggiunta.

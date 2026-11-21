@@ -281,6 +281,60 @@
       });
     }
 
+    // Verifica esatta di un tratto rettilineo per un corpo di raggio r: stesso criterio di canWalk
+    // (limiti, canale fuori dai ponti, edifici e oggetti solidi), ma su tutto il segmento e non a campioni.
+    // Un tratto che la supera non sfiora mai un ostacolo, qualunque sia la densità del controllo successivo.
+    function segmentClear(p,q,r){
+      const margin=1e-3;
+      for(const s of [p,q])if(!Number.isFinite(s.x)||!Number.isFinite(s.y)||s.x-r<29||s.y-r<31||s.x+r>width-28||s.y+r>height-30)return false;
+      const dx=q.x-p.x,dy=q.y-p.y;
+      // Canale: dove il corpo tocca la fascia d'acqua, l'intero tratto deve restare dentro uno stesso ponte.
+      const lo=canal.left-r-margin,hi=canal.right+r+margin;
+      let t0=0,t1=1;
+      if(dx===0){if(p.x<lo||p.x>hi)t0=2;}
+      else{const a=(lo-p.x)/dx,b=(hi-p.x)/dx;t0=Math.max(0,Math.min(a,b));t1=Math.min(1,Math.max(a,b));}
+      if(t0<=t1){
+        const ya=p.y+dy*t0,yb=p.y+dy*t1,top=Math.min(ya,yb),bottom=Math.max(ya,yb);
+        if(!bridges.some(at=>top-r>=at-28+margin&&bottom+r<=at+28-margin))return false;
+      }
+      // Edifici e oggetti solidi registrati nelle celle attraversate dal tratto.
+      const minX=Math.floor((Math.min(p.x,q.x)-r)/cell),maxX=Math.floor((Math.max(p.x,q.x)+r)/cell);
+      const minY=Math.floor((Math.min(p.y,q.y)-r)/cell),maxY=Math.floor((Math.max(p.y,q.y)+r)/cell);
+      const limit=(r+margin)**2;
+      for(let cy=minY;cy<=maxY;cy++)for(let cx=minX;cx<=maxX;cx++){
+        const list=cells.get(cx+cy*64);
+        if(list)for(const box of list)if(segmentBoxDistance2(p,q,box)<=limit)return false;
+      }
+      return true;
+    }
+    // Memoria dei passi della griglia (12 px) già verificati, per raggio: la ricerca resta esatta ma non ripete i controlli.
+    const gridMemo=new Map();
+    function gridStep(nx,size,r,from,to){
+      let memo=gridMemo.get(r);
+      if(!memo){memo={east:new Uint8Array(size),south:new Uint8Array(size)};gridMemo.set(r,memo);}
+      const low=Math.min(from,to),horizontal=Math.abs(to-from)===1,table=horizontal?memo.east:memo.south;
+      if(!table[low]){
+        const a={x:(low%nx)*12,y:Math.floor(low/nx)*12},b=horizontal?{x:a.x+12,y:a.y}:{x:a.x,y:a.y+12};
+        table[low]=segmentClear(a,b,r)?1:2;
+      }
+      return table[low]===1;
+    }
+    function segmentBoxDistance2(p,q,box){
+      const x0=box.x,y0=box.y,x1=box.x+box.w,y1=box.y+box.h,dx=q.x-p.x,dy=q.y-p.y;
+      // Intersezione segmento-rettangolo (Liang-Barsky): distanza nulla.
+      let a=0,b=1,hit=true;
+      for(const [den,num] of [[-dx,p.x-x0],[dx,x1-p.x],[-dy,p.y-y0],[dy,y1-p.y]]){
+        if(den===0){if(num<0){hit=false;break;}continue;}
+        const t=num/den;
+        if(den<0){if(t>b){hit=false;break;}if(t>a)a=t;}else{if(t<a){hit=false;break;}if(t<b)b=t;}
+      }
+      if(hit&&a<=b)return 0;
+      const toBox=(x,y)=>{const px=Math.min(x1,Math.max(x0,x)),py=Math.min(y1,Math.max(y0,y));return (x-px)**2+(y-py)**2;};
+      const len2=dx*dx+dy*dy;
+      const toSegment=(x,y)=>{const t=len2?Math.max(0,Math.min(1,((x-p.x)*dx+(y-p.y)*dy)/len2)):0;return (x-p.x-dx*t)**2+(y-p.y-dy*t)**2;};
+      return Math.min(toBox(p.x,p.y),toBox(q.x,q.y),toSegment(x0,y0),toSegment(x1,y0),toSegment(x0,y1),toSegment(x1,y1));
+    }
+
     const waypoints=waypointList.filter(w=>canWalk(w.x,w.y)).map(w=>({...w,district:w.district||districtAt(w.x,w.y).id}));
     const wayBook=new Map(waypoints.map(w=>[w.id,w]));
     const residences=buildings.filter(b=>b.kind==='residence'&&canWalk(b.door.x,b.door.y)).map(b=>(
@@ -292,11 +346,8 @@
       if(!a||!b||!canWalk(a.x,a.y,r)||!canWalk(b.x,b.y,r))return [];
       const key=[Math.round(a.x),Math.round(a.y),Math.round(b.x),Math.round(b.y),r].join(':');
       if(routes.has(key))return routes.get(key);
-      function clear(p,q){
-        const n=Math.max(1,Math.ceil(Math.hypot(q.x-p.x,q.y-p.y)/4));
-        for(let i=0;i<=n;i++)if(!canWalk(p.x+(q.x-p.x)*i/n,p.y+(q.y-p.y)*i/n,r))return false;
-        return true;
-      }
+      // Prima i campioni a 4 px scartavano i tratti che sfioravano spigoli e ponti fra un campione e l'altro (BUG-011).
+      const clear=(p,q)=>segmentClear(p,q,r);
       if(clear(a,b))return [{x:a.x,y:a.y},{x:b.x,y:b.y}];
       const step=12,nx=Math.ceil(width/step),ny=Math.ceil(height/step),size=nx*ny;
       const at=(x,y)=>y*nx+x,xy=index=>({x:(index%nx)*step,y:Math.floor(index/nx)*step});
@@ -322,7 +373,7 @@
         for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
           const px=x+dx,py=y+dy,n=at(px,py);
           if(px<0||py<0||px>=nx||py>=ny||costs[n]!==-2||!canWalk(px*step,py*step,r)||
-            !canWalk((x+dx*.5)*step,(y+dy*.5)*step,r))continue;
+            !gridStep(nx,size,r,cur,n))continue;
           costs[n]=cur;queue[used++]=n;
         }
       }
