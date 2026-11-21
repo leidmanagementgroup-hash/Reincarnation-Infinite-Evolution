@@ -2,6 +2,10 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-21] Compagni di gilda mortali: decisione confermata (RISK-007) — Claude
+### Documentazione
+- Su scelta dell'utente il comportamento resta com'è: i compagni di gilda possono morire in modo permanente se non soccorsi. Regola in `GAME_DESIGN.md` §4.9; `PROGRESS.md` e `ROADMAP.md` aggiornati. Nessun codice modificato.
+
 ## [2026-11-21] Piazza, ponte e mercato di Velaris — Codex
 
 Commit della fase `84c1ff4`. Integrata anche la correzione del Santuario `3ec9819` con i relativi test.

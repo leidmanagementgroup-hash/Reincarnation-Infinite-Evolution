@@ -11,7 +11,8 @@
 ## Esiti della revisione 2026-11-21
 
 - [x] RISK-006: lo stato incoerente del Santuario ora produce un avviso invece del rifiuto del salvataggio (2026-11-21).
-- [ ] RISK-007: confermare la morte permanente dei compagni di gilda e documentarla in `GAME_DESIGN.md`.
+- [x] RISK-007: morte permanente dei compagni di gilda confermata e documentata in `GAME_DESIGN.md` §4.9 (2026-11-21).
+- [ ] Verificare in partita il bilanciamento dei danni ai compagni (quanto spesso scendono in stato critico).
 - [ ] Estendere il test Node a `panels.js`/`interface.js` con un DOM minimo, e aggiungere casi per evoluzione, boss adattivi e minigiochi. Il mercato di Velaris è già coperto.
 - [ ] Condividere nello stesso repository una prova di prestazioni a finestra visibile. Il primo confronto locale della fase 1 è in `PROGRESS.md`.
 

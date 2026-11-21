@@ -9,7 +9,7 @@ _Nessuna modifica in corso._
 1. Aprire un branch dalla versione corrente di `main` per la **fase 2** del [piano ufficiale](MEGA_CITY_OVERHAUL.md). Estendere il contrasto visivo tra il Mercato dei Venti e i Giardini delle Lanterne e facilitare l’orientamento con segnaletica e mappa. Partire da `urban-exterior.js`, `urban-world.js` e dal [piano grafico](PIANO_GRAFICO.md).
 2. Verificare l’affollamento nei punti di sosta. A mezzogiorno alcuni residenti si sovrappongono nella piazza. Distribuire le soste su punti percorribili in `urban-life.js` e verificare accesso agli abitanti, orari e commissioni prima di ampliare la popolazione.
 3. Per la **fase 3** il banco di Velaris riceve già prodotti locali e merci di commissione. Riutilizzare le scorte persistenti e il mercato condiviso con la Selva. Restano da collegare altre filiere, richieste individuali, eventi e servizi.
-4. Resta da chiarire la regola sulla morte dei compagni di gilda (RISK-007). La misura grafica comparativa è disponibile in questo registro. Lo script per ripeterla resta da integrare nella suite condivisa.
+4. La morte dei compagni di gilda (RISK-007) è confermata dall'utente e documentata in `GAME_DESIGN.md` §4.9; resta da verificarne il bilanciamento in partita. La misura grafica comparativa è disponibile in questo registro. Lo script per ripeterla resta da integrare nella suite condivisa.
 
 ## Versione e stato generale
 - **Aggiornamento 5 · Velaris**, salvataggio **v7** con migrazione da v1 a v6.
