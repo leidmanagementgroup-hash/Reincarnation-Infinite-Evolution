@@ -8,6 +8,13 @@
 - [x] **Controllo automatico dell’integrazione** con `node tests/verifica-integrazione.cjs`.
 - [ ] Ampliare la suite condivisa con casi per i minigiochi e l’intera campagna, e configurarne l’esecuzione automatica.
 
+## Esiti della revisione 2026-11-21
+
+- [x] RISK-006: lo stato incoerente del Santuario ora produce un avviso invece del rifiuto del salvataggio (2026-11-21).
+- [ ] RISK-007: confermare la morte permanente dei compagni di gilda e documentarla in `GAME_DESIGN.md`.
+- [ ] Estendere il test Node a `panels.js`/`interface.js` con un DOM minimo, e aggiungere casi per evoluzione, boss adattivi e minigiochi. Il mercato di Velaris è già coperto.
+- [ ] Condividere nello stesso repository una prova di prestazioni a finestra visibile. Il primo confronto locale della fase 1 è in `PROGRESS.md`.
+
 ## Priorità di sviluppo — Aggiornamento 5
 
 - [Piano ufficiale Mega City Overhaul](MEGA_CITY_OVERHAUL.md), con requisiti, fasi, criteri di verifica e passaggio di consegne fra modelli.

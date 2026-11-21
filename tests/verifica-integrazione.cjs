@@ -25,7 +25,9 @@ function surface() {
 }
 
 const store = new Map();
+const warnings = [];
 const scope = {
+  console: { warn: message => warnings.push(String(message)) },
   document: { createElement: surface },
   localStorage: {
     getItem: key => store.get(key) ?? null,
@@ -155,4 +157,14 @@ assert(Game.save() && Game.load());
 assert.equal(Game.s.economy.markets.velaris.stock[order.item], String(order.amount));
 assert.equal(Game.s.urban.mission.completed, 1);
 
-console.log('OK: compatibilità v5/v6→v7, inventario, equipaggiamento, soccorso, sette interni, restauro e rifornimenti di Velaris.');
+// Uno stato incoerente del Santuario non deve far perdere la partita: avviso, non rifiuto.
+const inconsistent = JSON.parse(Game.exportSave());
+inconsistent.defeated = { ...inconsistent.defeated, nadir: 1 };
+assert(Game.importSave(JSON.stringify(inconsistent)), 'Il salvataggio con Santuario incoerente deve restare caricabile');
+assert(warnings.some(text => text.includes('Santuario')));
+// Le sezioni strutturali mancanti restano motivo di rifiuto.
+const incomplete = JSON.parse(Game.exportSave());
+delete incomplete.urban;
+assert.equal(Game.importSave(JSON.stringify(incomplete)), false);
+
+console.log('OK: compatibilità v5/v6→v7, inventario, equipaggiamento, soccorso, sette interni, restauro, rifornimenti di Velaris e avviso del Santuario.');
