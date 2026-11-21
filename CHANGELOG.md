@@ -4,6 +4,8 @@ Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGEN
 
 ## [2026-11-21] Versione integrata e città di Velaris — Codex
 
+Commit di integrazione `7f182be`.
+
 ### Aggiunto
 - Collegata Velaris alla Selva degli Alambicchi. Quattro quartieri, sette interni, residenti, commissioni, mappa e restauro persistente (file `urban-exterior.js`, `urban-interiors.js`, `urban-world.js`, `urban-services.js`, `urban-life.js`).
 - Riutilizzati mercato, deposito, riparazione, fucina e incarichi della Gilda nei servizi della città (file `trade-economy.js`, `gear.js`, `guild.js`, `tradecraft.js`, `daily-life.js`).
