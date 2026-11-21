@@ -22,10 +22,10 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 - **Audio**: Web Audio, musica sintetizzata originale con arrangiamento dinamico (`audio.js`, globale `Score`); impostazioni in `localStorage` (`lumora-audio-v1`).
 - **Interfaccia**: `template.html` (schermata titolo, schermata di gioco, `#veil`/`#dialog` modale con schede, toast) + `style.css`; logica in `interface.js` (input, ciclo di gioco, camera, HUD) e `panels.js` + pannelli specializzati. Controlli touch (croce direzionale) presenti.
 - **Build**: `python build.py [destinazione]` legge `template.html`, inserisce `style.css` (con la copertina in base64) e concatena i moduli nell'ordine della tupla `MODULES`, producendo `Reincarnation.html` (~1,5 MB). Solo libreria standard Python 3.
-- **Persistenza**: `localStorage`, chiave `reincarnation.lumora.save.v5` (versione 5, limite `saveMaxBytes` 12.000.000); migrazione da `v4…v1` tramite `saveKeys` in `engine.js`. Export/import JSON dal menu Opzioni. Altre preferenze: `lumora-effects`, `lumora-guidance`, `lumora-audio-v1`.
+- **Persistenza**: `localStorage`, chiave `reincarnation.lumora.save.v7` (versione 7, limite `saveMaxBytes` 12.000.000), migrazione da `v6…v1` tramite `saveKeys` in `engine.js`. Export/import JSON dal menu Opzioni. Altre preferenze: `lumora-effects`, `lumora-guidance`, `lumora-audio-v1`.
 - **Numeri esatti**: inventario, valute e mercati usano `BigInt` internamente e stringhe decimali in JSON.
 - **Determinismo**: elementi procedurali di mondo/eventi usano semi fissi.
-- **Nessuna suite di test automatici** al momento (vedi `PROGRESS.md`).
+- **Verifica automatica** con `node tests/verifica-integrazione.cjs`. Per il collaudo in browser vedi `PROGRESS.md`.
 
 ### 2.1 Moduli (ordine di caricamento in `build.py`)
 
@@ -39,42 +39,55 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 | 6 | `expansion-art.js` | `ActorArt` | Arte delle nuove stirpi, creature, guardiani |
 | 7 | `continental-species.js` | `EvolutionContent`, `ContinentalBiology`, `ActorArt` | Otto stirpi aggiuntive e profili biologici |
 | 8 | `legendary-land.js` | `LegendaryLand`, `World` | Area del Santuario della Marea Muta (`nadir-vault`) |
-| 9 | `legendary.js` | `Legendary` | Scoperta, bottino unico, successione del Santuario; Nadir, Arma Divina, Eco della Rinascita |
-| 10 | `calendar.js` | `Calendar` | Calendario persistente unico (giorno = 1800 s reali = 1440 min di gioco) |
-| 11 | `inventory.js` | `Inventory` | Magazzino a pile, quantità esatte, deposito |
-| 12 | `lantern.js` | `Lantern` | Evento serale nel Bosco di Vetro |
-| 13 | `growth.js` | `Growth` | Biologia fantasy, predisposizioni, innata evolutiva, allenamento, metamorfosi |
-| 14 | `world-life.js` | `Life` | Mestieri, luoghi di lavoro, routine NPC, eventi, statue/rinascita |
-| 15 | `construction.js` | `Build` | Lotti, costruzioni (casa, fattoria, laboratorio…), collisioni, proprietà |
-| 16 | `society.js` | `Society` | Abitanti, memorie, commercio, accordi, famiglia |
-| 17 | `guild.js` | `Guild` | Registri pubblici, incarichi, rango F–S, compagni, gilda personale |
-| 18 | `trades-practice.js` | `GamePractice` | Minigiochi di mestiere (puri, senza DOM/Canvas) |
-| 19 | `tradecraft.js` | `Tradecraft` | Attività, raccolti, allevamento, ricette |
-| 20 | `daily-life.js` | `Daily` | Bisogni, incarichi facoltativi quotidiani |
-| 21 | `trade-economy.js` | `Economy` | Mercati regionali, valute, banca |
-| 22 | `adaptive-combat.js` | `Adaptive` | Boss che riconoscono lo stile ripetuto (melee/projectile/field) e rispondono |
-| 23 | `reputation.js` | `Reputation` | Reputazione con insediamenti, regni, gilde, fazioni; titoli |
+| 9 | `urban-exterior.js` | `UrbanExterior` | Quartieri, edifici, canale, ponti e percorsi deterministici di Velaris |
+| 10 | `urban-interiors.js` | `UrbanInteriors` | Sette interni visitabili e cache delle superfici |
+| 11 | `urban-world.js` | `UrbanWorld, World` | Collegamenti con la Selva degli Alambicchi, rotte, collisioni e accesso ai servizi |
+| 12 | `calendar.js` | `Calendar` | Calendario persistente unico (giorno = 1800 s reali = 1440 min di gioco) |
+| 13 | `inventory.js` | `Inventory` | Magazzino a pile, quantità esatte, deposito |
+| 14 | `lantern.js` | `Lantern` | Evento serale nel Bosco di Vetro |
+| 15 | `growth.js` | `Growth` | Biologia fantasy, predisposizioni, innata evolutiva, allenamento, metamorfosi |
+| 16 | `world-life.js` | `Life` | Mestieri, luoghi di lavoro, routine NPC, eventi, statue/rinascita |
+| 17 | `construction.js` | `Build` | Lotti, costruzioni (casa, fattoria, laboratorio…), collisioni, proprietà |
+| 18 | `society.js` | `Society` | Abitanti, memorie, commercio, accordi, famiglia |
+| 19 | `guild.js` | `Guild` | Registri pubblici, incarichi, rango F–S, compagni, gilda personale |
+| 20 | `trades-practice.js` | `GamePractice` | Minigiochi di mestiere (puri, senza DOM/Canvas) |
+| 21 | `tradecraft.js` | `Tradecraft` | Attività, raccolti, allevamento, ricette |
+| 22 | `daily-life.js` | `Daily` | Bisogni, incarichi facoltativi quotidiani |
+| 23 | `trade-economy.js` | `Economy` | Mercati regionali, valute, banca |
 | 24 | `gear.js` | `Gear` | Equipaggiamento: rarità, durabilità, riparazioni, maestria, tempra, ascensione, incantamento |
-| 25 | `npc-conflicts.js` | `Conflicts` | Pattuglie, ferite, soccorsi, morte permanente NPC, memoriali, rito della rinascita |
-| 26 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
-| 27 | `audio.js` | `Score` | Musica e suoni |
-| 28 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
-| 29 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
-| 30 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
-| 31 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
-| 32 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
-| 33 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
-| 34 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
+| 25 | `adaptive-combat.js` | `Adaptive` | Boss che riconoscono lo stile ripetuto (melee/projectile/field) e rispondono |
+| 26 | `legendary.js` | `Legendary` | Scoperta, bottino unico, successione del Santuario; Nadir, Arma Divina, Eco della Rinascita |
+| 27 | `npc-conflicts.js` | `Conflicts` | Pattuglie, ferite, soccorsi, morte permanente NPC, memoriali, rito della rinascita |
+| 28 | `reputation.js` | `Reputation` | Reputazione con insediamenti, regni, gilde, fazioni; titoli |
+| 29 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
+| 30 | `urban-life.js` | `UrbanLife` | Residenti, routine, memorie, commissioni e scorte urbane |
+| 31 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
+| 32 | `audio.js` | `Score` | Musica e suoni |
+| 33 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
+| 34 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
+| 35 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
+| 36 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
+| 37 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
+| 38 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
+| 39 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
 
 Nota: `World`, `ActorArt` ed `EvolutionContent` sono **estesi da più moduli** successivi (ciascuno incapsula e riassegna il globale precedente): l'ordine in `build.py` è vincolante.
 
 ## 3. Mondo
 
-- **Vaelthoria** (centro) con la **Valle degli Antichi** e la **Via degli Antichi**, che porta a **Nordharyn** (nord), **Myrathen** (est), **Voryndhal** (sud) e **Azheryon** (ovest). **Cinque continenti, tredici aree**, inclusa la **Cripta delle Soglie** (regione permanente) e la **Fenditura Astrale**.
+- **Vaelthoria** (centro) con la **Valle degli Antichi** e la **Via degli Antichi**, che porta a **Nordharyn** (nord), **Myrathen** (est), **Voryndhal** (sud) e **Azheryon** (ovest). **Cinque continenti**, con la **Cripta delle Soglie** (regione permanente) e la **Fenditura Astrale**.
 - **Valle di Vela** (area iniziale): Borgo di Vela, Radura delle Lanterne, Bosco di Vetro, Cerchio delle Radici; Nerea (Custode, missione principale), Tessa (mercante), Ivo (fabbro), Focolare/locanda, orto, recinto, pesiera.
 - **Cava delle Braci**: dopo Orveth, con tre guardiani successivi; epilogo al Borgo di Vela.
 - **Santuario della Marea Muta**: dungeon raro e deterministico (probabilità 128, scoperta a distanza ~29), con Nadir, successione dell'erede dopo 7 anni di gioco, Arma Divina.
 - Le regioni si caricano al passaggio; una **statua** per continente è punto di rinascita (E per attivare).
+
+### 3.1 Velaris
+
+L’ingresso dalla Selva degli Alambicchi porta a `city-velaris`. I quartieri occupano una mappa di 2144×1496 pixel logici. Il seme determina gli edifici e le varianti del terreno. Piazza, ponti, porte e punti di servizio forniscono riferimenti stabili.
+
+La locanda, la bottega, la fucina, la Gilda del Compasso, l’archivio, l’accademia e la casa del custode sono regioni interne. Usano gli stessi comandi, collisioni e regole di salvataggio. La bottega condivide merci e deposito del mercato di Velaris. La bacheca della gilda assegna e riscuote gli incarichi per la Selva degli Alambicchi.
+
+Il formato v7 conserva `urban` (routine, scorte, memorie e commissioni) e `cityWorks` (restauro, colazione, esercitazioni e letture). Le mappe si rigenerano dallo stesso seme. I salvataggi precedenti ricevono i nuovi campi al caricamento. La v5 di GitHub può includere equipaggiamento, conflitti, reputazione e Santuario. La migrazione conserva i campi presenti e inizializza quelli mancanti nelle v5 precedenti.
 
 ## 4. Meccaniche
 
@@ -100,10 +113,10 @@ Abitanti con memorie, accordi commerciali, crescita e famiglia; insediamenti con
 Gilda pubblica (rango F→S): caccia, raccolta, ricognizione, lettura iscrizioni, scorta, esplorazione della Cripta. **Gilda personale** con squadre che avanzano con il giocatore. **Reputazione** con insediamenti, regni, gilde e fazioni (Compagnia dei Cartografi, Custodi delle Lanterne); **titoli**.
 
 ### 4.8 Equipaggiamento
-Slot arma/armatura/accessorio; rarità (comune…leggendaria); durabilità, riparazione, maestria, tempra, ascensione, incantamento; retrocompatibilità con reliquie e lame forgiate.
+Slot arma/armatura/accessorio; sette rarità da Comune a Divino; durabilità, riparazione, maestria, tempra, ascensione, incantamento; retrocompatibilità con reliquie e lame forgiate.
 
 ### 4.9 Conflitti NPC e rinascita
-Pattuglie, ferite (sano/ferito/critico/morto), soccorsi, **morte permanente** degli abitanti, memoriali, rito della rinascita; Eco della Rinascita.
+Pattuglie, ferite (sano/ferito/critico/morto), soccorsi con oggetti o magia, **morte permanente** degli abitanti, memoriali e rito dell’Eco della Rinascita. Il memoriale di Nerea conserva il percorso alternativo della campagna.
 
 ## 5. Comandi
 
@@ -118,7 +131,7 @@ Movimento WASD/frecce · Attacco J/clic · Schivata Spazio · Abilità 1-2-3 · 
 
 ## 7. Limiti dichiarati della fase attuale
 
-Metropoli e relazioni politiche fra regni su vasta scala; prestiti, trasferimenti fra conti, fondazione di banche, imprese oltre le botteghe esistenti, grimori scrivibili, accademie; generazione di dungeon, governo di un dungeon, leggi locali con taglie e reputazioni distinte. (Da `LEGGIMI.md`.)
+Restano da ampliare le città oltre Velaris e le relazioni politiche su vasta scala. Restano da sviluppare prestiti, trasferimenti fra conti, fondazione di banche, imprese oltre le botteghe esistenti, grimori scrivibili, gestione di accademie, nuovi dungeon procedurali, gestione di guardiani e leggi locali con taglie.
 
 ## 8. Ambiti legali e creativi
 Personaggi, nomi dei luoghi, illustrazioni e musica sono originali. La copertina è stata generata con ImageGen integrato (prompt in `LEGGIMI.md`).

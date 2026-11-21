@@ -16,7 +16,7 @@
   const zones={
     valley:'temperate',quarry:'volcanic',rift:'astral','ancient-valley':'temperate','ardel-crypt':'underground',
     'frost-pass':'alpine','winter-citadel':'alpine','verdant-canopy':'forest','moon-grove':'astral',
-    'golden-savanna':'savanna','root-sanctuary':'forest','dune-port':'coast','sunken-dunes':'desert'
+    'golden-savanna':'savanna','root-sanctuary':'forest','dune-port':'coast','sunken-dunes':'desert','nadir-vault':'underground'
   };
   const byPalette={ruin:'temperate',pine:'alpine',snow:'alpine',fae:'forest',root:'forest',star:'astral',
     grass:'savanna',shore:'coast',canyon:'desert'};

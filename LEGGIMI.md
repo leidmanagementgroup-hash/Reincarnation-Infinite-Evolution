@@ -1,11 +1,18 @@
 # Reincarnation — Infinite Evolution
-## Aggiornamento 3 · Vita e mestieri
+## Aggiornamento 5 · Velaris
 
 La campagna Dal Borgo al Varco fa parte di Vaelthoria, al centro del mondo. Dalla Via degli Antichi si raggiungono Nordharyn a nord, Myrathen a est, Voryndhal a sud e Azheryon a ovest. Il gioco carica la regione attiva al passaggio. Una nuova partita estrae una delle 44 stirpi, genera le predisposizioni individuali e assegna una delle sei abilità innate.
 
 ### Avviare il gioco
 
-Apri `Reincarnation.html` in un browser moderno. Grafica, musica sintetizzata e logica di gioco sono incorporate nel file HTML. Il browser conserva la partita in memoria locale. Dal menu Opzioni e comandi puoi esportare una copia JSON e importarla su un altro dispositivo. Il caricamento può convertire i salvataggi dalla v1 alla v4. La vecchia attivazione di Vaelthoria vale per la Custode delle Origini nella Valle degli Antichi. Se sposti il file o cambi browser, usa la copia JSON.
+Apri `Reincarnation.html` in un browser moderno. Grafica, musica sintetizzata e logica di gioco sono incorporate nel file HTML. Il browser conserva la partita in memoria locale. Dal menu Opzioni e comandi puoi esportare una copia JSON e importarla su un altro dispositivo. Il caricamento migra i salvataggi dalla v1 alla v6, compresa la v5 di GitHub. La vecchia attivazione di Vaelthoria vale per la Custode delle Origini nella Valle degli Antichi. Usa la copia JSON se sposti il file o cambi browser.
+
+### Esplorare Velaris
+
+- Apri **M**, entra nell’Atlante e scegli **Segna Velaris**. La strada passa dalla Valle degli Antichi alla Selva degli Alambicchi e da lì raggiunge la porta della città. Con **E** attraversi la porta ed entri negli edifici segnalati.
+- Le Terrazze delle Lenti, la Corte delle Fornaci, il Mercato dei Venti e i Giardini delle Lanterne si collegano tramite la Piazza delle Quattro Lenti e i ponti sul canale. Il numero e la forma delle abitazioni dipendono dal seme del mondo.
+- Puoi entrare in sette edifici. La locanda offre un letto, acqua e colazione. La bottega usa le scorte e il deposito già disponibili a Velaris. Alla fucina puoi forgiarti una lama e riparare l’equipaggiamento. La Gilda del Compasso usa l’iscrizione e la progressione esistenti. Archivio, accademia e casa del custode si visitano a piedi.
+- Premi **O** in città per vedere abitanti, orari e commissioni. Il salvataggio conserva le interazioni, le consegne e il restauro della fonte della piazza.
 
 ### Vita quotidiana
 
@@ -57,6 +64,8 @@ Dalla cartella dei sorgenti esegui `python build.py Reincarnation.html`. Lo scri
 | `world.js` | Geografia della regione, percorsi, elementi procedurali, collisioni e mappa |
 | `expansion-world.js` | Cava delle Braci, Fenditura Astrale e passaggi regionali |
 | `continents.js` | Geografia delle nove nuove regioni e della Cripta delle Soglie, rotte, caricamento e monumenti |
+| `urban-exterior.js`, `urban-interiors.js`, `urban-world.js` | Quartieri e interni di Velaris, collisioni, mappa, percorsi e collegamenti con la Selva degli Alambicchi |
+| `urban-life.js`, `urban-services.js` | Residenti, orari, commissioni, scorte urbane, fonte della piazza e servizi interattivi |
 | `sprites.js` | Sprite animati, forme evolute, icone e ritratti |
 | `expansion-species.js` | Stirpi aggiunte e forme evolutive avanzate |
 | `expansion-art.js` | Arte animata delle nuove stirpi, creature e guardiani |
@@ -86,11 +95,11 @@ Dalla cartella dei sorgenti esegui `python build.py Reincarnation.html`. Lo scri
 
 ### Confini di questa fase
 
-I cinque continenti comprendono tredici aree, inclusa la Cripta delle Soglie, con una statua attivabile per continente. Gli insediamenti sviluppano scorte, maestri e accordi commerciali. Il giocatore può assemblare villaggi e città ai limiti dei lotti, con abitanti ed entrate dagli scambi. Le metropoli e le relazioni politiche fra regni su vasta scala sono sviluppi futuri.
+I cinque continenti includono la Cripta delle Soglie e una statua attivabile per continente. Velaris è la prima città ampliata. Gli insediamenti sviluppano scorte, maestri e accordi commerciali. Il giocatore può assemblare villaggi e città ai limiti dei lotti, con abitanti ed entrate dagli scambi. Restano da sviluppare le grandi metropoli e le relazioni politiche su vasta scala.
 
 La gilda pubblica offre caccia, raccolta, ricognizione, lettura delle iscrizioni, scorta ed esplorazione della Cripta delle Soglie. Le squadre della gilda personale avanzano durante il gioco insieme al personaggio, secondo gli incarichi assegnati.
 
-Prestiti, trasferimenti fra conti, fondazione di banche, imprese oltre le botteghe esistenti, grimori scrivibili e accademie richiedono ulteriori sistemi. La Cripta delle Soglie è una regione permanente. Restano da sviluppare la generazione di dungeon, il governo di un dungeon e le leggi locali con taglie e reputazioni distinte.
+Prestiti, trasferimenti fra conti, fondazione di banche, imprese oltre le botteghe esistenti e grimori scrivibili richiedono ulteriori sistemi. La Cripta delle Soglie è una regione permanente. Nel Santuario leggendario si può rivendicare il trono. Restano da sviluppare altri dungeon, la gestione dei guardiani e le leggi locali con taglie.
 
 ### Illustrazione del titolo
 

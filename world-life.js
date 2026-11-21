@@ -127,7 +127,7 @@
     field:{farmer:4}, mine:{miner:8}, harvest:{farmer:2}, craft:{artisan:8,alchemist:7},
     trade:{merchant:7}, kill:{warrior:6,hunter:5}, physical:{warrior:.35}, boss:{warrior:12},
     magic:{mage:.65}, study:{mage:7}, livestock:{herder:6}, explore:{explorer:12}, build:{builder:9,carpenter:5}, train:{warrior:3},
-    fish:{fisher:8},fishAttempt:{fisher:1},fishingAttempt:{fisher:1},forge:{smith:9,artisan:3},smithingAttempt:{smith:1},
+    fish:{fisher:8},fishAttempt:{fisher:1},fishingAttempt:{fisher:1},forge:{smith:9,artisan:3},gearWork:{smith:2,artisan:1},smithingAttempt:{smith:1},
     sow:{farmer:5},reap:{farmer:8,herbalist:4},farmingAttempt:{farmer:1},care:{herder:7},ranch:{herder:9},husbandryAttempt:{herder:1},
     cook:{cook:8},cookingAttempt:{cook:1},sew:{tailor:8,artisan:2}
   };

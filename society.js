@@ -114,10 +114,10 @@
     return Object.values(residents).filter(a=>!away.includes(a.id)&&
       (s.society.people[a.id].region===s.region||s.society.partner===a.id)).map(a=>entry(s,a.id))
       .concat(s.society.children.filter(c=>!away.includes(c.id)).map(o=>entry(s,o.id)))
-      .filter(o=>o.location?.region===s.region&&!window.Conflicts?.takesOver(s,o.id));
+      .filter(o=>o.location?.region===s.region);
   }
   function siteEntry(a){return {id:a.id,kind:'society',point:a.location,range:29,text:'Parla con '+a.name};}
-  function sites(s){return activeEntries(s).map(siteEntry);}
+  function sites(s){return activeEntries(s).filter(a=>!window.Conflicts||Conflicts.canInteract(s,a.id)&&!Conflicts.takesOver(s,a.id)).map(siteEntry);}
   function use(s,id){
     if(!sites(s).some(o=>o.id===id&&distance(o.point,s.player)<=o.range))return fail('Avvicinati al personaggio.');
     return {ok:true,panel:{id:'society',detail:id}};
@@ -186,7 +186,8 @@
       town.level=growth>=17?3:growth>=6?2:1;
       town.accord=town.level>=2&&regions.some(other=>other!==id&&group(id)===group(other)&&soc.towns[other].level>=2);
       const migrant=soc.people[id+'-1'];
-      migrant.training+=steps;
+      if(window.Conflicts&&!Conflicts.canInteract(s,id+'-1'))continue;
+      migrant.training=Math.min(1e8,migrant.training+steps);
       if(now>8+i&&migrant.bond==='unknown'&&!migrant.transfer){
         const target=regions.find(other=>other!==id&&group(id)===group(other));
         if(target){migrant.region=target;migrant.transfer=true;}
@@ -194,7 +195,7 @@
     }
   }
   function actors(s,t){
-    const items=activeEntries(s).map(a=>({x:a.location.x,y:a.location.y,draw:c=>{
+    const items=activeEntries(s).filter(a=>!window.Conflicts?.takesOver(s,a.id)).map(a=>({x:a.location.x,y:a.location.y,draw:c=>{
       if(a.adult)ActorArt.draw(c,a.race,a.location.x,a.location.y,{t,dir:a.location.dir||'down',moving:a.location.moving,evolution:a.evolution});
       else{c.save();c.translate(a.location.x,a.location.y);c.scale(.78,.78);ActorArt.draw(c,a.race,0,0,{t,dir:'down'});c.restore();}
       c.fillStyle='#e0c789';c.fillRect(a.location.x-1,a.location.y-27,3,3);
@@ -218,7 +219,7 @@
   }
   function register(s,id){
     const a=entry(s,id),r=s.society.people[id]||s.society.children.find(o=>o.id===id);
-    if(!a?.adult||!r||r.enrolled||a.trust<2||a.location?.region!==s.region)return false;
+    if(!a?.adult||!r||r.enrolled||a.trust<2||a.location?.region!==s.region||window.Conflicts&&!Conflicts.canFight(s,id))return false;
     r.enrolled=true;return true;
   }
   function train(s,id){const r=s.society.people[id]||s.society.children.find(o=>o.id===id);if(r?.enrolled)r.career++;}

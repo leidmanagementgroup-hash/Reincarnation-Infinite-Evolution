@@ -3,18 +3,23 @@
 > Aggiornare quando un obiettivo è completato (spostarlo in `CHANGELOG.md`/`PROGRESS.md`), cambia priorità o ne emergono di nuovi. Le voci con ★ derivano dai "limiti" dichiarati in `LEGGIMI.md`; le altre sono proposte tecniche da validare con l'utente prima di avviarle.
 
 ## Priorità Alta — Fondamenta del lavoro a più agenti
-- [ ] **Verificare la build**: ricostruire l'HTML da sorgenti e confermare che coincida con `Reincarnation.html`; giocare una partita di prova e registrare l'esito in `PROGRESS.md`.
+- [x] **Verificare la build integrata** e registrare l’esito in `PROGRESS.md`.
 - [x] **Controllo di versione**: Git + GitHub privato configurati (2026-11-21).
-- [ ] **Test automatici minimi**: script Node che carichi i moduli puri (es. `trades-practice.js`, `inventory.js`, `calendar.js`, `trade-economy.js`) e verifichi invarianti; test di migrazione dei salvataggi v1→v5.
-- [ ] **Controllo di coerenza della build**: verifica che l'ordine di `MODULES` e le dipendenze fra globali siano corretti; test "smoke" in browser headless con console priva di errori.
+- [x] **Controllo automatico dell’integrazione** con `node tests/verifica-integrazione.cjs`.
+- [ ] Ampliare la suite condivisa con casi per i minigiochi e l’intera campagna, e configurarne l’esecuzione automatica.
+
+## Prossima priorità — Grafica
+
+- [ ] Ottenere l’approvazione del [piano artistico e tecnico](PIANO_GRAFICO.md). La prima prova riguarda la piazza di Velaris e il confronto giorno/notte.
 
 ## Priorità Media — Contenuti ★
-- [ ] ★ **Metropoli** e **relazioni politiche fra regni** su vasta scala.
+- [x] ★ **Primo ampliamento di Velaris** con quattro quartieri, sette interni e servizi integrati.
+- [ ] ★ **Altre città, metropoli e relazioni politiche fra regni** su vasta scala.
 - [ ] ★ **Banca avanzata**: prestiti, trasferimenti fra conti, fondazione di banche.
 - [ ] ★ **Imprese** oltre le botteghe esistenti.
-- [ ] ★ **Grimori scrivibili** e **accademie**.
-- [ ] ★ **Dungeon**: generazione procedurale e governo di un dungeon da parte del giocatore.
-- [ ] ★ **Leggi locali** con taglie e reputazioni distinte per regione.
+- [ ] ★ **Grimori scrivibili** e gestione di accademie da parte del giocatore.
+- [ ] ★ **Dungeon** con nuove planimetrie procedurali e gestione di guardiani. Il Santuario attuale consente la conquista del trono.
+- [ ] ★ **Leggi locali** con crimini e taglie. Le reputazioni distinte sono già presenti.
 - [ ] Ampliare la Cripta delle Soglie e il numero di aree per continente.
 
 ## Priorità Bassa — Qualità e rifinitura
@@ -23,7 +28,7 @@
 - [ ] Ottimizzazione prestazioni del rendering su dispositivi mobili.
 - [ ] Rifattorizzare i file più grandi (`engine.js`, `panels.js`, `interface.js`) in moduli più piccoli, mantenendo l'ordine in `build.py`.
 - [ ] Localizzazione in altre lingue (oggi solo italiano).
-- [ ] Aggiornare `LEGGIMI.md` a ogni nuova release e numerare gli aggiornamenti ("Aggiornamento 4…").
+- [ ] Continuare ad aggiornare `LEGGIMI.md` a ogni nuova release.
 
 ## Idee da valutare (non pianificate)
 - Modalità di gioco aggiuntive o sfide legate alla rinascita.

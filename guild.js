@@ -53,8 +53,9 @@
   function sites(s){
     if(!s.guild)return [];
     const town=World.regions[s.region]?.settlement;
-    const local=town?{x:town.x+40,y:town.y+24}:s.region==='valley'?{x:327,y:595}:null;
-    const out=local?[{kind:'guild',id:'board',point:local,range:26,text:'Registro degli avventurieri'}]:[];
+    const room=window.UrbanWorld?.site(s,'guild');
+    const local=room?.point||(town?{x:town.x+40,y:town.y+24}:s.region==='valley'?{x:327,y:595}:null);
+    const out=local?[{kind:'guild',id:'board',point:local,range:room?.range||26,text:'Registro degli avventurieri'}]:[];
     const a=s.guild.active;
     if(s.region==='ardel-crypt'&&a?.type==='dungeon')for(const [i,p] of World.regions[s.region].marks.entries()){
       if(!a.marks.includes(i))out.push({kind:'guild',id:'crypt-'+i,point:p,range:26,text:'Esamina la stele '+(i+1)});
@@ -73,6 +74,7 @@
     }
     return {ok:true,panel};
   }
+  const chapterRegion=s=>window.UrbanWorld?.kind(s.region)==='guild'?UrbanWorld.originId:s.region;
   const eligible=(s,id)=>id==='escort'?!!World.regions[s.region].settlement:id!=='dungeon'||s.region==='ancient-valley';
   const escortDestination=a=>World.regions[a.region].points.gates[0];
   function view(s){
@@ -83,7 +85,8 @@
     return {rank:rank(g.xp),ranks,crests,joined:g.joined,xp:g.xp,board,hall:hall?Number(hall.id.slice(5)):null,
       active:g.active?{...g.active,...types[g.active.type],source:World.regions[g.active.region].name,
         destination:g.active.type==='escort'?escortDestination(g.active).label:null}:null,
-      jobs:Object.entries(types).filter(([id])=>eligible(s,id)).map(([id,t])=>({id,...t,available:g.completed[s.region+'/'+id]===undefined||s.time-g.completed[s.region+'/'+id]>=95})),
+      chapter:chapterRegion(s),
+      jobs:Object.entries(types).filter(([id])=>eligible(s,id)).map(([id,t])=>({id,...t,available:g.completed[chapterRegion(s)+'/'+id]===undefined||s.time-g.completed[chapterRegion(s)+'/'+id]>=95})),
       candidates,personal:g.personal};
   }
   function command(s,d){
@@ -100,17 +103,17 @@
     if(d.op==='accept'){
       const mission=types[d.type];
       if(!board||!mission||!eligible(s,d.type)||g.active)return fails('Serve una bacheca pubblica e uno spazio per un incarico.');
-      const last=g.completed[s.region+'/'+d.type];
+      const last=g.completed[chapterRegion(s)+'/'+d.type];
       if(last!==undefined&&s.time-last<95)return fails('La bacheca sta preparando un nuovo incarico.');
-      g.active={type:d.type,region:s.region,progress:0};
+      g.active={type:d.type,region:chapterRegion(s),progress:0};
       if(d.type==='dungeon')g.active.marks=[];
       if(d.type==='escort'){const start=near.find(x=>x.id==='board').point;g.active.escort={...start,hp:90,trail:[]};}
       return succeeds('Incarico accettato · '+mission.name);
     }
     if(d.op==='claim'){
-      if(!board||!g.active||g.active.region!==s.region||g.active.progress<types[g.active.type].goal)return fails('Completa l’incarico e torna alla bacheca che l’ha assegnato.');
+      if(!board||!g.active||g.active.region!==chapterRegion(s)||g.active.progress<types[g.active.type].goal)return fails('Completa l’incarico e torna alla bacheca che l’ha assegnato.');
       const t=types[g.active.type],before=rank(g.xp);
-      g.completed[s.region+'/'+g.active.type]=s.time;
+      g.completed[chapterRegion(s)+'/'+g.active.type]=s.time;
       const split=g.personal&&g.personal.assignment?.type===g.active.type?Math.floor(t.gold/3):0;
       s.player.gold+=t.gold-split;g.xp+=t.xp;
       if(split){g.personal.treasury+=split;g.personal.assignment=null;}
@@ -123,7 +126,7 @@
     }
     if(d.op==='recruit'){
       const a=Society.entry(s,d.id);
-      if(!a?.adult||!a.enrolled||a.location?.region!==s.region||g.team.length>=2||g.team.includes(a.id))return fails('La squadra può includere fino a due avventurieri adulti iscritti e presenti.');
+      if(!a?.adult||!a.enrolled||a.location?.region!==s.region||g.team.length>=2||g.team.includes(a.id)||!Conflicts.canFight(s,d.id))return fails('La squadra può includere fino a due avventurieri adulti iscritti, presenti e in salute.');
       g.team.push(a.id);return succeeds(a.name+' entra nella squadra.');
     }
     if(d.op==='found'){
@@ -166,7 +169,7 @@
     const a=s.guild?.active;if(!a||a.progress>=types[a.type].goal)return;
     const include=a.type==='hunt'&&event==='kill'&&s.region===a.region||
       a.type==='gather'&&event==='mine'&&meta.kind==='ore'&&s.region===a.region||
-      a.type==='survey'&&event==='visit'&&s.region!==a.region||
+      a.type==='survey'&&event==='visit'&&(window.UrbanWorld?.localRegion(s.region)||s.region)!==a.region||
       a.type==='script'&&event==='inscription'&&typeof meta.statue==='string';
     if(include){a.progress=Math.min(types[a.type].goal,a.progress+Math.max(1,Math.floor(amount||1)));
       if(a.progress===types[a.type].goal)return 'Incarico completato. Riscuoti alla bacheca di partenza.';}
@@ -176,7 +179,7 @@
     if(!stage||stage.state!==s||stage.region!==s.region)stage={state:s,region:s.region,people:new Map()};
     return s.guild.team.flatMap((id,i)=>{
       const a=Society.entry(s,id);
-      if(!a?.adult||!a.enrolled)return [];
+      if(!a?.adult||!a.enrolled||!Conflicts.canFight(s,id))return [];
       let c=stage.people.get(id);
       if(!c){
         const spell=['elf','spirit','slime','dryad','vampire'].includes(a.race);
@@ -190,10 +193,11 @@
   function tick(s,dt,combat){
     for(const [i,c] of companions(s).entries()){
       const gap=dist(c,s.player),target=combat.target(c.x,c.y,c.spell?92:56);
-      if(gap>174){c.x=s.player.x;c.y=s.player.y+12;c.hp=Math.max(20,c.hp);}
+      if(gap>174){c.x=s.player.x;c.y=s.player.y+12;}
       c.cd=Math.max(0,c.cd-dt);
-      if(c.hp<=15||!target)c.hp=Math.min(c.maxHp,c.hp+dt*(target?3:8));
-      const fighting=target&&c.hp>15&&gap<110;
+      const condition=Conflicts.condition(s,c.id);
+      if(condition){c.hp=condition.hp;c.maxHp=condition.maxHp;}
+      const fighting=target&&gap<110;
       const goal=fighting?target:{x:s.player.x+(i===0?-16:18),y:s.player.y+16};
       const d=dist(c,goal),dx=(goal.x-c.x)/(d||1),dy=(goal.y-c.y)/(d||1);
       c.moving=false;
@@ -207,7 +211,10 @@
         c.cd=c.spell?1.65:1.3;
         const career=Society.entry(s,c.id)?.career||0;
         if(combat.hit(target,c.attack+Math.min(7,Math.floor(career/3)),c.spell?'#a8cce8':'#f3d5a4')&&target.hp===0)Society.train(s,c.id);
-        if(d<32)c.hp=Math.max(3,c.hp-9);
+        if(d<32&&target.hp>0){
+          const result=Conflicts.damageNpc(s,c.id,Math.max(5,Math.round((Game.codex[target.type].damage||9)*.57)),{point:{x:c.x,y:c.y},cause:target.type});
+          if(result?.notices?.length)combat.notify?.(result.notices);
+        }
       }
     }
     const a=s.guild.active;

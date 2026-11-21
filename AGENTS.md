@@ -47,7 +47,7 @@ Termina ogni sessione lasciando in `PROGRESS.md` → *Prossimo passo* una nota s
 - Gioco RPG fantasy a vista dall'alto, pixel art disegnata a runtime su Canvas, interfaccia in **italiano**.
 - Tecnologia: **JavaScript vanilla** (nessun framework, nessun bundler, nessun `npm`), HTML/CSS, Web Audio. Build in **Python 3 standard library**.
 - Il prodotto finale è un **unico file `Reincarnation.html`** autonomo (grafica, musica e logica incorporate), che funziona offline aprendolo in un browser.
-- Salvataggio in `localStorage` del browser (chiave corrente `reincarnation.lumora.save.v5`) con export/import JSON.
+- Salvataggio in `localStorage` del browser (chiave corrente `reincarnation.lumora.save.v7`) con export/import JSON e migrazione da v1 a v6.
 - Dettagli completi: `GAME_DESIGN.md`.
 
 ## 3. Struttura dei file
@@ -60,6 +60,7 @@ Cartella principale (non esistono sottocartelle sorgente):
 - `Reincarnation.html` — **artefatto generato**. Non modificarlo a mano.
 - `LEGGIMI.md` — guida per il giocatore e mappa dei moduli.
 - `AGENTS.md`, `CLAUDE.md`, `GAME_DESIGN.md`, `PROGRESS.md`, `ROADMAP.md`, `CHANGELOG.md` — memoria condivisa fra gli agenti.
+- `PIANO_GRAFICO.md` — proposta artistica e tecnica per il successivo intervento grafico, da approvare prima della sua applicazione.
 
 ## 4. Regole di sviluppo
 
@@ -81,7 +82,7 @@ Cartella principale (non esistono sottocartelle sorgente):
 - Gli identificatori nel codice (variabili, chiavi di dati, id) restano in inglese, come oggi.
 
 ### Verifica
-- Non esiste (ancora) una suite di test automatici. Prima di dichiarare concluso un intervento: ricostruisci l'HTML senza errori; controlla la sintassi dei moduli toccati (es. `node --check file.js`); quando possibile apri il gioco in un browser, verifica che la console sia priva di errori e prova a mano la funzione modificata, incluso caricamento di un salvataggio esistente.
+- Esegui `node tests/verifica-integrazione.cjs` per il controllo automatico senza dipendenze. Ricostruisci l'HTML, controlla la sintassi dei moduli toccati e, quando possibile, prova la funzione in un browser includendo il caricamento di un salvataggio esistente e la verifica della console.
 - Registra in `PROGRESS.md` **cosa hai verificato davvero e come**, e cosa no.
 - Se aggiungi test, descrivi in `PROGRESS.md` come eseguirli.
 

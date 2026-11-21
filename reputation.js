@@ -12,7 +12,7 @@
   const clamp=x=>Math.max(-100,Math.min(100,x));
   const own=(o,key)=>Object.hasOwn(o,key);
   const object=x=>x&&typeof x==='object'&&!Array.isArray(x);
-  const reputationEvents=new Set(['visit','trade','kill','guild-claim','guild-found','guild-branch','quest-claim','campaign-vela','campaign-rift','legendary-kill','sovereign','npcRescue','npc-neglect']);
+  const reputationEvents=new Set(['visit','trade','kill','guild-claim','guild-found','guild-branch','quest-claim','campaign-vela','campaign-rift','legendary-kill','sovereign','npcRescue','npc-neglect','urban-restoration']);
   const create=()=>({schema:1,standings:{},titles:[],medics:0,visited:[],daily:{}});
   const continentOf=id=>World.regions[id]?.continent;
   const townOf=region=>region==='valley'?'Borgo di Vela':World.regions[region]?.settlement?.name;
@@ -50,7 +50,7 @@
   function record(s,event,meta={}){
     const r=s.reputation;
     if(!r||!reputationEvents.has(event))return [];
-    const region=meta.region||s.region,continent=continentOf(region),town='town:'+region,realm='realm:'+continent,notes=[];
+    const context=meta.region||s.region,region=window.UrbanWorld?.localRegion(context)||context,continent=continentOf(region),town='town:'+region,realm='realm:'+continent,notes=[];
     const title=id=>{
       if(!r.titles.includes(id)){r.titles.push(id);notes.push('Titolo ottenuto · '+titles[id].name);}
     };
@@ -78,6 +78,7 @@
       case 'guild-found':update(r,'guild:personal',7);break;
       case 'guild-branch':update(r,'guild:personal',5);update(r,realm,3);break;
       case 'quest-claim':update(r,'faction:lanterns',2);update(r,town,1);break;
+      case 'urban-restoration':update(r,town,8);update(r,'faction:lanterns',3);break;
       case 'campaign-vela':update(r,'town:valley',12);update(r,'faction:lanterns',8);title('vela');break;
       case 'campaign-rift':update(r,'town:valley',12);update(r,realm,9);title('rift');break;
       case 'legendary-kill':update(r,'faction:cartographers',10);update(r,realm,8);title('hunter');break;

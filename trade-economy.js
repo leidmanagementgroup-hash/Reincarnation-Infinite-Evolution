@@ -39,7 +39,8 @@
   const fail=text=>({ok:false,text});
   const done=(text,extra={})=>({ok:true,changed:true,text,...extra});
   const minBig=(a,b)=>a<b?a:b;
-  const shopNear=(s,p)=>s.region===p.region&&Math.hypot(s.player.x-p.x,s.player.y-p.y)<=p.range;
+  const shopNear=(s,p)=>s.region===p.region&&Math.hypot(s.player.x-p.x,s.player.y-p.y)<=p.range||
+    p.id==='velaris'&&!!window.UrbanWorld?.access(s,'shop');
   const clock=s=>window.Calendar?.view(s.calendar,s.time,s.region)||
     {day:1+Math.floor((480+s.time*3)/1440),shopOpen:Math.floor(480+s.time*3)%1440>=420&&Math.floor(480+s.time*3)%1440<1200,seasonIndex:0};
 
@@ -121,10 +122,10 @@
     else where.stock[id]=String(qty);
   }
   function tradeAllowed(s,item){
-    return !!item&&!item.quest&&s.player.equipped!==item.id&&s.player.tool!==item.id&&
+    return !!item&&!item.quest&&!window.Gear?.isEquipped(s,item.id)&&s.player.equipped!==item.id&&s.player.tool!==item.id&&
       s.player.equippedTool!==item.id&&s.trades?.tool!==item.id&&s.workshop?.weapon!==item.id&&s.workshop?.weapon?.id!==item.id;
   }
-  function price(profile,where,item,c){
+  function price(s,profile,where,item,c){
     const prices={weapons:20,armor:18,materials:6,food:7,ingredients:4,tools:14,magic:11,quests:0};
     const [target,native]=profile.goods[item.id]||[6,prices[item.category]||5];
     const stock=stockAt(where,item.id);
@@ -133,7 +134,9 @@
       /eccellente|pregiat|magistr|legend/i.test(item.quality||'')?2:0;
     const winter=c.seasonId==='winter'||c.seasonIndex===3;
     const season=winter&&['food','ingredients','materials'].includes(item.category)?1:0;
-    const buy=Math.max(2,native+scarcity+quality+season);
+    const favor=window.Reputation?.discount(s,profile.region)||0;
+    const mourning=window.Conflicts?.faction(s,profile.region).mourning?1:0;
+    const buy=Math.max(2,native+scarcity+quality+season-favor+mourning);
     return {buy,sell:Math.max(1,Math.min(buy-1,Math.floor((native+quality+season)*.72)+scarcity))};
   }
   function listings(s,profile,c,where){
@@ -145,7 +148,7 @@
       if(!item||item.quest)continue;
       const stock=stockAt(where,id),owned=Inventory.quantity(s,id);
       if(!stock&&!owned&&!own(profile.goods,id))continue;
-      const {buy,sell}=price(profile,where,item,c);
+      const {buy,sell}=price(s,profile,where,item,c);
       rows.push({...item,stock:String(stock),formattedStock:format.format(stock),
         owned:String(owned),formattedOwned:format.format(owned),buy,sell,sellable:owned>0n&&tradeAllowed(s,item)});
     }
@@ -201,7 +204,7 @@
     if(!item||item.quest)return fail('Oggetto non commerciabile.');
     if(quantity===null||quantity===0n||carried===null)return fail('Inserisci una quantità intera positiva.');
     const where=restocked(s.economy.markets[profile.id],profile,c.day),stock=stockAt(where,id);
-    const {buy,sell}=price(profile,where,item,c);
+    const {buy,sell}=price(s,profile,where,item,c);
     const buying=data.op==='buy',priceTotal=BigInt(buying?buy:sell)*quantity;
     if(buying){
       if(stock<quantity)return fail('Scorte insufficienti.');

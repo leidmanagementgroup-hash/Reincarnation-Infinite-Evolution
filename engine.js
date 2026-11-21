@@ -126,12 +126,11 @@
     crystalguard:{name:'Armigero di Cristallo',habitat:'Fenditura Astrale',description:'Un battito nel suo torace annuncia una percussione più ampia.',trait:'crystalguard',hp:108,damage:22,speed:43,xp:58,gold:12,level:7,behavior:'guard'},
     kharun:{name:'Kharun, Fabbro Sepolto',habitat:'Forgia Sepolta',description:'Fa tremare le pietre e marchia il terreno con la brace. In fase II incendia la forgia.',trait:'kharun',hp:610,damage:23,speed:34,xp:180,gold:55,level:6,boss:true,stage:1,item:'gauntlet',color:'#ffc27d'},
     syrava:{name:'Syrava, la Serpe di Vetro',habitat:'Conca di Vetro',description:'Carica lungo il tracciato, poi spezza le sue spire in schegge di cristallo.',trait:'syrava',hp:830,damage:27,speed:55,xp:235,gold:72,level:8,boss:true,stage:2,item:'prism',color:'#98f3ea'},
-    asterion:{name:'Asterion, Cuore del Varco',habitat:'Cuore del Varco',description:'Il sigillo vivente alterna segni esplosivi, costellazioni e anelli con una zona sicura. Ha tre fasi.',trait:'asterion',hp:1240,damage:32,speed:42,xp:330,gold:100,level:10,boss:true,stage:3,item:'heart',color:'#ddbcff'}
+    asterion:{name:'Asterion, Cuore del Varco',habitat:'Cuore del Varco',description:'Il sigillo vivente alterna segni esplosivi, costellazioni e anelli con una zona sicura. Ha tre fasi.',trait:'asterion',hp:1240,damage:32,speed:42,xp:330,gold:100,level:10,boss:true,stage:3,item:'heart',color:'#ddbcff'},
+    ...Legendary.monsters
   };
-  if(window.Legendary)for(const [id,def] of Object.entries(Legendary.monsters))codex[id]={...def};
-  const phasesOf=type=>codex[type]?.phases||(type==='asterion'?3:codex[type]?.boss?2:1);
-  const key='reincarnation.lumora.save.v5', version=5, saveMaxBytes=12000000;
-  const saveKeys=[key,'reincarnation.lumora.save.v4','reincarnation.lumora.save.v3','reincarnation.lumora.save.v2','reincarnation.lumora.save.v1'];
+  const key='reincarnation.lumora.save.v7', version=7, saveMaxBytes=12000000;
+  const saveKeys=[key,'reincarnation.lumora.save.v6','reincarnation.lumora.save.v5','reincarnation.lumora.save.v4','reincarnation.lumora.save.v3','reincarnation.lumora.save.v2','reincarnation.lumora.save.v1'];
   const dirVectors={down:[0,1],up:[0,-1],left:[-1,0],right:[1,0]};
   const chapterNames=['Le radici di Lùmora','La forgia sotto la cenere','La Serpe di Vetro','Il Cuore del Varco','La via di casa','La valle ritrovata'];
   const campaignSteps=[
@@ -161,17 +160,9 @@
     const context={region:s.region,...info};
     const growthEvent={fish:'harvest',forge:'craft',sow:'field',reap:'field',care:'livestock',ranch:'livestock',cook:'craft',sew:'craft'}[event]||event;
     announce([...Growth.record(s.player.growth,growthEvent,practice,context),...Life.record(s,event,amount,context),...Daily.log(s,event,amount,context)]);
+    announce(Reputation.record(s,event,context));
     const notice=Guild.record(s,event,amount,context);
     if(notice)emit('toast',notice);
-    fame(event,context);
-  }
-  function gearWear(kind,context){
-    if(!window.Gear||!s.gear)return;
-    const result=kind==='defend'?Gear.defend(s,context):Gear.strike(s,context);
-    if(result.notices.length)announce(result.notices);
-  }
-  function fame(event,meta={}){
-    if(window.Reputation&&s.reputation)announce(Reputation.record(s,event,meta));
   }
   const learn=(p,id)=>{if(!p.skills[id])p.skills[id]={uses:0,level:1};};
   const emptyCampaign=()=>({stage:0,completed:false});
@@ -231,21 +222,22 @@
     s.workshop=Tradecraft.create(s);
     s.daily=Daily.create(s);
     s.economy=Economy.create(seed);
-    if(window.Adaptive)s.adaptive=Adaptive.create();
-    if(window.Reputation)s.reputation=Reputation.restore(undefined,s);
     Tradecraft.install(s,true);
-    if(window.Gear){s.gear=Gear.create();Gear.install(s,true);}
-    if(window.Legendary)s.legendary=Legendary.create(seed);
-    if(window.Conflicts)s.conflicts=Conflicts.create(s);
+    s.legendary=Legendary.create(seed);
+    s.gear=Gear.create(s);Gear.install(s,true);
+    s.adaptive=Adaptive.create();
+    s.conflicts=Conflicts.create(s);
+    s.reputation=Reputation.restore(undefined,s);
+    s.urban=UrbanLife.create(seed);
+    s.cityWorks=UrbanServices.create();
     p.hp=stats().hpMax;p.mp=stats().mpMax;
     resetTransient();save();return true;
   }
   function stats(){
     const p=s.player,r=raceBook[p.race],form=formFor(p)?.bonus || {};
-    const lv=p.level-1,personal=Growth.bonuses(p.growth,p),needs=Daily.modifiers(s);
-    // Gear keeps the original relic and blade values and adds only its own bonuses.
-    const gear=window.Gear&&s.gear?Gear.bonus(s):null;
-    const equip=!gear||gear.legacyRelicActive?equipment[p.equipped]:null,blade=!gear||gear.legacyWeaponActive?Tradecraft.attack(s):0;
+    const wear=Gear.bonus(s);
+    const lv=p.level-1, equip=wear.legacyRelicActive!==false?equipment[p.equipped]:null,personal=Growth.bonuses(p.growth,p),needs=Daily.modifiers(s);
+    const blade=wear.legacyWeaponActive!==false?Tradecraft.attack(s):0;
     function bonus(key){
       const racial=r.passive?.[0]===key?r.passive[1]:0;
       return (form[key] || 0)+racial+(personal[key]||0)+p.traits.reduce((sum,id)=>sum+(traitStats[id]?.[key] || 0),0);
@@ -253,9 +245,9 @@
     return {
       hpMax:r.hp+lv*9+bonus('hp')+p.talents.sap*8,
       mpMax:r.mp+lv*5+bonus('mp')+p.talents.flow*5,
-      attack:Math.max(1,r.atk+lv*2+bonus('atk')+(equip?.atk||0)+p.talents.impact*2+blade+needs.attack+(gear?.attack||0)),
-      defense:Math.max(0,r.def+lv+bonus('def')+(equip?.def||0)+needs.defense+(gear?.defense||0)),
-      speed:r.speed+bonus('speed')+needs.speed+(gear?.speed||0),
+      attack:Math.max(1,r.atk+lv*2+bonus('atk')+(equip?.atk||0)+p.talents.impact*2+blade+needs.attack+wear.attack),
+      defense:Math.max(0,r.def+lv+bonus('def')+(equip?.def||0)+needs.defense+wear.defense),
+      speed:r.speed+bonus('speed')+needs.speed+wear.speed,
       xpNext:48+lv*25
     };
   }
@@ -279,18 +271,20 @@
     return true;
   }
   function npcPoint(id){
-    const home=World.points[id],base=home&&Life.npcPoint(s,id,home);
-    return base&&window.Conflicts&&s.conflicts?Conflicts.point(s,id,base):base;
+    const home=World.points[id];
+    return home&&Conflicts.point(s,id,Life.npcPoint(s,id,home));
   }
-  // Patrols, wounds and memorials replace the NPC's usual presence while they last.
-  const absent=id=>!!(window.Conflicts&&s.conflicts&&Conflicts.takesOver(s,id));
-  const fallen=id=>!!(window.Conflicts&&s.conflicts&&Conflicts.condition(s,id)?.status==='dead');
+  const fallen=id=>Conflicts.condition(s,id)?.status==='dead';
+  const elderRecord=()=>fallen('elder')&&s.region==='valley';
   function nearNpc(id){const npc=npcPoint(id);return !!npc&&distance(s.player,npc)<=48;}
   function useGate(gate){
     if(s.campaign.stage<(gate.minStage||0))return refuse(gate.minStage===1?'Riporta a Nerea il seme di Orveth per aprire il passo.':'Sconfiggi Kharun per riattivare il montacarichi.');
     if(s.monsters.some(m=>m.hp>0&&m.engaged&&codex[m.type].boss))return refuse('Allontanati dall’arena prima di partire.');
-    if(!changeRegion(gate.to))return refuse('Questo passaggio non è ancora disponibile.');
-    const p=s.player,pos=gate.arrival;
+    return arrive(gate.to,gate.arrival);
+  }
+  function arrive(to,pos){
+    if(!changeRegion(to))return refuse('Questo passaggio non è ancora disponibile.');
+    const p=s.player;
     Object.assign(p,pos&&World.canWalk(pos.x,pos.y,6)?pos:World.spawn);
     p.moving=false;p.dash=0;p.hit=0;p.invul=.8;
     resetTransient();record('visit',1);keep();emit('region',s.region);
@@ -310,10 +304,10 @@
     const p=s.player;
     const choices=[];
     for(const [id,name] of [['elder','Nerea'],['merchant','Tessa'],['smith','Ivo']]){
-      const point=npcPoint(id);
-      if(point&&!absent(id))choices.push({kind:id,point,range:40,text:'Parla con '+name});
+      const memorial=id==='elder'&&elderRecord();
+      const point=memorial?World.points.elder:npcPoint(id);
+      if(point&&(memorial||!Conflicts.takesOver(s,id)))choices.push({kind:memorial?'elder-record':id,point,range:40,text:memorial?'Consulta il registro di Nerea':'Parla con '+name});
     }
-    if(window.Conflicts&&s.conflicts)choices.push(...Conflicts.sites(s));
     World.points.resources.forEach((point,i)=>{
       if(s.resourceTimes[i]<=s.time)choices.push({kind:'resource',i,point,range:25,text:{herb:'Raccogli erba di rugiada',ore:'Estrai minerale lucente',wood:'Raccogli legname'}[point.type]});
     });
@@ -326,7 +320,8 @@
     choices.push(...Society.sites(s));
     choices.push(...Guild.sites(s));
     choices.push(...Tradecraft.sites(s),...Daily.sites(s),...Economy.sites(s));
-    if(window.Legendary&&s.legendary)choices.push(...Legendary.sites(s));
+    choices.push(...Conflicts.sites(s),...Legendary.sites(s));
+    choices.push(...UrbanWorld.sites(s),...UrbanLife.sites(s));
     let best=null,range=Infinity;
     for(const item of choices){
       const d=distance(p,item.point);
@@ -335,13 +330,13 @@
     return best;
   }
   function valleyQuest(){
-    const p=s.player,e=npcPoint('elder'),b=World.points.boss;
+    const p=s.player,e=elderRecord()?World.points.elder:npcPoint('elder'),b=World.points.boss;
     const nearest=s.monsters.reduce((best,m)=>m.hp>0&&!codex[m.type].boss&&(!best||distance(p,m)<distance(p,best))?m:best,null);
     const steps=[
-      ['Tre colpi di campana','Parla con Nerea al Borgo di Vela.',0,1,e],
+      ['Tre colpi di campana',elderRecord()?'Consulta il registro di Nerea al Borgo di Vela.':'Parla con Nerea al Borgo di Vela.',0,1,e],
       ['Gli echi del sentiero','Sconfiggi tre creature della valle ('+Math.min(3,p.kills)+'/3).',Math.min(3,p.kills),3,nearest||World.points.mobs[0]],
       ['Il Cervo Cavo','Raggiungi il Cerchio delle Radici e sconfiggi Orveth.',0,1,b],
-      ['Il seme ritrovato','Riporta a Nerea la memoria del Cervo Cavo.',0,1,e],
+      ['Il seme ritrovato',elderRecord()?'Porta il seme al registro di Vela.':'Riporta a Nerea la memoria del Cervo Cavo.',0,1,e],
       ['Le radici di Lùmora','Il seme è tornato al borgo.',1,1,null]];
     const [title,text,current,total,target]=steps[s.quest];return {title,text,current,total,target};
   }
@@ -360,13 +355,16 @@
       if(target)text='Segui il segnale verso '+(regionInfo(target.to)?.name||target.to)+'. Premi E al passaggio.';
     }else if(chapter.boss){
       target=s.monsters.find(m=>m.type===chapter.boss&&m.hp>0)||null;
-    }else target=npcPoint('elder')||null;
+    }else{
+      target=(elderRecord()?World.points.elder:npcPoint('elder'))||null;
+      if(elderRecord())text='Porta i tre frammenti al registro di Vela.';
+    }
     return {title,text,current:Math.min(4,stage),total:4,target};
   }
   function view({detailed=true}={}){
     if(!s)return null;
     const p=s.player,r=raceBook[p.race],m=s.monsters.find(m=>m.hp>0&&m.engaged&&codex[m.type].boss);
-    const location=World.landmarks?.length?World.landmarks.reduce((a,b)=>distance(a,p)<distance(b,p)?a:b).name:'Borgo di Vela';
+    const location=UrbanWorld.location(s)||(World.landmarks?.length?World.landmarks.reduce((a,b)=>distance(a,p)<distance(b,p)?a:b).name:'Borgo di Vela');
     const calendar=Calendar.view(s.calendar,s.time,s.region);
     const next=detailed?evolution():null, campaignStage=s.campaign.stage;
     return {...stats(),race:r,formName:formFor(p)?.name||r.name,objective:objective(),
@@ -375,7 +373,7 @@
       life:detailed?Life.view(s):undefined,build:detailed?Build.view(s):undefined,society:detailed?Society.view(s):undefined,
       guild:detailed?Guild.view(s):undefined,
       interact:focus()?.text||null,location,calendar,weather:calendar.weather,clock:calendar.clock,
-      boss:m?{id:m.type,name:codex[m.type].name,hp:m.hp,maxHp:m.maxHp,phase:m.phase,pattern:m.pattern,maxPhase:phasesOf(m.type)}:null,
+      boss:m?{id:m.type,name:codex[m.type].name,hp:m.hp,maxHp:m.maxHp,phase:m.phase,pattern:m.pattern,maxPhase:phaseCount(m.type)}:null,
       evolveReady:next?.ready||false,sideQuest:s.sideQuest<2&&fallen('smith')?'Ivo è morto. La commissione della forgia resterà incompiuta.':['Ivo cerca erbe di rugiada per la forgia. Trovalo al borgo.',
         'Porta tre erbe di rugiada a Ivo ('+Math.min(3,p.inventory.herb)+'/3).','Ivo ha riacceso la forgia con le tue erbe.'][s.sideQuest],
       elderLost:fallen('elder')};
@@ -403,15 +401,11 @@
   }
   function kill(m){
     const p=s.player,def=codex[m.type];m.hp=0;m.engaged=false;m.wind=0;m.dash=0;m.dead=s.time+35;
-    window.Adaptive?.clearGuard(s,m);
+    Adaptive.clearGuard(s,m);
     s.defeated[m.type]=(s.defeated[m.type]||0)+1;s.seen[m.type]=true;
     p.kills++;p.gold+=def.gold+(p.race==='goblin'?1:0);
     p.inventory.essence+=def.boss?(m.type==='boss'?4:6):1;
     if(Object.hasOwn(traits,m.type))p.echoes[m.type]=(p.echoes[m.type]||0)+(def.boss?2:1);
-    if(def.legendary&&window.Legendary){
-      announce(Legendary.recordKill(s,m.type));
-      if(m.type==='nadir')fame('legendary-kill');
-    }
     if(p.race==='vampire')p.hp=Math.min(stats().hpMax,p.hp+5);
     if(p.race==='secret')p.mp=Math.min(stats().mpMax,p.mp+4);
     if(m.type==='boss'){s.bossDefeated=true;p.inventory.crown=1;shots=shots.filter(b=>!b.hostile);}
@@ -423,29 +417,45 @@
     }
     record('kill',1,{species:m.type,enemyLevel:def.level});
     if(def.boss)record('boss',1,{species:m.type,enemyLevel:def.level});
+    announce(Legendary.recordKill(s,m.type));
+    if(m.type==='nadir')announce(Reputation.record(s,'legendary-kill'));
     gainXp(def.xp);advance();
     label(m.x,m.y-6,'+'+def.xp+' PE','#f8dd90');spark(m.x,m.y,'#e7bc6b',16);
     emit('sound',def.boss?'victory':'loot');
     if(s.quest===2 && p.kills===3)emit('toast','Il Cerchio delle Radici è aperto.');
-    if(m.type==='boss')emit('toast','Corona di Orveth ottenuta. Nerea ti aspetta al borgo.');
-    if(def.item)emit('toast',equipment[def.item].name+' ottenuto · '+(m.type==='asterion'?'Torna da Nerea.':m.type==='kharun'?'Raggiungi il montacarichi.':'Raggiungi il Cuore del Varco.'));
+    if(m.type==='boss')emit('toast','Corona di Orveth ottenuta. '+(elderRecord()?'Torna al registro di Vela.':'Nerea ti aspetta al borgo.'));
+    if(def.item){
+      const end=fallen('elder')?'Torna al registro di Vela.':'Torna da Nerea.';
+      emit('toast',equipment[def.item].name+' ottenuto · '+(m.type==='asterion'?end:m.type==='kharun'?'Raggiungi il montacarichi.':'Raggiungi il Cuore del Varco.'));
+    }
     keep();
   }
-  function hurtMonster(m,damage,color,channel){
+  const phaseCount=type=>codex[type].phases||(type==='asterion'||type==='nadir'?3:2);
+  function hurtMonster(m,damage,color,channel='companion'){
     if(!m||m.hp<=0||m.grace>0)return 0;
     const def=codex[m.type];
-    if(window.Adaptive&&s.adaptive&&channel){damage*=Adaptive.damageFactor(s,m,channel);Adaptive.seeHit(s,m,channel);}
-    const phases=phasesOf(m.type);
+    const phases=phaseCount(m.type);
     const floor=def.boss?(m.phase===1?Math.round(m.maxHp*(phases===3?.64:.5)):m.phase===2&&phases===3?Math.round(m.maxHp*.28):0):0;
-    const hp=Math.max(floor,m.hp-Math.max(1,Math.round(damage))),dealt=m.hp-hp;
+    if(!m.engaged)Adaptive.encounter(s,m);
+    const hp=Math.max(floor,m.hp-Math.max(1,Math.round(damage*Adaptive.damageFactor(s,m,channel)))),dealt=m.hp-hp;
+    Adaptive.seeHit(s,m,channel);
     m.hp=hp;m.hit=.15;m.engaged=true;s.seen[m.type]=true;combat=5;
     label(m.x,m.y,dealt,color||'#fff0c4');spark(m.x,m.y,color||'#fada8a',5);
     if(m.hp<=0){kill(m);return dealt;}
     if(floor&&m.hp===floor){
+      Adaptive.clearGuard(s,m);
       m.phase++;m.wind=0;m.pattern='';m.cd=.6;m.grace=.55;m.dash=0;m.cycle=0;
       ring(m.x,m.y,54,def.color||'#e792be');emit('toast',(m.type==='boss'?'Orveth apre il cuore':def.name)+' · '+(m.phase===3?'Fase III':'Fase II'));emit('sound','boss');
     }
     return dealt;
+  }
+  function npcImpact(m,damage,color){
+    if(!targetable(m)||codex[m.type].boss||m.grace>0)return 0;
+    const hit=Math.min(m.hp,Math.max(1,Math.round(damage)));
+    m.hp-=hit;m.hit=.16;
+    spark(m.x,m.y,color||'#ddba8e',4);
+    if(m.hp<=0){m.engaged=false;m.wind=0;m.dash=0;m.dead=s.time+55;}
+    return hit;
   }
   function recover(){
     const p=s.player,previous=s.region,anchor=Life.respawn(s),lost=Math.min(p.gold,3);
@@ -459,7 +469,7 @@
     }
     Object.assign(p,{x:pos.x,y:pos.y,hp:stats().hpMax,mp:stats().mpMax,invul:atStatue?4:2,hit:0,dash:0,ward:0,wardTime:0,moving:false});
     p.gold-=lost;Daily.recover(s);resetTransient();
-    emit('toast',(atStatue?'Rinasci presso l’ultima statua attivata.':'Nerea ti risveglia al borgo.')+(lost?' Puoi recuperare '+lost+' Scintille dal borsello.':''));
+    emit('toast',(atStatue?'Rinasci presso l’ultima statua attivata.':Conflicts.canInteract(s,'elder')?'Nerea ti risveglia al borgo.':'Riapri gli occhi al Borgo di Vela.')+(lost?' Puoi recuperare '+lost+' Scintille dal borsello.':''));
     if(previous!==s.region)emit('region',s.region);
     emit('sound','heal');keep();
   }
@@ -471,9 +481,9 @@
     }
     const d=Math.max(2,Math.round(amount-stats().defense*.62-(magical&&p.race==='drake'?3:0)));
     const absorbed=Math.min(p.ward,d);p.ward-=absorbed;p.hp-=d-absorbed;p.hit=.22;p.invul=.55;combat=5;
+    if(d>absorbed)announce(Gear.defend(s,{hit:true,damage:d-absorbed,magical})?.notices);
     if(absorbed&&wardPractice){recordImpact(wardPractice);wardPractice=null;}
     if(d>absorbed&&p.hp>0)record('damage',1,{magical,damage:d-absorbed});
-    if(d>absorbed)gearWear('defend',{hit:true,magical,damage:d-absorbed});
     label(p.x,p.y,d===absorbed?'Scudo':'−'+(d-absorbed),d===absorbed?'#91dbff':'#ffaaa4');
     emit('sound','hit');if(p.hp<=0)recover();
   }
@@ -490,9 +500,9 @@
     return !Build.blocked(s,x,y,r)&&(World.canWalk(x,y,r)||Build.bridgeAt(s,x,y,r));
   }
   function unlocked(m){
+    if(!Legendary.allows(s,m.type))return false;
     const def=codex[m.type];
-    if(def.legendary)return !!window.Legendary&&Legendary.allows(s,m.type);
-    return !def.boss||(m.type==='boss'?s.quest>=2:s.campaign.stage>=def.stage);
+    return !def.boss||def.stage===undefined||(m.type==='boss'?s.quest>=2:s.campaign.stage>=def.stage);
   }
   function targetable(m){return m.hp>0 && unlocked(m);}
   function nearest(from,range){
@@ -500,7 +510,7 @@
     for(const m of s.monsters){if(!targetable(m))continue;const d=distance(from,m);if(d<min){min=d;best=m;}}
     return best;
   }
-  function arc(damage,reach,color,width=-.20){
+  function arc(damage,reach,color,width=-.20,stage){
     const p=s.player, near=nearest(p,reach),current=dirVectors[p.dir];
     if(near && (distance(p,near)<21 || (near.x-p.x)*current[0]+(near.y-p.y)*current[1]>-4))p.dir=heading(near.x-p.x,near.y-p.y);
     const [vx,vy]=dirVectors[p.dir],angle=Math.atan2(vy,vx);
@@ -509,9 +519,12 @@
     for(const m of s.monsters){
       if(!targetable(m)||distance(p,m)>reach+(codex[m.type].boss?9:0))continue;
       const [dx,dy]=normalize(m.x-p.x,m.y-p.y);
-      if((distance(p,m)<15||dx*vx+dy*vy>width)&&hurtMonster(m,damage*(p.race==='demon'&&m.hp<m.maxHp/2?1.2:1),color,'melee')){hits++;boss=boss||!!codex[m.type].boss;}
+      if((distance(p,m)<15||dx*vx+dy*vy>width)&&hurtMonster(m,damage*(p.race==='demon'&&m.hp<m.maxHp/2?1.2:1),color,'melee')){
+        hits++;
+        boss=boss||!!codex[m.type].boss;
+      }
     }
-    if(hits)gearWear('strike',{hit:true,boss,combo:combo+1});
+    if(hits)announce(Gear.strike(s,{hit:true,boss,combo:stage}).notices);
     return hits;
   }
   function launch(x,y,dir,style,damage,color,hostile=false,speed=hostile?88:190){
@@ -532,7 +545,7 @@
     const p=s.player,innate=id==='innate',def=innate?Growth.innate(p.growth):activeSkill(p,id),entry=innate?def:p.skills[id];
     if(!def||!entry||p.cooldowns[id]>0)return false;
     if(p.mp<def.cost)return refuse('Mana insufficiente.');
-    const patients=(def.style==='heal'||def.style==='bloom')&&window.Conflicts&&s.conflicts?Conflicts.wounded(s):[];
+    const patients=def.style==='heal'||def.style==='bloom'?Conflicts.wounded(s):[];
     if(def.style==='heal'&&p.hp>=stats().hpMax&&!patients.length)return refuse('La vitalità è già al massimo.');
     const target=nearest(p,174);
     if(['leech','bolt','fan'].includes(def.style)&&target)p.dir=heading(target.x-p.x,target.y-p.y);
@@ -565,7 +578,10 @@
         let touched=def.style==='bloom'&&p.hp<stats().hpMax;
         for(const m of s.monsters)if(targetable(m)&&distance(p,m)<=(def.reach||64)){if(def.style==='snare')m.slow=def.slow||3;touched=!!hurtMonster(m,power,color,'field')||touched;}
         if(def.style==='bloom')heal(power*.53);
-        if(touched){recordImpact(spellPractice);gearWear('strike',{hit:true,magical:true});}
+        if(touched){
+          recordImpact(spellPractice);
+          announce(Gear.strike(s,{hit:true,magical:true}).notices);
+        }
         break;}
       case 'heal':heal(power);recordImpact(spellPractice);break;
       case 'ward':
@@ -577,13 +593,15 @@
         ally={x:p.x,y:p.y,life:10,cd:.2,power,color,practice:spellPractice};spark(p.x,p.y,color);
         break;
     }
-    for(const id of patients){
-      const saved=Conflicts.mend(s,id);
+    let rescued=false;
+    for(const npc of patients){
+      const saved=Conflicts.mend(s,npc);
       if(!saved)continue;
+      rescued=true;
       announce([...saved.notices,saved.name+' è salvo grazie a '+def.name+'.']);
-      record('npcRescue',1,{npc:id,critical:saved.critical,region:saved.region});
-      keep();
+      record('npcRescue',1,{npc,critical:saved.critical,region:saved.region});
     }
+    if(rescued)keep();
     emit('sound',def.style==='heal'?'heal':'skill');return true;
   }
   function activeSkill(p,id){
@@ -634,7 +652,7 @@
     }else{
       if(style==='slam'&&finisher)ring(p.x,p.y,reach,color);
       const width=style==='claw'||style==='lunge'?.1:style==='slam'&&finisher?-1.01:style==='sweep'?-.34:-.20;
-      if(arc(impact,reach+(finisher?5:0),color,width))registerStrike(style,stage);
+      if(arc(impact,reach+(finisher?5:0),color,width,stage))registerStrike(style,stage);
       else combo=0;
     }
     emit('sound','attack');return true;
@@ -663,9 +681,21 @@
         if(active.kind==='society')return applyLife(Society.use(s,active.id));
         if(active.kind==='guild')return applyLife(Guild.use(s,active.id));
         if(active.kind==='economy')return applyLife(Economy.use(s,active.id));
-        if(active.kind==='workshop')return applyLife({ok:true,panel:{id:'workshop',detail:active.id}});
-        if(active.kind==='legendary')return legendaryUse(active.id);
         if(active.kind==='conflict')return applyLife(Conflicts.use(s,active.id));
+        if(active.kind==='urban-resident')return applyLife(UrbanLife.use(s,active.id));
+        if(active.kind==='urban-site'){
+          const result=UrbanWorld.use(s,active.id);
+          return result.transition?arrive(result.transition.region,result.transition):applyLife(result);
+        }
+        if(active.kind==='legendary'){
+          const result=Legendary.use(s,active.id);
+          if(!result.transition)return applyLife(result);
+          if(!arrive(result.transition.region,result.transition))return false;
+          emit('sound','interact');
+          emit('toast',s.region===LegendaryLand.id?'Entri nel '+LegendaryLand.region.name+'.':'Ritorni in superficie.');
+          return true;
+        }
+        if(active.kind==='workshop')return applyLife({ok:true,panel:{id:'workshop',detail:active.id}});
         if(active.kind==='daily')return applyLife({ok:true,panel:'living'});
         if(active.kind==='lantern'){
           const text=window.Lantern.collect(s);
@@ -680,19 +710,6 @@
         return true;}
       default:return false;
     }
-  }
-  function legendaryUse(id){
-    const result=Legendary.use(s,id),move=result?.ok&&result.transition;
-    if(!move)return applyLife(result);
-    if(s.monsters.some(m=>m.hp>0&&m.engaged&&codex[m.type].boss))return refuse('Allontanati dall’arena prima di partire.');
-    if(!changeRegion(move.region))return refuse('Questo passaggio non è ancora disponibile.');
-    const p=s.player;
-    Object.assign(p,World.canWalk(move.x,move.y,6)?{x:move.x,y:move.y}:World.spawn);
-    p.moving=false;p.dash=0;p.hit=0;p.invul=.8;
-    resetTransient();record('visit',1);
-    emit('sound','interact');emit('region',s.region);
-    emit('toast',s.region===LegendaryLand.id?'Entri nel '+LegendaryLand.region.name+'.':'Ritorni in superficie.');
-    keep();return true;
   }
   function applyLife(result){
     if(!result?.ok)return result?.text?refuse(result.text):false;
@@ -719,6 +736,9 @@
     const p=s.player;
     s.time+=rest.seconds;
     Daily.tick(s,{sleep:true});Life.tick(s);Society.tick(s);Build.tick(s);Economy.tick(s);
+    announce(Conflicts.tick(s,0,{walk:canWalk})||[]);
+    announce(Legendary.tick(s));
+    announce(UrbanLife.tick(s,0,{walk:canWalk}));
     for(const id of Object.keys(p.cooldowns))p.cooldowns[id]=Math.max(0,p.cooldowns[id]-rest.seconds);
     resetTransient();
     const st=stats();
@@ -738,10 +758,13 @@
     Inventory.sync(s);
     const p=s.player,inv=p.inventory;
     const location={accept:'elder',reward:'elder',finish:'elder',buyPotion:'merchant',buyCharm:'merchant',craft:'smith',sideAccept:'smith',sideReward:'smith'}[name];
-    if(location&&!nearNpc(location))return refuse('Avvicinati al personaggio per parlargli.');
-    // Nerea's memorial keeps the campaign open. Tessa and Ivo cannot serve while away, wounded or gone.
-    if(location&&absent(location)&&!(location==='elder'&&fallen('elder')))
-      return refuse(fallen(location)?'Non c’è più nessuno a cui rivolgersi qui.':'Il personaggio non può parlarti in questo momento.');
+    const archive=location==='elder'&&elderRecord();
+    if(location){
+      const nearby=nearNpc(location)||archive&&distance(p,World.points.elder)<=48;
+      if(!nearby)return refuse('Avvicinati al personaggio o al luogo indicato.');
+      if(!archive&&Conflicts.takesOver(s,location))
+        return refuse(fallen(location)?'Non c’è più nessuno a cui rivolgersi qui.':'Il personaggio non può parlarti in questo momento.');
+    }
     let text, sound='ui', panel;
     switch(name){
       case 'accept':
@@ -749,12 +772,14 @@
         s.quest=1;advance();text='Missione ricevuta · Gli echi del sentiero';break;
       case 'reward':
         if(s.quest!==3)return refuse(objective().text);
-        s.quest=4;s.campaign.stage=1;p.gold+=fallen('elder')?10:25;p.rep+=3;gainXp(45);fame('campaign-vela',{region:'valley'});
-        text=fallen('elder')?'Deponi il seme sul memoriale di Nerea. Il borgo ti affida la sua eredità. Il passo a est è aperto.':'Vela ti riconosce come alleato. Il passo a est è aperto.';sound='victory';panel='victory';break;
+        s.quest=4;s.campaign.stage=1;p.gold+=archive?10:25;p.rep+=3;gainXp(45);
+        announce(Reputation.record(s,'campaign-vela'));
+        text=archive?'Deponi il seme nel luogo della memoria di Nerea. Il borgo ti affida la sua eredità. Il passo a est è aperto.':'Vela ti riconosce come alleato. Il passo a est è aperto.';sound='victory';panel='victory';break;
       case 'finish':
         if(s.campaign.stage!==4)return refuse(objective().text);
-        s.campaign.stage=5;s.campaign.completed=true;p.gold+=fallen('elder')?50:80;p.rep+=5;gainXp(150);fame('campaign-rift',{region:'valley'});
-        text=fallen('elder')?'Il Varco è chiuso. Lùmora ricorda il tuo nome, e quello di Nerea.':'Il Varco è chiuso. Lùmora ricorda il tuo nome.';sound='victory';panel='ending';break;
+        s.campaign.stage=5;s.campaign.completed=true;p.gold+=archive?50:80;p.rep+=5;gainXp(150);
+        announce(Reputation.record(s,'campaign-rift'));
+        text=archive?'Il Varco è chiuso. Lùmora ricorda il tuo nome, e quello di Nerea.':'Il Varco è chiuso. Lùmora ricorda il tuo nome.';sound='victory';panel='ending';break;
       case 'buyPotion':case 'buyCharm':{
         if(!Calendar.view(s.calendar,s.time,s.region).shopOpen)return refuse('L’emporio apre dalle 07:00 alle 20:00.');
         const potion=name==='buyPotion',cost=potion?rules.potionPrice:rules.charmPrice;
@@ -767,32 +792,40 @@
         if(inv.herb<rules.craftHerb||inv.ore<rules.craftOre)return refuse(rules.craftText);
         inv.herb-=rules.craftHerb;inv.ore-=rules.craftOre;p.potions+=2;record('craft',1,{kind:'potion'});text='Ivo ti consegna due pozioni di linfa.';sound='loot';break;
       case 'equip':
-        if(!Object.hasOwn(equipment,value)||!inv[value]||p.equipped===value)return false;
-        p.equipped=value;window.Gear?.activateLegacy(s,value);text=equipment[value].name+' · +'+equipment[value].atk+' attacco e +'+equipment[value].def+' difesa.';break;
+        if(!Object.hasOwn(equipment,value)||!inv[value])return false;
+        return applyLife(Gear.command(s,{op:'equip',id:value}));
       case 'life':return applyLife(Life.command(s,value));
       case 'build':return applyLife(Build.command(s,value));
       case 'society':return applyLife(Society.command(s,value));
       case 'guild':{
-        const result=Guild.command(s,value),op={claim:'guild-claim',found:'guild-found',branch:'guild-branch'}[value?.op];
-        if(result?.ok&&op)fame(op);
-        return applyLife(result);}
+        const result=Guild.command(s,value);
+        if(result?.ok&&['claim','found','branch'].includes(value?.op))announce(Reputation.record(s,'guild-'+value.op));
+        return applyLife(result);
+      }
       case 'workshop':{
+        if(value?.op==='equip'&&Gear.isManaged(value.id)){
+          const op=Gear.isEquipped(s,value.id)?'unequip':'equip';
+          return applyLife(Gear.command(s,{op,id:value.id}));
+        }
         const result=Tradecraft.command(s,value);
-        if(result?.ok&&value?.op==='equip'&&s.workshop.weapon)window.Gear?.activateLegacy(s,s.workshop.weapon);
-        return applyLife(result);}
-      case 'gear':return window.Gear&&s.gear?applyLife(Gear.command(s,value)):false;
-      case 'conflict':return window.Conflicts&&s.conflicts?applyLife(Conflicts.command(s,value)):false;
-      case 'legendary':{
-        if(!window.Legendary||!s.legendary)return false;
-        const result=Legendary.command(s,value);
-        if(result?.ok)fame('sovereign');
-        return applyLife(result);}
+        return applyLife(result);
+      }
       case 'daily':{
         const result=Daily.command(s,value);
-        if(result?.ok&&value?.op==='claim')fame('quest-claim');
-        return applyLife(result);}
+        if(result?.ok&&value?.op==='claim')announce(Reputation.record(s,'quest-claim'));
+        return applyLife(result);
+      }
       case 'economy':return applyLife(Economy.command(s,value));
       case 'weave':return weave(p,value);
+      case 'gear':return applyLife(Gear.command(s,value));
+      case 'conflict':return applyLife(Conflicts.command(s,value));
+      case 'urban':return applyLife(UrbanLife.command(s,value));
+      case 'city-service':return applyLife(UrbanServices.command(s,value));
+      case 'legendary':{
+        const result=Legendary.command(s,value);
+        if(result?.ok&&value?.op==='claim')announce(Reputation.record(s,'sovereign'));
+        return applyLife(result);
+      }
       case 'sleep':return sleep();
       case 'practice':{
         if(!safeRest())return refuse('Inizia l’attività lontano dalle creature ostili.');
@@ -840,12 +873,12 @@
     kharun:[['hammer','slag','hammer'],['forge','slag','hammer']],
     syrava:[['dash','shards','shatter'],['shatter','dash','shards']],
     asterion:[['nova','sigil','constellation'],['sigil','constellation','nova'],['constellation','nova','sigil','constellation']],
-    // Legendary guardians reuse the existing attack patterns and their telegraphs.
-    nadir:[['nova','dash','shatter'],['sigil','nova','shards','dash'],['constellation','nova','sigil','dash']],
-    'dungeon-heir':[['hammer','dash','slag'],['forge','hammer','dash','shatter']]
+    nadir:[['nadir-prism','shards','dash'],['nadir-prism','sigil','shatter'],['nadir-prism','nova','constellation']],
+    'dungeon-heir':[['heir-spore','dash','stomp'],['heir-spore','roots','dash']]
   };
-  const patternDistance={stomp:45,hammer:53,nova:83};
-  const patternWind={dash:.65,hammer:.88,slag:.84,forge:.78,shards:.65,shatter:.79,nova:1.1,sigil:.91,constellation:.93};
+  const patternDistance={stomp:45,hammer:53,nova:83,'nadir-prism':118,'heir-spore':104};
+  const patternWind={dash:.65,hammer:.88,slag:.84,forge:.78,shards:.65,shatter:.79,nova:1.1,sigil:.91,constellation:.93,'nadir-prism':1.18,'heir-spore':.86};
+  const reactionLines={counter:'Prepara un contrattacco',sidestep:'Cerca spazio per schivare','break-line':'Cambia posizione'};
   const phaseCooldown=(m,def)=>def.boss?(m.phase===3?.84:m.phase===2?.99:1.44):(def.behavior==='caster'||m.type==='moth'?2:1.25);
   function fanEnemy(m,count,spread,speed,color,damage,start=0){
     const angle=Math.atan2(m.aimY,m.aimX)+start;
@@ -862,6 +895,14 @@
   }
   function hazard(x,y,r,duration,damage,color){
     hazards.push({x,y,r,ttl:duration,damage,color});
+  }
+  function hasCover(from,to){
+    const steps=Math.ceil(distance(from,to)/8);
+    for(let i=1;i<steps;i++){
+      const fraction=i/steps;
+      if(!canWalk(from.x+(to.x-from.x)*fraction,from.y+(to.y-from.y)*fraction,2))return true;
+    }
+    return false;
   }
   function burstEnemy(m){
     const p=s.player,def=codex[m.type],color=def.color||(def.boss?'#f79faa':'#c6ef8c');
@@ -917,16 +958,43 @@
         spreadEnemy(m,m.phase===3?17:12,106,color,damage,.17);
         if(m.phase>1)fanEnemy(m,5,1.1,160,'#fff4e0',damage-4,.04);
         ring(m.x,m.y,58,color);break;
+      case 'nadir-prism':{
+        const [x,y]=[m.aimX,m.aimY];
+        for(const side of [-1,1]){
+          const pivot={x:m.targetX+side*y*28,y:m.targetY-side*x*28};
+          if(World.canWalk(pivot.x,pivot.y,5))hazard(pivot.x,pivot.y,m.phase===3?22:17,2.4,damage,color);
+        }
+        fanEnemy(m,m.phase===3?7:5,1.22,128,color,damage);
+        break;
+      }
+      case 'heir-spore':
+        for(let i=0;i<3;i++){
+          const x=m.targetX+m.aimX*(i-1)*28,y=m.targetY+m.aimY*(i-1)*28;
+          if(World.canWalk(x,y,5))hazard(x,y,19,2.5+m.phase,damage-4,color);
+        }
+        break;
+      case 'counter':
+        Adaptive.guard(s,m,1.9);
+        ring(m.x,m.y,39,color);
+        if(distance(m,p)<43)hurtPlayer(def.boss?damage:damage-3);
+        break;
+      case 'sidestep':
+      case 'break-line':{
+        const side=m.id%2===0?1:-1,reach=def.boss?34:19;
+        const a=m.aimX,b=m.aimY;
+        const offsets=m.pattern==='sidestep'?[[b*side,-a*side],[-b*side,a*side]]:[
+          [-a,-b],[-a*.7+b*.7,-b*.7-a*.7],[-a*.7-b*.7,-b*.7+a*.7]];
+        const choices=offsets.map(([x,y])=>{
+          const point={x:m.x+x*reach,y:m.y+y*reach};
+          return {x,y,cover:m.pattern==='break-line'&&canWalk(point.x,point.y,7)&&!hasCover(m,point)&&hasCover(p,point)};
+        }).sort((a,b)=>Number(b.cover)-Number(a.cover));
+        for(const {x,y} of choices){
+          if(move(m,x*reach,y*reach,7)){m.dir=heading(x,y);break;}
+        }
+        spark(m.x,m.y,color,9);break;
+      }
     }
     m.cd=phaseCooldown(m,def);m.pattern='';
-  }
-  function adaptiveMove(m,d,x,y){
-    const answer=window.Adaptive&&s.adaptive?Adaptive.response(s,m,d):null;
-    if(!answer)return false;
-    if(answer==='counter'){Adaptive.guard(s,m,2.6);beginWind(m,'stomp',.5,x,y);label(m.x,m.y-18,'Contromossa','#f3c78d');}
-    else if(answer==='sidestep'){const side=(m.id+Math.floor(s.time))%2?1:-1;beginWind(m,'dash',.3,-y*side,x*side);label(m.x,m.y-18,'Scarto','#a6eced');}
-    else {beginWind(m,'dash',.45,x,y);label(m.x,m.y-18,'Rompe la linea','#ffaaa4');}
-    return true;
   }
   function updateMonster(m,dt){
     const def=codex[m.type],boss=!!def.boss, behavior=def.behavior||monsterBehavior[m.type];
@@ -941,8 +1009,8 @@
     m.moving=false;
     if(!unlocked(m))return;
     const homeDist=Math.hypot(p.x-m.homeX,p.y-m.homeY),leash=boss?183:150;
-    if(m.engaged && homeDist>leash+48){m.engaged=false;m.wind=0;m.dash=0;window.Adaptive?.clearGuard(s,m);if(boss){m.hp=m.maxHp;m.phase=1;m.cycle=0;m.grace=0;}}
-    if(!m.engaged && d<(boss?112:80) && homeDist<leash){m.engaged=true;window.Adaptive?.encounter(s,m);if(boss){emit('sound','boss');emit('toast',def.name);}}
+    if(m.engaged && homeDist>leash+48){m.engaged=false;m.wind=0;m.dash=0;Adaptive.clearGuard(s,m);if(boss){m.hp=m.maxHp;m.phase=1;m.cycle=0;m.grace=0;}}
+    if(!m.engaged && d<(boss?112:80) && homeDist<leash){m.engaged=true;Adaptive.encounter(s,m);if(boss){emit('sound','boss');emit('toast',def.name);}}
     if(m.dash>0){
       const dashSpeed=m.type==='syrava'?231:m.type==='shade'?211:172;
       m.dash=Math.max(0,m.dash-dt);m.moving=move(m,m.aimX*dashSpeed*dt,m.aimY*dashSpeed*dt,boss?7:5);
@@ -960,7 +1028,10 @@
     const [x,y]=normalize(p.x-m.x,p.y-m.y);
     const speed=def.speed*(m.slow>0?.44:1);
     m.dir=heading(x,y);
-    if(m.cd<=0&&adaptiveMove(m,d,x,y))return;
+    if(m.cd<=0){
+      const response=Adaptive.response(s,m,d);
+      if(response){beginWind(m,response,response==='counter'?.66:.5,x,y);label(m.x,m.y,reactionLines[response],def.color||'#f4cca0');return;}
+    }
     if(boss){
       const patterns=bossPatterns[m.type][m.phase-1], next=patterns[m.cycle%patterns.length];
       if(m.cd<=0 && d<(patternDistance[next]||138)){
@@ -988,7 +1059,10 @@
         if(m){
           const dealt=hurtMonster(m,b.damage,b.color,'projectile');
           if(b.style==='leech'&&dealt)heal(dealt*.33);
-          if(dealt){recordImpact(b.practice);gearWear('strike',{hit:true,magical:b.practice?.event==='magic',boss:!!codex[m.type].boss});}
+          if(dealt){
+            if(!b.practice?.used)announce(Gear.strike(s,{hit:true,magical:b.practice?.event==='magic',boss:!!codex[m.type].boss,combo:b.practice?.stage}).notices);
+            recordImpact(b.practice);
+          }
           continue;
         }
       }
@@ -1040,10 +1114,8 @@
       Society.tick(s);
       Build.tick(s);
       Economy.tick(s);
-      if(window.Legendary&&s.legendary){
-        const notes=Legendary.tick(s);
-        if(notes.length){announce(notes);keep();}
-      }
+      const legendaryNews=Legendary.tick(s);
+      if(legendaryNews.length){announce(legendaryNews);keep();}
       if(Daily.tick(s,{moving:p.moving,combat:combat>0})){
         p.hp-=st.hpMax*.014;
         if(p.hp<=0){recover();return;}
@@ -1051,15 +1123,15 @@
       const found=Object.keys(s.life.visits).length-before;
       if(found)announce(Growth.record(p.growth,'explore',found,{region:s.region}));
     }
+    const societyNews=Conflicts.tick(s,dt,{hitMob:npcImpact,walk:canWalk,notify:event=>{
+      if(event?.id)announce(Reputation.record(s,event.id,event));
+    }});
+    if(societyNews?.length){announce(societyNews);keep();}
+    const urbanNews=UrbanLife.tick(s,dt,{walk:canWalk});
+    if(urbanNews?.length){announce(urbanNews);keep();}
     if(s.guild.team.length||s.guild.active?.type==='escort'){
-      const notice=Guild.tick(s,dt,{target:(x,y,r)=>nearest({x,y},r),hit:hurtMonster,walk:canWalk});
+      const notice=Guild.tick(s,dt,{target:(x,y,r)=>nearest({x,y},r),hit:hurtMonster,walk:canWalk,notify:announce});
       if(notice){emit('toast',notice);keep();}
-    }
-    if(window.Conflicts&&s.conflicts){
-      const notes=Conflicts.tick(s,dt,{walk:canWalk,hitMob:(m,damage,color)=>hurtMonster(m,damage,color),
-        notify:e=>fame('npc-neglect',{region:e.region})});
-      if(worldEpoch!==epoch)return;
-      if(notes.length){announce(notes);keep();}
     }
     tickGrowth+=dt;
     if(tickGrowth>=.35){tickGrowth=0;if(tryEvolution())keep();}
@@ -1083,8 +1155,9 @@
       if(p.ward>0){ctx.save();ctx.strokeStyle='#a3dfff';ctx.globalAlpha=.45+.2*Math.sin(t*4);ctx.beginPath();ctx.ellipse(x,y-10,12,15,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
     });
     for(const id of ['elder','merchant','smith']){
+      if(Conflicts.takesOver(s,id))continue;
       const point=npcPoint(id);
-      if(!point||absent(id))continue;
+      if(!point)continue;
       sprite(id,point,{},(ctx,x,y)=>{
         if(id==='elder'&&(s.quest===0||s.quest===3||s.campaign.stage===4)||id==='smith'&&(s.sideQuest===0||s.sideQuest===1&&p.inventory.herb>=3))
           diamond(ctx,Math.round(x),Math.round(y-30+Math.sin(t*2)),id==='elder'?'#edbd65':'#b7e4cf');
@@ -1092,7 +1165,7 @@
     }
     for(const m of s.monsters){
       if(m.hp<=0||m.type!=='boss'&&!unlocked(m))continue;
-      sprite(m.type==='wolf'?'feral':m.type,m,{phase:m.phase,attack:m.wind>0||m.dash>0},(ctx,x,y)=>{
+      sprite(codex[m.type].art||(m.type==='wolf'?'feral':m.type),m,{phase:m.phase,attack:m.wind>0||m.dash>0||Conflicts.fighting(s,m.id)},(ctx,x,y)=>{
         if(m.engaged&&!codex[m.type].boss&&m.hp<m.maxHp){
           x=Math.round(x)-8;y=Math.round(y)-27;ctx.fillStyle='#292b32';ctx.fillRect(x-1,y-1,18,4);
           ctx.fillStyle='#d98f7c';ctx.fillRect(x,y,Math.max(1,Math.round(16*m.hp/m.maxHp)),2);
@@ -1116,8 +1189,8 @@
     items.push(...Build.actors(s,t));
     items.push(...Society.actors(s,t));
     items.push(...Guild.actors(s,t));
-    if(window.Legendary&&s.legendary)items.push(...Legendary.actors(s,t));
-    if(window.Conflicts&&s.conflicts)items.push(...Conflicts.actors(s,t));
+    items.push(...Conflicts.actors(s,t),...Legendary.actors(s,t));
+    items.push(...UrbanWorld.actors(s,t),...UrbanLife.actors(s,t));
     return items;
   }
   function circle(ctx,x,y,r,color){
@@ -1148,6 +1221,15 @@
         continue;
       }
       if(pattern==='hammer'){warnCircle(ctx,m.x,m.y,m.phase===2?63:51,color,progress);continue;}
+      if(pattern==='counter'){warnCircle(ctx,m.x,m.y,40,color,progress);continue;}
+      if(pattern==='nadir-prism'){
+        for(const side of [-1,1])warnCircle(ctx,m.targetX+side*m.aimY*28,m.targetY-side*m.aimX*28,m.phase===3?22:17,color,progress);
+        continue;
+      }
+      if(pattern==='heir-spore'){
+        for(let i=0;i<3;i++)warnCircle(ctx,m.targetX+m.aimX*(i-1)*28,m.targetY+m.aimY*(i-1)*28,19,color,progress);
+        continue;
+      }
       if(pattern==='nova'){
         const inner=m.phase===3?25:32,outer=m.phase===3?94:82;
         ctx.globalAlpha=.12+.20*progress;ctx.fillStyle=color;
@@ -1223,8 +1305,8 @@
       const q=entries[i],def=codex[q.type];
       if(!obj(m)||m.id!==i||m.type!==q.type||m.homeX!==q.x||m.homeY!==q.y||
         !num(m.x,0,width)||!num(m.y,0,height)||!num(m.hp,0,def.hp)||m.maxHp!==def.hp||
-        !int(m.phase,1,phasesOf(m.type))||!Object.hasOwn(dirVectors,m.dir)||
-        !['','roots','dash','shot','stomp','hammer','slag','forge','shards','shatter','nova','sigil','constellation'].includes(m.pattern)||
+        !int(m.phase,1,def.boss?phaseCount(m.type):1)||!Object.hasOwn(dirVectors,m.dir)||
+        !['','roots','dash','shot','stomp','hammer','slag','forge','shards','shatter','nova','sigil','constellation','counter','sidestep','break-line','nadir-prism','heir-spore'].includes(m.pattern)||
         !['wind','cd','cycle','dead','hit','slow','dash','grace'].every(k=>num(m[k],0,1e10+1000))||
         (m.wind>0&&!num(m.windDuration,m.wind,10))||!num(m.aimX,-1,1)||!num(m.aimY,-1,1)||
         !num(m.targetX,0,width)||!num(m.targetY,0,height)||typeof m.engaged!=='boolean'||typeof m.moving!=='boolean')return false;
@@ -1234,7 +1316,7 @@
   function parseSave(raw){
     if(typeof raw!=='string'||!raw.length||raw.length>saveMaxBytes)return null;
     const d=JSON.parse(raw);
-    if(!obj(d)||![1,2,3,4,version].includes(d.version)||!int(d.seed,0,4294967295)||!num(d.time,0,1e10)||
+    if(!obj(d)||![1,2,3,4,5,6,version].includes(d.version)||!int(d.seed,0,4294967295)||!num(d.time,0,1e10)||
       !int(d.quest,0,4)||!int(d.sideQuest,0,2)||typeof d.bossDefeated!=='boolean')return null;
     const previousVersion=d.version,legacy=previousVersion<3;
     if(!Object.hasOwn(d,'lanternFound'))d.lanternFound=false;
@@ -1311,19 +1393,22 @@
     if(!d.society)return null;
     d.guild=Guild.restore(d.guild,d);
     if(!d.guild)return null;
-    if(window.Adaptive){d.adaptive=Adaptive.restore(d.adaptive);if(!d.adaptive)return null;}
-    if(window.Reputation){d.reputation=Reputation.restore(d.reputation,d);if(!d.reputation)return null;}
-    if(window.Legendary){
-      d.legendary=Legendary.restore(d.legendary,d);
-      if(!d.legendary)return null;
-      if(!Legendary.validateRegions(d))console.warn('Santuario della Marea Muta: stato incoerente nel salvataggio.');
-    }else if(d.region==='nadir-vault'||Object.hasOwn(d.regions,'nadir-vault'))return null;
-    if(window.Gear){
-      const fresh=d.gear===undefined;
-      d.gear=Gear.restore(d.gear,d);
-      if(!d.gear||!Gear.install(d,fresh))return null;
-    }
-    if(window.Conflicts){d.conflicts=Conflicts.restore(d.conflicts,d);if(!d.conflicts)return null;}
+    const latest=['gear','adaptive','conflicts','legendary','reputation'];
+    if(previousVersion>=6&&!latest.every(id=>Object.hasOwn(d,id)))return null;
+    d.legendary=Legendary.restore(d.legendary,d);
+    if(!d.legendary)return null;
+    const freshGear=d.gear===undefined;
+    d.gear=Gear.restore(d.gear,d);
+    if(!d.gear)return null;
+    if(!Gear.install(d,freshGear))return null;
+    d.adaptive=Adaptive.restore(d.adaptive);
+    d.conflicts=Conflicts.restore(d.conflicts,d);
+    d.reputation=Reputation.restore(d.reputation,d);
+    if(!d.adaptive||!d.conflicts||!d.reputation||!Legendary.validateRegions(d))return null;
+    if(previousVersion===version&&!['urban','cityWorks'].every(id=>Object.hasOwn(d,id)))return null;
+    d.urban=UrbanLife.restore(d.urban,d);
+    d.cityWorks=UrbanServices.restore(d.cityWorks,d);
+    if(!d.urban||!d.cityWorks)return null;
     d.version=version;
     return d;
   }

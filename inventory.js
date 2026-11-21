@@ -211,8 +211,7 @@
   }
 
   function canDeposit(s,item){
-    return !item.quest&&s.player?.equipped!==item.id&&s.player?.tool!==item.id&&s.workshop?.weapon!==item.id&&s.workshop?.weapon?.id!==item.id&&
-      !Object.values(s.gear?.slots||{}).includes(item.id);
+    return !item.quest&&!window.Gear?.isEquipped(s,item.id)&&s.player?.equipped!==item.id&&s.player?.tool!==item.id&&s.workshop?.weapon!==item.id&&s.workshop?.weapon?.id!==item.id;
   }
   function command(s,data){
     if(!s||!plain(data)||!['deposit','withdraw'].includes(data.op))return {ok:false,text:'Operazione del deposito sconosciuta.'};
@@ -232,7 +231,7 @@
     return qty===null?'0':formatNumber.format(qty);
   }
 
-  const rarityOrder=new Map(['comune','non comune','raro rara','epico epica','leggendario leggendaria','mitico mitica']
+  const rarityOrder=new Map(['comune','non comune','raro rara','epico epica','leggendario leggendaria','mitico mitica','divino divina']
     .flatMap((names,index)=>(index===1?[names]:names.split(' ')).map(name=>[name,index+1])));
   const qualityOrder=new Map(['Scadente','Semplice','Comune','Normale','Buona','Ottima','Eccellente','Pregiata','Magistrale','Leggendaria'].map((name,index)=>[name.toLowerCase(),index+1]));
   for(const [quality,rank] of Object.entries({scarso:1,buono:5,ottimo:6,perfetto:10}))qualityOrder.set(quality,rank);

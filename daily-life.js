@@ -86,9 +86,12 @@
     d.temperature=0;d.critical=0;d.buff=null;
   }
   function restPlace(s){
+    if(window.UrbanWorld?.access(s,'inn-bed'))return 'Locanda di Velaris';
+    if(window.UrbanWorld?.access(s,'house-bed'))return 'Casa dell’Ospitalità';
+    if(window.UrbanWorld?.inCity(s.region))return null;
     if(nearby(s,Tradecraft.inn.region,Tradecraft.inn,38))return Tradecraft.inn.name;
     if(s.build?.structures?.some(o=>o.plan==='house'&&nearby(s,o.region,{x:o.x+24,y:o.y+24},36)))return 'Casa di proprietà';
-    if(Inventory.quantity(s,'camp')>0n&&World.canWalk(s.player.x,s.player.y,10)&&!['rift','ardel-crypt','quarry'].includes(s.region))return 'Accampamento da campo';
+    if(Inventory.quantity(s,'camp')>0n&&World.canWalk(s.player.x,s.player.y,10)&&!['rift','ardel-crypt','quarry','nadir-vault'].includes(s.region))return 'Accampamento da campo';
     return null;
   }
   function eat(s,id){
@@ -140,7 +143,7 @@
     const state=s.daily;
     if(d.op==='eat')return eat(s,d.id);
     if(d.op==='water'){
-      if(!nearby(s,Tradecraft.inn.region,Tradecraft.inn,36))return {ok:false,text:'Riempi la borraccia alla fonte della locanda.'};
+      if(!nearby(s,Tradecraft.inn.region,Tradecraft.inn,36)&&!window.UrbanWorld?.access(s,'inn-water'))return {ok:false,text:'Riempi la borraccia alla fonte della locanda.'};
       state.thirst=100;
       const bottle=Inventory.quantity(s,'water')<3n;
       if(bottle)Inventory.add(s,'water',1);
@@ -174,7 +177,7 @@
     return {hunger:Math.round(state.hunger),thirst:Math.round(state.thirst),energy:Math.round(state.energy),
       temperature:Math.round(state.temperature),critical:Math.floor(state.critical),modifiers:modifiers(s),
       buff:state.buff&&state.buff.until>stamp(s)?{...state.buff,remaining:Math.ceil(state.buff.until-stamp(s))}:null,
-      restPlace:restPlace(s),nearWater:nearby(s,Tradecraft.inn.region,Tradecraft.inn,36),quests:entries};
+      restPlace:restPlace(s),nearWater:nearby(s,Tradecraft.inn.region,Tradecraft.inn,36)||!!window.UrbanWorld?.access(s,'inn-water'),quests:entries};
   }
   function worldSites(s){
     return Object.entries(sites).filter(([,site])=>site.region===s.region).map(([id,site])=>({...site,id,kind:'daily',range:24,text:site.name+' · Riposo'}));

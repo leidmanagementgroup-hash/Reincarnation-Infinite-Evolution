@@ -22,8 +22,9 @@
     const titles={pause:'In pausa',settings:'Opzioni e comandi',birth:'Il tuo risveglio',lineages:'Grimorio delle stirpi',lineage:'Scheda della stirpe',character:'Personaggio',inventory:'Inventario',skills:'Abilità',evolution:'Albero delle evoluzioni',journal:'Diario di viaggio',bestiary:'Bestiario',map:'Mappa della valle',elder:'La custode delle radici',merchant:'Emporio del borgo',smith:'Forgia di Vela',victory:'Il bosco ricorda',confirmNew:'Iniziare una nuova vita?',confirmImport:'Caricare questa partita?'};
     Object.assign(titles,{spellbook:'Enciclopedia delle abilità',help:'Guida di viaggio',map:'Carta della regione',atlas:'Atlante dei cinque continenti',continent:'Continente',statue:'Patto degli Ardel',ending:'La promessa di Lùmora',activities:'Attività e mestieri',properties:'Proprietà e costruzioni',confirmDemolish:'Demolire la costruzione?',society:'Abitanti e famiglia',guild:'Gilda degli avventurieri'});
     Object.assign(titles,{workshop:'La pratica dei mestieri',practice:Game.practiceView()?.title||'Attività',living:'Calendario e riposo',economy:'Mercato e banca'});
-    Object.assign(titles,{reputation:'Reputazione e titoli',gear:'Equipaggiamento',legendary:'Santuario della Marea Muta',conflicts:'Cronaca degli scontri'});
-    const tabSet=[['character','Personaggio'],['inventory','Inventario'],['skills','Abilità'],['evolution','Evoluzioni'],['activities','Mestieri'],['journal','Diario'],['bestiary','Bestiario'],['map','Mappa'],['society','Abitanti'],['properties','Proprietà'],['guild','Gilda']];
+    Object.assign(titles,{gear:'Equipaggiamento',legendary:'Registro del santuario',conflicts:'Pattuglie e soccorso',reputation:'Reputazione e titoli','elder-record':'Registro di Nerea'});
+    Object.assign(titles,{urban:'Velaris · Abitanti e commissioni','city-site':'Velaris'});
+    const tabSet=[['character','Personaggio'],['inventory','Inventario'],['gear','Equipaggiamento'],['skills','Abilità'],['evolution','Evoluzioni'],['activities','Mestieri'],['journal','Diario'],['bestiary','Bestiario'],['map','Mappa'],['society','Abitanti'],['properties','Proprietà'],['guild','Gilda']];
     $('#dialog').dataset.page=page;
     top.textContent=titles[page]||'Lùmora';kicker.textContent=playing?(v.campaignTitle||'Le radici di Lùmora'):'Reincarnation · Infinite Evolution';
     if(tabSet.some(([id])=>id===page)){
@@ -41,7 +42,7 @@
           h('Comandi')+allKeys()+'<p class="caption">Su schermo tattile usa le frecce e tocca le icone delle azioni.</p>'+
           h('Partita')+'<p>Il gioco conserva i progressi in questo browser. Una copia esportata ti permette di portarli su un altro dispositivo.</p>'+actions(...(playing?[btn('Salva adesso','save'),btn('Esporta partita','export')]:[]),btn('Importa partita','import'),btn('Schermo intero','full'));break;
       case 'help':
-        html=playing?objectives(v,p)+actions(btn('Apri la mappa','map','primary'),btn('Atlante','atlas'),btn('Attività e mestieri','activities'),btn(UI.guidance?'Disattiva indicazioni':'Attiva indicazioni','guidance')):'';
+        html=playing?objectives(v,p)+actions(btn('Apri la mappa','map','primary'),btn('Atlante','atlas'),btn('Segna Velaris','trackCity'),btn('Attività e mestieri','activities'),btn(UI.guidance?'Disattiva indicazioni':'Attiva indicazioni','guidance')):'';
         html+=h('Combattimento')+'<p>Concatena gli attacchi naturali con J e usa R per l’abilità innata. Schiva con Spazio quando vedi il segnale di un colpo. Usa K per assegnare le altre tecniche.</p>'+
           h('Crescita e professioni')+'<p>Le attività allenano le statistiche e i mestieri. Apri l’albero con V per osservare quali abitudini stanno indirizzando la prossima trasformazione. Premi U per trovare i luoghi di lavoro.</p>'+
           h('I cinque continenti')+'<p>Dalla Valle di Lùmora segui la Via degli Antichi. L’atlante permette di segnare una statua e seguirne i passaggi. Dopo una sconfitta puoi recuperare il borsello nel punto indicato sulla mappa.</p>'+
@@ -65,23 +66,17 @@
           row('Esperienza',Math.floor(p.xp)+' / '+v.xpNext+' PE per il livello successivo.')+row('Dono di specie',v.race.trait)+
           growthProfile(v.growth)+innatePanel(v.growth?.innate,false)+row('Reputazione a Vela',p.rep+' punti · '+(p.rep>=3?'Alleato del borgo':'Viandante'))+h('Tratti assimilati')+
           (p.traits.length?p.traits.map(id=>row(Game.traits[id]?.name||id,Game.traits[id]?.description)).join(''):'<p>Le creature sconfitte lasciano echi. Nel pannello Abilità puoi usarli per assimilare un tratto.</p>');
-        html+=h('Tecniche acquisite')+'<p>'+esc(Object.keys(p.skills).map(id=>Game.skills[id]?.name).filter(Boolean).join(' · '))+'</p>'+actions(btn('Gestisci abilità','skills'),...(window.GearPanel&&s.gear?[btn('Equipaggiamento','gear')]:[]),...(window.Reputation&&s.reputation?[btn('Reputazione e titoli','reputation')]:[]));break;
-      case 'reputation':{
-        const r=window.Reputation&&s.reputation?Reputation.view(s):null;
-        if(!r){html='<p>La reputazione non è disponibile.</p>';break;}
-        const list=rows=>rows.map(e=>row(e.name,e.rank+' · '+(e.score>0?'+':'')+e.score)).join('');
-        html='<p>Le comunità ricordano ciò che fai: scambi, incarichi, viaggi, soccorsi e imprese. Il punteggio va da −100 a +100.</p>'+
-          h('Titoli')+(r.titles.length?r.titles.map(t=>row(t.name,t.description)).join(''):'<p>Nessun titolo ottenuto finora.</p>')+
-          h('Regni')+list(r.realms)+h('Insediamenti')+list(r.towns)+h('Gilde')+list(r.guilds)+h('Fazioni')+list(r.factions)+
-          actions(btn('Torna al personaggio','character'));break;}
+        html+=h('Tecniche acquisite')+'<p>'+esc(Object.keys(p.skills).map(id=>Game.skills[id]?.name).filter(Boolean).join(' · '))+'</p>'+actions(btn('Gestisci abilità','skills'),btn('Equipaggiamento','gear'),btn('Reputazione e titoli','reputation'));break;
       case 'journal':
         html=objectives(v,p)+campaignRoad(v)+h('Incarico secondario')+row('La commissione del borgo',v.sideQuest)+
           '<div class="stats">'+stat('Creature vinte',p.kills)+stat('Reputazione',p.rep)+stat('Borsello',Economy.wallet(p.gold).label)+'</div>'+
-          (window.Lantern?h('Voci del bosco')+'<p>'+esc(Lantern.hint(s))+'</p>':'')+LifePanels.quests(s)+worldNotes(v.life)+actions(btn('Apri la mappa','map'),btn('Incarichi della gilda','guild'),...(s.legendary&&s.legendary.discoveredAt!==null?[btn('Santuario leggendario','legendary')]:[]));break;
+          (window.Lantern?h('Voci del bosco')+'<p>'+esc(Lantern.hint(s))+'</p>':'')+LifePanels.quests(s)+worldNotes(v.life)+
+          actions(btn('Apri la mappa','map'),btn('Incarichi della gilda','guild'),btn('Reputazione e titoli','reputation'),
+            ...(Legendary.view(s).discovered?[btn('Registro del santuario','legendary')]:[]));break;
       case 'activities':
         html=actions(btn('Pesca, forgia, orto e allevamento','workshop','primary'),btn('Calendario e riposo','living'),btn('Mercato e banca','economy'))+activityPanel(v.life,p);break;
       case 'workshop':
-        html=LifePanels.workshop(s,detail);break;
+        html=LifePanels.workshop(s,detail)+actions(btn('Riparazioni e incantamenti','gear'));break;
       case 'practice':
         html=PracticePanel.render(Game.practiceView())+actions(btn('Torna ai mestieri','workshop','',Game.practiceView()?.kind));break;
       case 'living':
@@ -94,38 +89,51 @@
         html='<p>La costruzione sarà rimossa dal lotto. Recupererai parte dei materiali.</p>'+
           actions(btn('Annulla','properties'),cmd('Demolisci','build',{op:'remove',id:Number(detail),confirm:true},false,'primary'));break;
       case 'society':
-        html=societyPanel(Society.view(s,detail),v.region)+(window.ConflictPanel&&s.conflicts?actions(btn('Cronaca degli scontri','conflicts')):'');break;
+        html=UrbanWorld.inCity(v.region)?urbanPanel(s,detail):societyPanel(Society.view(s,detail),v.region)+actions(btn('Pattuglie e soccorso','conflicts'));break;
+      case 'urban':
+        html=urbanPanel(s,detail);break;
+      case 'city-site':{
+        const service=UrbanServices.view(s,detail);
+        if(!service)break;
+        top.textContent=service.name;
+        html='<p class="lead">'+esc(service.description)+'</p>'+(service.note?'<p class="narrative">'+esc(service.note)+'</p>':'')+
+          (service.allowed?actions(cmd(service.action,'city-service',{id:detail},false,'primary')):'')+actions(btn('Mappa','map'));
+        break;}
+      case 'conflicts':
+        html=window.ConflictPanel?.render(s,detail)||'';
+        if(detail==='elder'&&v.elderLost)html+=elderArchive(s,v);
+        html+=actions(btn('Riprendi il viaggio','resume'));
+        break;
+      case 'reputation':{
+        const renown=Reputation.view(s);
+        html='<p>Scambi, incarichi, viaggi, soccorsi e imprese influenzano la reputazione, da −100 a +100.</p>'+
+          h('Titoli ottenuti')+(renown.titles.length?renown.titles.map(title=>row(title.name,title.description)).join(''):'<p>Le imprese annotate nel diario possono diventare titoli.</p>');
+        for(const [label,entries] of [['Città',renown.towns],['Autorità regionali',renown.realms],['Gilde',renown.guilds],['Fazioni',renown.factions]]){
+          html+=h(label)+entries.map(a=>row(a.name,a.rank+' · '+(a.score>0?'+':'')+a.score)).join('');
+        }
+        html+=actions(btn('Torna al personaggio','character'));
+        break;}
+      case 'legendary':{
+        const found=Legendary.view(s);
+        if(!found.discovered){html='<p>Nessun santuario leggendario è stato scoperto in questa vita.</p>';break;}
+        top.textContent=found.name;
+        const inscription=found.lore.find(item=>item.id===detail);
+        html=(inscription?h(inscription.title)+'<p class="narrative">'+esc(inscription.text)+'</p>':'')+
+          '<p class="lead">'+esc(found.description)+'</p>'+row('Ingresso',found.regionName,btn('Segna l’ingresso','trackLegendary'))+
+          row('Sovrano',found.ruler)+row('Ecosistema',found.ecology)+
+          (Number.isFinite(found.heirInDays)?row('Successione','Fra '+found.heirInDays+' giorni un nuovo sovrano potrebbe reclamare il trono.'):'')+
+          row('Visite',found.visits.toLocaleString('it-IT')+(found.claimed?' · Ricompense originali ottenute':''));
+        if(found.canClaim)html+=actions(cmd('Rivendica il trono','legendary',{op:'claim'},false,'primary'));
+        if(found.lore.length)html+=h('Iscrizioni lette')+found.lore.map(a=>row(a.title,a.text)).join('');
+        html+=actions(btn('Riprendi il viaggio','resume'));
+        break;}
       case 'guild':
         html=guildPanel(v.guild,s);break;
       case 'inventory':
-        html=(window.GearPanel&&s.gear?actions(btn('Equipaggiamento','gear')):'')+LifePanels.inventory(s);break;
-      case 'conflicts':{
-        html=window.ConflictPanel&&s.conflicts?ConflictPanel.render(s,detail):'<p>La cronaca degli scontri non è disponibile.</p>';
-        if(detail==='elder'&&v.elderLost){
-          // The campaign continues at Nerea's memorial, with its own words and consequences.
-          const stage=v.campaignStage??0;
-          html+=h('Le ultime note di Nerea')+'<p class="narrative">'+esc(s.quest===0?'Sul memoriale restano gli appunti della custode: tre creature oltre il ponte spengono le lanterne, e dove le loro ombre si incontrano attende Orveth.':
-            s.quest===3?'Il seme di Orveth pulsa nella tua mano. Senza la custode, il borgo affida a te la sua eredità.':
-            stage===4?'Il cuore del Varco batte ancora. Nessuno lo ascolterà insieme a te, ma il memoriale ricorda la promessa.':v.objective.text)+'</p>';
-          if(s.quest===0)html+=actions(cmd('Raccogli l’ultimo incarico','accept','',false,'primary'));
-          if(s.quest===3)html+=actions(cmd('Deponi il seme sul memoriale','reward','',false,'primary'));
-          if(stage===4)html+=actions(cmd('Concludi la campagna','finish','',false,'primary'));
-        }
-        html+=actions(btn('Riprendi il viaggio','resume'));break;}
-      case 'legendary':{
-        const l=window.Legendary&&s.legendary?Legendary.view(s):null;
-        if(!l?.discovered){html='<p>Nessun santuario leggendario è stato scoperto in questa vita. Alcuni mondi ne nascondono uno, lontano dai sentieri principali.</p>';break;}
-        const lore=l.lore.find(x=>x.id===detail);
-        html=(lore?h(lore.title)+'<p class="narrative">'+esc(lore.text)+'</p>':'')+
-          '<p class="lead">'+esc(l.description)+'</p>'+
-          row('Ingresso',l.regionName||l.entrance.region)+row('Sovrano',l.ruler)+row('Camere',l.ecology)+
-          (l.heirInDays!==null?row('Successione','Fra '+l.heirInDays+' giorni un nuovo sovrano potrebbe reclamare il trono.'):'')+
-          row('Spedizioni',l.visits+(l.claimed?' · Arma Divina ed Eco della Rinascita ottenute':''))+
-          (l.lore.length?h('Iscrizioni lette')+l.lore.map(x=>row(x.title,x.text)).join(''):'')+
-          (l.canClaim?actions(cmd('Rivendica il trono','legendary',{op:'claim'},false,'primary')):'')+
-          actions(btn('Riprendi il viaggio','resume'));break;}
+        html=actions(btn('Equipaggiamento e riparazioni','gear','primary'))+LifePanels.inventory(s);break;
       case 'gear':
-        html=(window.GearPanel&&s.gear?GearPanel.render(s,detail||''):'<p>L’equipaggiamento non è disponibile.</p>')+actions(btn('Torna all’inventario','inventory'));break;
+        html=GearPanel.render(s,detail)+(UrbanWorld.kind(v.region)==='forge'?actions(btn('Prova di forgiatura','workshop','primary','smithing')):'')+
+          actions(btn('Torna all’inventario','inventory'));break;
       case 'skills':{
         html=innatePanel(v.growth?.innate,true)+h('Tecniche assegnabili')+actions(btn('Enciclopedia delle abilità','spellbook'))+'<p>Assegna un potere a uno dei tre tasti. Ogni cinque utilizzi la maestria sale di un livello, fino al quinto.</p>';
         for(const [id,entry] of Object.entries(p.skills)){
@@ -177,19 +185,19 @@
         }break;
       case 'map':
         html=actions(btn('Atlante dei cinque continenti','atlas','primary'),...(UI.trackedStatue||UI.trackedSite?[btn('Rimuovi meta','clearTrack')]:[]))+objectives(v,p)+'<canvas id="worldMap" class="bookMap" width="600" height="348" aria-label="Carta della regione"></canvas><div class="swatches"><span>◆ Posizione attuale</span><span style="color:#e8be77">✧ Obiettivo principale</span><span style="color:#a0daa7">⊡ Passaggio aperto</span><span style="color:#adf1dc">▪ Luogo di attività</span></div>'+h(v.regionName||'Luoghi della valle')+'<div class="cards">'+World.landmarks.map((l,i)=>'<div class="card"><strong>'+String.fromCharCode(65+i)+' · '+esc(l.name)+'</strong></div>').join('')+'</div>'+
-          gates(v)+stationList(v.life,p)+
-          [...Tradecraft.sites(s),...Daily.sites(s),...Economy.sites(s)].map(site=>{
+          gates(v)+stationList(v.life,p)+(UrbanWorld.inCity(v.region)?urbanMap(s):'')+
+          [...Tradecraft.sites(s),...Daily.sites(s),...Economy.sites(s),...(Legendary.view(s).discovered?Legendary.sites(s).filter(site=>site.id==='legendary-entry'):[])].map(site=>{
             const there=UI.routeInfo(p,site.point);
             return row(site.name||site.text,there?there.steps+' passi · '+there.direction:'Nelle vicinanze',btn('Segna sulla mappa','trackSite','',site.id||'camp'));
           }).join('')+cacheList(v.life,p)+campaignRoad(v);break;
       case 'atlas':{
         const current=World.regions[v.region].continent;
         html='<div class="worldAtlas">'+World.continents.map(c=>'<button class="atlasLand '+(c.id===current?'here':'')+'" data-do="continent" data-value="'+esc(c.id)+'" style="--atlas-x:'+c.position.x+'%;--atlas-y:'+c.position.y+'%"><span class="cap">'+esc(c.direction)+'</span><strong>'+esc(c.name)+'</strong><small>'+esc(c.subtitle)+'</small></button>').join('')+'</div>'+
-          actions(btn('Carta della regione','map'));break;}
+          actions(btn('Carta della regione','map'),btn('Segna Velaris','trackCity'));break;}
       case 'continent':{
         const c=World.continents.find(c=>c.id===detail)||World.continents[0],st=v.life.world.statues.find(st=>st.id===c.statue.id);
         top.textContent=c.name;kicker.textContent=c.subtitle;
-        html=c.regions.map(id=>{const r=World.regions[id];return row(r.name,r.description,id===v.region?'<span class="gateStatus open">Sei qui</span>':'');}).join('')+
+        html=c.regions.filter(id=>!World.regions[id].hidden||Legendary.view(s).discovered).map(id=>{const r=World.regions[id];return row(r.name,r.description,id===v.region?'<span class="gateStatus open">Sei qui</span>':id===UrbanWorld.cityId?btn('Segna sulla mappa','trackCity'):'');}).join('')+
           h('Statua della Rinascita')+row(st.name,st.landmark+(st.active?' · Ultima attivata':''),btn('Segna sulla mappa','trackStatue','primary',st.id))+
           (st.visited?'<p class="narrative">'+esc(st.lore)+'</p>':'')+actions(btn('Tutti i continenti','atlas'));break;}
       case 'statue':{
@@ -198,7 +206,12 @@
         top.textContent=st.name;kicker.textContent=st.continent+' · '+st.landmark;
         html='<p class="lead">'+esc(st.lore)+'</p>'+row('Punto di rinascita','Ultima statua attivata. Alla prossima sconfitta ti risveglierai qui.')+
           row('Iscrizioni lette',v.life.world.statues.filter(x=>x.visited).length+' / '+v.life.world.statues.length)+actions(btn('Riprendi il viaggio','resume','primary'),btn('Apri l’atlante','atlas'));break;}
-      case 'elder':{
+      case 'elder':
+      case 'elder-record':{
+        if(page==='elder-record'){
+          html=elderArchive(s,v)+actions(btn('Memoriale','conflicts','','elder'),btn('Torna al borgo','close'));
+          break;
+        }
         const stage=v.campaignStage??0;
         const text=stage===4?'Il cuore del Varco ha ripreso a battere. Ascoltalo insieme a me.':stage>=5?'Se le campane suonano ancora, è perché qualcuno si è preso cura anche della più piccola luce.':s.quest===0?'Da tre notti le lanterne si spengono da sole. Scopri cosa è accaduto a tre creature oltre il ponte. Dove le loro ombre si incontrano troverai Orveth.':s.quest===3?'La lanterna più antica ha ripreso a brillare, ma le radici puntano verso la cava. Prendi la benedizione del borgo prima di ripartire.':v.objective.text;
         html=npc('elder','Nerea · custode di Vela',text);
@@ -216,16 +229,16 @@
         html=npc('smith','Ivo · fabbro di Vela','Se macini il minerale fino a farne polvere, la linfa trattiene il suo calore per tutta la notte.')+row('Distilla due pozioni',rules.craftHerb+' erbe di rugiada e '+rules.craftOre+' minerale lucente.',cmd('Distilla','craft','',p.inventory.herb<rules.craftHerb||p.inventory.ore<rules.craftOre),icon('potion'))+
           '<div class="stats">'+stat('Erbe',p.inventory.herb||0)+stat('Minerali',p.inventory.ore||0)+'</div>'+h('Commissione del fabbro')+'<p>'+esc(v.sideQuest)+'</p>'+
           (s.sideQuest===0?actions(cmd('Accetta incarico','sideAccept','',false,'primary')):s.sideQuest===1?actions(cmd('Consegna '+rules.sideHerb+' erbe','sideReward','',p.inventory.herb<rules.sideHerb,'primary')):'')+
-          actions(btn('Forgia al banco di Ivo','workshop','','smithing'));break;
+          actions(btn('Forgia al banco di Ivo','workshop','','smithing'),btn('Ripara o incanta','gear'));break;
       case 'victory':
         kicker.textContent='Capitolo I · compiuto';html=npc('boss','Orveth, il Cervo Cavo','Le corna si accendono un’ultima volta. Dal cavo nel suo petto cade un seme. Quando lo tocchi, sotto il borgo tornano a pulsare le radici.')+
           '<p class="lead">Dal seme partono radici nuove. Seguile verso il passo a est, che ora conduce alla Cava delle Braci.</p><div class="stats">'+stat('Livello',p.level)+stat('Creature vinte',p.kills)+stat('Reputazione',p.rep)+'</div>'+actions(btn('Continua il viaggio','resume','primary'),btn('Apri la mappa','map'));break;
       case 'ending':
         kicker.textContent='Campagna completata';html=(v.elderLost?
-          '<p class="narrative">Le campane suonano per la custode che non ha visto il Varco richiudersi. Sul memoriale di Nerea il borgo accende una lanterna in più.</p>'+
-          '<p class="lead">Finale · La promessa ereditata. I quattro guardiani sono caduti e il Varco si è richiuso, ma Vela dovrà imparare a vegliare senza la sua custode. Adesso puoi attraversare Lùmora seguendo la tua strada.</p>':
+          row('Finale · La promessa ereditata','I quattro guardiani sono caduti e il Varco si è richiuso. Il borgo accende una lanterna sul memoriale di Nerea.'):
           npc('elder','Nerea · custode di Vela','Stanotte le campane non annunciano il pericolo. Chiamano a casa chi credeva di averla perduta.')+
-          '<p class="lead">Dopo la caduta dei quattro guardiani, il Varco si è richiuso e il borgo ha riacceso le sue lanterne. Adesso puoi attraversare Lùmora seguendo la tua strada.</p>')+'<div class="stats">'+stat('Forma',v.formName)+stat('Livello',p.level)+stat('Creature vinte',p.kills)+stat('Reputazione',p.rep)+'</div>'+campaignRoad(v)+actions(btn('Continua a esplorare','resume','primary'),btn('Salva e torna al titolo','title'));break;
+          '<p class="lead">Dopo la caduta dei quattro guardiani, il Varco si è richiuso e il borgo ha riacceso le sue lanterne. Adesso puoi attraversare Lùmora seguendo la tua strada.</p>')+
+          '<div class="stats">'+stat('Forma',v.formName)+stat('Livello',p.level)+stat('Creature vinte',p.kills)+stat('Reputazione',p.rep)+'</div>'+campaignRoad(v)+actions(btn('Continua a esplorare','resume','primary'),btn('Salva e torna al titolo','title'));break;
     }
     body.innerHTML=html;
     if(page==='map'){
@@ -244,6 +257,14 @@
       for(const {point} of [...Tradecraft.sites(s),...Daily.sites(s),...Economy.sites(s)]){
         const x=point.x/World.width*c.width,y=point.y/World.height*c.height;
         g.fillStyle='#112528';g.fillRect(x-4,y-4,8,8);g.fillStyle='#adf1dc';g.fillRect(x-2,y-2,4,4);
+      }
+      if(UrbanWorld.inCity(s.region)){
+        for(const site of urbanMapSources(s)){
+          const {point}=site,x=point.x/World.width*c.width,y=point.y/World.height*c.height;
+          g.fillStyle='#102232';g.fillRect(x-5,y-5,10,10);
+          g.fillStyle='#e6c886';g.fillRect(x-3,y-3,6,6);
+          g.fillStyle='#102232';g.fillRect(x-1,y-1,2,2);
+        }
       }
       for(const cache of v.life?.world?.deathCaches||[]){
         if(cache.region!==v.region)continue;
@@ -343,31 +364,95 @@
     const a=c.selected,t=c.towns.find(x=>x.region===region);
     let html=t?row(t.name,'Insediamento · Stadio '+t.level+' · '+t.stock+' travi a mercato · '+(t.accord?'Accordo commerciale attivo':'Scambi locali')):'';
     if(a){
-      html+=npc(a.race,a.name,a.personality)+row(a.profession,[a.age+' anni',a.bond,a.formName,a.enrolled?'Registro degli avventurieri':''].filter(Boolean).join(' · '));
+      const health=Conflicts.condition(Game.s,a.id);
+      html+=(health?.status==='dead'?row(a.name,'Memoriale',btn('Leggi la scheda','conflicts','',a.id)):npc(a.race,a.name,a.personality))+
+        row(a.profession,[a.age+' anni',a.bond,a.formName,a.enrolled?'Registro degli avventurieri':'',health?.label].filter(Boolean).join(' · '));
       html+=c.actions.map(x=>row(x.label,x.reason,cmd('Esegui','society',{id:a.id,op:x.op},!x.allowed,'primary'))).join('');
       if(a.memories?.length)html+=h('Ricordi condivisi')+a.memories.slice(-6).reverse().map(m=>row({chat:'Conversazione',gift:'Un dono',trade:'Uno scambio'}[m.kind],'Giorno '+(1+Math.floor(m.at/480)))).join('');
       html+=actions(btn('Abitanti del luogo','society'));
     }else{
-      html+=c.local.length?h('Abitanti del luogo')+c.local.map(a=>row(a.name,a.profession+' · '+a.bond,btn('Scheda','society','',a.id))).join(''):
+      html+=c.local.length?h('Abitanti del luogo')+c.local.map(a=>{
+        const state=Conflicts.condition(Game.s,a.id);
+        return row(a.name,[a.profession,a.bond,state?.label].filter(Boolean).join(' · '),btn('Scheda',state?.status==='dead'?'conflicts':'society','',a.id));
+      }).join(''):
         '<p>Visita un insediamento nuovo. Premi E vicino a un abitante per conversare o commerciare.</p>';
     }
-    if(c.family.partner)html+=h('Famiglia')+row(c.family.partner.name,'Coniuge · '+(c.family.home?World.regions[c.family.home.region].name:'In cerca di una casa'))+
-      c.family.children.map(a=>row(a.name,a.age+' anni · '+a.profession+' · Predisposizione '+a.aptitude+'/100'+(a.skills.length?' · '+a.skills.join(', '):''))).join('');
+    if(c.family.partner){
+      const partner=c.family.partner,state=Conflicts.condition(Game.s,partner.id);
+      html+=h('Famiglia')+row(partner.name,state?.status==='dead'?'Coniuge · In memoria':state?.status==='critical'?'Coniuge · In pericolo':'Coniuge · '+(c.family.home?World.regions[c.family.home.region].name:'In cerca di una casa'))+
+        c.family.children.map(a=>row(a.name,a.age+' anni · '+a.profession+' · Predisposizione '+a.aptitude+'/100'+(a.skills.length?' · '+a.skills.join(', '):''))).join('');
+    }
     return html;
+  }
+  function elderArchive(s,v){
+    const stage=v.campaignStage??0;
+    let html=h('Le ultime note di Nerea')+'<p class="narrative">'+esc(s.quest===0?
+      'Sul memoriale restano gli appunti della custode. Tre creature oltre il ponte spengono le lanterne, e dove le loro ombre si incontrano attende Orveth.':
+      s.quest===3?'Il seme di Orveth pulsa nella tua mano. Il borgo affida a te l’eredità della custode.':
+      stage===4?'Il registro custodisce il rito per ricomporre i tre frammenti al borgo.':v.objective.text)+'</p>';
+    if(s.quest===0)html+=actions(cmd('Raccogli l’ultimo incarico','accept','',false,'primary'));
+    if(s.quest===3)html+=actions(cmd('Deponi il seme sul memoriale','reward','',false,'primary'));
+    if(stage===4)html+=actions(cmd('Concludi la campagna','finish','',false,'primary'));
+    return html;
+  }
+  function urbanMapSources(s){
+    const places=UrbanWorld.sites(s);
+    const board=UrbanWorld.site(s,'guild');
+    return board?places.concat({...board,id:'guild',name:'Registro degli avventurieri'}):places;
+  }
+  function urbanMap(s){
+    const outside=s.region===UrbanWorld.cityId;
+    const layout=outside&&UrbanWorld.exterior(s.seed),labels=layout?.districts||[];
+    return (labels.length?row('Cittadina di Velaris',layout.buildings.length+' edifici · '+labels.length+' quartieri')+
+      h('Quartieri')+labels.map(d=>row(d.name,d.description||d.theme||'',btn('Segna','trackDistrict','',d.id))).join(''):'')+
+      h(outside?'Ingressi e servizi':'Stanze e servizi')+urbanMapSources(s).map(site=>{
+        const route=UI.routeInfo(s.player,site.point);
+        return row(site.name||site.text,route?route.steps+' passi · '+route.direction:'',btn('Segna','trackSite','',site.id));
+      }).join('')+actions(btn('Abitanti e commissioni','urban'));
+  }
+  function urbanPanel(s,detail){
+    const model=UrbanLife.view(s,detail),city=model.city;
+    let html='';
+    if(city){
+      html='<div class="stats">'+stat('Abitanti',city.population)+stat('Qui vicino',city.visible)+
+        stat('Specie',typeof city.species==='number'?city.species:city.species?.length||0)+'</div>';
+    }
+    const resident=model.selected;
+    if(resident){
+      html+=npc(resident.race,resident.name,resident.personality||resident.activity)+
+        row(resident.profession,[resident.raceName,resident.activity].filter(Boolean).join(' · '))+
+        row('Abitazione e lavoro',[resident.home,resident.work].filter(it=>typeof it==='string').join(' · '));
+      if(resident.schedule?.length)html+=h('Giornata')+resident.schedule.map(block=>row(block.label,[block.at,block.where].filter(Boolean).join(' · '))).join('');
+      if(resident.memories?.length)html+=h('Ricordi condivisi')+resident.memories.slice(-4).reverse().map(m=>row(m.text,m.day!==undefined?'Giorno '+m.day:'')).join('');
+    }else if(model.local?.length){
+      html+=h('Abitanti nelle vicinanze')+model.local.map(a=>row(a.name,[a.profession,a.activity].filter(Boolean).join(' · '),btn('Scheda','urban','',a.id))).join('');
+    }
+    if(model.actions?.length)html+=actions(...model.actions.map(action=>cmd(action.label,'urban',{op:action.op,id:action.id||resident?.id},!action.allowed,'primary')));
+    const commission=model.commission;
+    if(commission){
+      const item=Inventory.definition(s,commission.item);
+      html+=h('Commissione cittadina')+row(commission.name,commission.description||
+        [item&&commission.amount+' × '+item.name,commission.reward&&commission.reward+' Scintille',commission.claimed&&'Completata'].filter(Boolean).join(' · '));
+    }
+    if(city?.event?.name)html+=row(city.event.name,city.event.text||'');
+    return html+actions(btn('Carta di Velaris','map'),...(resident?[btn('Abitanti','urban')]:[]));
   }
   function guildPanel(g,s){
     const named=id=>Society.entry(s,id)?.name||'Membro';
     let html=row('Registro e rango',g.joined?'Rango '+g.rank+' · '+g.xp+' riconoscimento':'Iscrizione disponibile alle bacheche degli insediamenti.',
       !g.joined&&g.board?cmd('Iscriviti','guild',{op:'join'},false,'primary'):'');
     if(g.active)html+=h('Incarico seguito')+row(g.active.name,g.active.text+' · '+g.active.progress+' / '+g.active.goal+' · Bacheca '+g.active.source,
-      g.active.progress>=g.active.goal&&g.board&&g.active.region===s.region?cmd('Riscuoti','guild',{op:'claim'},false,'primary'):'');
+      g.active.progress>=g.active.goal&&g.board&&g.active.region===(g.chapter||s.region)?cmd('Riscuoti','guild',{op:'claim'},false,'primary'):'');
     if(g.active?.destination&&!g.active.progress)html+=row('Meta della scorta',g.active.destination+' · Resistenza del corriere '+Math.ceil(g.active.escort.hp)+'/90');
     if(g.active)html+=actions(cmd('Abbandona incarico','guild',{op:'abandon'}));
     if(g.joined&&g.board&&!g.active)html+=h('Bacheca pubblica')+g.jobs.map(j=>row(j.name,j.text+' · '+j.gold+' Scintille',cmd('Accetta','guild',{op:'accept',type:j.id},!j.available,'primary'))).join('');
     if(!g.board&&!g.hall)html+='<p>Cerca il registro dell’insediamento o entra nella tua sede. Premi E davanti alla bacheca.</p>';
-    if(g.joined)html+=h('Avventurieri')+g.candidates.map(a=>row(a.name,a.profession+' · '+(a.enrolled?'Iscritto · Carriera '+a.career:'Da iscrivere'),
-      a.team?cmd('Congeda','guild',{op:'dismiss',id:a.id}):a.enrolled&&g.board?cmd('Recluta','guild',{op:'recruit',id:a.id}):
-      g.board&&a.trust>=2?cmd('Invita a iscriversi','guild',{op:'register',id:a.id}):'')).join('');
+    if(g.joined)html+=h('Avventurieri')+g.candidates.map(a=>{
+      const state=Conflicts.condition(s,a.id),available=Conflicts.canFight(s,a.id);
+      return row(a.name,[a.profession,a.enrolled?'Iscritto · Carriera '+a.career:'Da iscrivere',state?.label].filter(Boolean).join(' · '),
+        a.team?cmd('Congeda','guild',{op:'dismiss',id:a.id}):a.enrolled&&g.board?cmd('Recluta','guild',{op:'recruit',id:a.id},!available):
+        g.board&&a.trust>=2?cmd('Invita a iscriversi','guild',{op:'register',id:a.id},!available):'');
+    }).join('');
     const own=g.personal;
     if(g.hall&&!own&&g.joined){
       html+=h('Fondazione')+'<p>Con rango D e 25 Scintille puoi fondare qui la tua gilda.</p>'+

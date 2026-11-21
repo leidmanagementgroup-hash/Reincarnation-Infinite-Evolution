@@ -94,7 +94,11 @@
     return raw;
   }
   function station(s,kind){
-    if(kind!=='fishing')return stations[kind];
+    if(kind!=='fishing'){
+      const raw=stations[kind],id={smithing:'forge',cooking:'inn-kitchen'}[kind],
+        urban=id&&window.UrbanWorld?.site(s,id);
+      return urban?{...raw,...urban.point,region:s.region,name:id==='forge'?'Incudine di Velaris':'Cucina di Velaris'}:raw;
+    }
     const point=shore[s.region];
     return point&&{region:s.region,x:point[0],y:point[1],name:point[2],tool:'rod',job:'fisher'};
   }
@@ -183,7 +187,7 @@
     if(!plain(d))return blocked('Scegli un’attività.');
     const w=s.workshop,t=stamp(s);
     if(d.op==='sew'){
-      if(!isNear(s,stations.smithing)||!has(s,'wool',2))return blocked('Servono il banco di Ivo e 2 unità di lana.');
+      if(!isNear(s,station(s,'smithing'))||!has(s,'wool',2))return blocked('Servono una postazione di lavoro e 2 unità di lana.');
       Inventory.take(s,'wool',2);Inventory.add(s,'woolcloak',1);
       return craftResult('Hai cucito una mantella da viaggio.','sew');
     }
@@ -232,7 +236,7 @@
   function sites(s){
     return ['fishing','cooking'].map(kind=>{
       const site=station(s,kind);
-      return site?.region===s.region?{...site,id:kind,kind:'workshop',range:25,point:{x:site.x,y:site.y},text:site.name+' · '+labels[kind]}:null;
+      return site?.region===s.region&&!window.UrbanWorld?.kind(s.region)?{...site,id:kind,kind:'workshop',range:25,point:{x:site.x,y:site.y},text:site.name+' · '+labels[kind]}:null;
     }).filter(Boolean);
   }
   function view(s){

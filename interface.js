@@ -112,9 +112,27 @@
         closePanel();syncHud();if(trackedStatue)toast('Meta sulla mappa · '+trackedStatue.name);break;
       }
       case 'trackSite':{
-        const site=[...Tradecraft.sites(Game.s),...Daily.sites(Game.s),...Economy.sites(Game.s)].find(it=>it.id===el?.dataset.value);
+        const id=el?.dataset.value;
+        const site=[...Tradecraft.sites(Game.s),...Daily.sites(Game.s),...Economy.sites(Game.s),...Legendary.sites(Game.s),...UrbanWorld.sites(Game.s)].find(it=>it.id===id)||UrbanWorld.site(Game.s,id);
         if(!site)break;
         trackedStatue=null;trackedSite={...site.point,region:World.region,name:site.name||site.text};
+        closePanel();syncHud();toast('Meta sulla mappa · '+trackedSite.name);break;
+      }
+      case 'trackDistrict':{
+        const point=UrbanWorld.exterior(Game.s.seed).districts.find(d=>d.id===el?.dataset.value);
+        if(!point)break;
+        trackedStatue=null;trackedSite={x:point.x,y:point.y,region:UrbanWorld.cityId,name:point.name};
+        closePanel();syncHud();toast('Meta sulla mappa · '+point.name);break;
+      }
+      case 'trackCity':{
+        const city=World.regions[UrbanWorld.cityId];
+        trackedStatue=null;trackedSite={...city.spawn,region:city.id,name:city.name};
+        closePanel();syncHud();toast('Meta sulla mappa · '+city.name);break;
+      }
+      case 'trackLegendary':{
+        const dungeon=Legendary.view(Game.s);
+        if(!dungeon.discovered)break;
+        trackedStatue=null;trackedSite={...dungeon.entrance,name:dungeon.name};
         closePanel();syncHud();toast('Meta sulla mappa · '+trackedSite.name);break;
       }
       case 'clearTrack':trackedStatue=null;trackedSite=null;closePanel();syncHud();break;
@@ -130,7 +148,7 @@
   function command(cmd,raw){
     let value=raw;
     if(cmd==='slot'){const [slot,id]=raw.split('|');value={slot:Number(slot),id};}
-    if(['build','society','guild','workshop','daily','practice','economy','weave','gear','legendary','conflict'].includes(cmd)){try{value=JSON.parse(raw);}catch{return;}}
+    if(['build','society','guild','workshop','daily','practice','economy','weave','gear','conflict','legendary','urban','city-service'].includes(cmd)){try{value=JSON.parse(raw);}catch{return;}}
     const old=panel;
     const done=cmd==='drink'?Game.action('potion'):Game.command(cmd,value);
     if(done!==false && old==='confirmDemolish'){openPanel('properties');return;}
@@ -217,10 +235,20 @@
     if(field.width!==nw||field.height!==nh){field.width=nw;field.height=nh;ctx.imageSmoothingEnabled=false;}
     cam.w=nw;cam.h=nh;
   }
-  let avatarSig='',barSig='',observedStage=0,evolutionNotice=-1,trackedStatue=null,trackedSite=null;
+  let avatarSig='',barSig='',observedStage=0,evolutionNotice=-1,trackedStatue=null,trackedSite=null,cityTrail=null;
+  function urbanWaypoint(goal){
+    const s=Game.s,distance=q=>Math.hypot(q.x-s.player.x,q.y-s.player.y);
+    if(distance(goal)<=16)return goal;
+    if(cityTrail?.goal!==goal||cityTrail.state!==s||cityTrail.at+1.25<s.time&&cityTrail.points[cityTrail.index]&&distance(cityTrail.points[cityTrail.index])>200){
+      cityTrail={goal,state:s,at:s.time,index:0,points:UrbanWorld.exterior(s.seed).path(s.player,goal,6)||[]};
+    }
+    while(cityTrail.index<cityTrail.points.length&&distance(cityTrail.points[cityTrail.index])<13)cityTrail.index++;
+    return cityTrail.points[cityTrail.index]||goal;
+  }
   function navigationTarget(v){
     const goal=trackedStatue||trackedSite;
     if(!goal)return v.objective.target;
+    if(trackedSite&&goal.region===UrbanWorld.cityId&&World.region===UrbanWorld.cityId)return urbanWaypoint(goal);
     return goal.region===World.region?goal:World.route(World.region,goal.region,v.campaignStage);
   }
   function appearance(p){return p.form===null?0:p.form+1+(p.evolutionStage===2?2:0);}
@@ -277,6 +305,7 @@
     if(v.location!==prevLoc){prevLoc=v.location;const b=$('#zoneBanner');b.textContent=v.location;b.classList.remove('show');void b.offsetWidth;b.classList.add('show');clearTimeout(zoneTimer);zoneTimer=setTimeout(()=>b.classList.remove('show'),2700);}
   }
   function atmosphere(t,v){
+    if(UrbanWorld.kind(v.region))return;
     const hourParts=v.clock.split(':').map(Number),hour=hourParts[0]+hourParts[1]/60;
     const {minutes,sunriseMinutes,sunsetMinutes}=v.calendar,day=minutes>=sunriseMinutes&&minutes<=sunsetMinutes;
     const daylight=sunsetMinutes-sunriseMinutes;
@@ -347,7 +376,7 @@
     else if(type==='sound')Score.play(data);
     else if(type==='panel'&&screen==='play'){
       if(data?.id==='statue'&&data.detail===trackedStatue?.id)trackedStatue=null;
-      if(trackedSite&&['workshop','economy','living'].includes(typeof data==='string'?data:data?.id)&&routeInfo(Game.s.player,trackedSite).dist<=40)trackedSite=null;
+      if(trackedSite&&trackedSite.region===World.region&&['workshop','economy','living','legendary','gear','city-site','guild'].includes(typeof data==='string'?data:data?.id)&&routeInfo(Game.s.player,trackedSite).dist<=40)trackedSite=null;
       if(typeof data==='string')openPanel(data);else if(data?.id)openPanel(data.id,data.detail??null);
     }else if(type==='change')uiClock=0;
   };

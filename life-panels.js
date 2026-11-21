@@ -45,13 +45,13 @@
     if(location==='pack'){
       if(id==='potion')controls.push(action('Bevi','drink','',Number.isFinite(hpMax)&&s.player.hp>=hpMax));
       else if(/^blade-[0-3]$/.test(id)){
-        const equipped=s.workshop?.weapon===id;
+        const equipped=window.Gear?.isEquipped(s,id)??s.workshop?.weapon===id;
         controls.push(action(equipped?'Riponi':'Equipaggia','workshop',{op:'equip',id},false,!equipped));
       }else if(window.Game?.equipment?.[id]){
-        const equipped=s.player.equipped===id;
+        const equipped=window.Gear?.isEquipped(s,id)??s.player.equipped===id;
         controls.push(action(equipped?'Equipaggiato':'Equipaggia','equip',id,equipped,!equipped));
       }
-      if(window.GearPanel&&s.gear)controls.push(GearPanel.itemActions(s,id));
+      if(window.GearPanel&&Gear.isManaged(id))controls.push(GearPanel.itemActions(s,id));
       const meal=window.Tradecraft?.nutrition(s,id);
       if(meal)controls.push(action(id==='water'||id==='milk'?'Bevi':'Mangia','daily',{op:'eat',id}));
       if(bank&&item.depositable){

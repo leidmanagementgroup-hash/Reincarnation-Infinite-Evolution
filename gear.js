@@ -240,15 +240,19 @@
     return parts.join(' · ');
   }
   function service(s){
+    if(window.UrbanWorld?.kind(s.region)==='forge'){
+      const near=UrbanWorld.access(s,'forge'),open=openHours(s);
+      return {near,open,npc:near&&open,rank:level(s),name:'Fucina di Velaris'};
+    }
     const home=window.World?.regions?.valley?.points?.smith;
     const place=home&&(window.Life?.npcPoint?.(s,'smith',home)||home);
     const near=!!place&&s.region==='valley'&&Math.hypot(s.player.x-place.x,s.player.y-place.y)<=44;
     const open=openHours(s);
     const present=!window.Conflicts||Conflicts.canInteract(s,'smith')&&!Conflicts.takesOver(s,'smith');
-    return {near,open,npc:near&&open&&present,rank:level(s)};
+    return {near,open,npc:near&&open&&present,rank:level(s),name:'Forgia di Vela'};
   }
   const stages=['','Concludi la missione di Orveth.','Sconfiggi Kharun.','Sconfiggi Syrava.','Sconfiggi Asterion.','Concludi la campagna.'];
-  const atForge=svc=>!svc.near?'Avvicinati alla forgia di Vela.':!svc.open?'La forgia riceve dalle 07:00 alle 20:00.':'';
+  const atForge=svc=>!svc.near?'Avvicinati a una forgia.':!svc.open?'La forgia riceve dalle 07:00 alle 20:00.':'';
 
   function acquireReason(s,def,svc){
     if(def.bound)return 'Si ottiene soltanto sconfiggendo il Custode originale di Nadir.';
@@ -398,7 +402,7 @@
     }
     const top=bonus(s);
     return {slots:slotIds.map((id,i)=>({id,label:slotLabels[i],selected:selected(s,id)})),items:rows,rarities,
-      location:svc.near?(svc.open?'Forgia di Vela':'Forgia chiusa · 07:00–20:00'):'Fuori dalla forgia',
+      location:svc.near?(svc.open?svc.name:'Forgia chiusa · 07:00–20:00'):'Fuori dalla forgia',
       smithRank:svc.rank,stats:top,kits:Inventory.format(qty(s,kitId)),makeKit:readiness(atForge(svc)||(!affordable(s,kitRecipe)?'Materiali o Scintille insufficienti.':''),kitRecipe)};
   }
 
