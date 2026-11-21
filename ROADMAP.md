@@ -14,7 +14,7 @@
 - [x] RISK-007: morte permanente dei compagni di gilda confermata e documentata in `GAME_DESIGN.md` §4.9 (2026-11-21).
 - [ ] Verificare in partita il bilanciamento dei danni ai compagni (quanto spesso scendono in stato critico).
 - [ ] Estendere il test Node a `panels.js`/`interface.js` con un DOM minimo, e aggiungere casi per evoluzione, boss adattivi e minigiochi. Il mercato di Velaris è già coperto.
-- [ ] Condividere nello stesso repository una prova di prestazioni a finestra visibile. Il primo confronto locale della fase 1 è in `PROGRESS.md`.
+- [x] Prova di prestazioni a finestra visibile condivisa: `tests/prova-prestazioni.mjs` (2026-11-21). Resta da integrarla in un'esecuzione automatica.
 
 ## Priorità di sviluppo — Aggiornamento 5
 

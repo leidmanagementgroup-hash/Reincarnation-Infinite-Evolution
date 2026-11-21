@@ -13,7 +13,12 @@ Branch `claude/passo2-luce-vegetazione` (non unito a `main`).
 - Movimento ridotto: tutte le animazioni nuove si fermano con l'opzione effetti spenta **oppure** con `prefers-reduced-motion`, mantenendo luci e contrasto; anche il fuoco degli interni (file: `urban-exterior.js`, `urban-interiors.js`).
 - Test: disegno diurno e notturno con e senza movimento ridotto, tetto di otto luci (file: `tests/verifica-integrazione.cjs`).
 ### Verifica
-- Prestazioni su Edge (headless, 3 giri alternati): prima dell'ottimizzazione p95 +35…+80% rispetto a `main`; dopo (finestre precalcolate, meno fasce e particelle, niente alone dei cristalli di giorno) circa +5…+25%, +0,2…+0,4 ms assoluti. Obiettivo del 10% ancora superato in tre scene su quattro (dettagli in `PROGRESS.md`).
+- Verifica finale su Edge con finestra visibile e GPU (driver CDP, 3 ripetizioni alternate da 30 s su 4 scene, stress ×16, profilatore): nessun calo di fluidità; sovracosto del branch localizzato in alberi e cristalli e rimosso con sprite precalcolati (resa invariata: ≤12 pixel su 129 600, 1 livello di colore); sotto stress da −42% a 0% rispetto a `main` (dettagli in `PROGRESS.md`).
+- Browser: movimento, dialogo, interno, salvataggio/ricarica, disegno notturno con effetti di combattimento, 2400 passi in valle senza errori.
+### Aggiunto (verifica finale)
+- `tests/prova-prestazioni.mjs` e `tests/prova-prestazioni-pagina.js`: prova di prestazioni con Edge a finestra visibile (rAF reale, stress, profilatore, screenshot).
+### Modificato (verifica finale)
+- Alberi e cristalli come sprite precalcolati (`propSprite`) in `urban-exterior.js`; `Reincarnation.html` ricostruito.
 ### Non modificato
 - BUG-011, collisioni, mappe, salvataggi, meccaniche e disegno degli avvisi di combattimento (`Game.drawFX` resta dopo lo strato di luce della città).
 

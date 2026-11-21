@@ -3407,6 +3407,29 @@ window.ActorArt = (() => {
       c.fillRect((x|0)-d,(y|0)+v,2*d+1,1);
     }
   }
+  // Sprite precalcolati per alberi e cristalli: stesso disegno, un solo drawImage al posto di decine di rettangoli.
+  const propSprites=new Map();
+  function propSprite(key,paint){
+    let image=propSprites.get(key);
+    if(!image){
+      image=canvas(48,48);
+      paint(image.getContext('2d'),24,38);
+      propSprites.set(key,image);
+    }
+    return image;
+  }
+  function paintTreeBody(g,x,y,s1,s2){
+    rect(g,'#62564a',x-2,y-19,4,19);rect(g,'#927759',x-1,y-16,1,16);
+    disk(g,'#3c574f',x+s1,y-19,14,13);disk(g,'#59745b',x-3+s1,y-22,12,11);
+    disk(g,'#738962',x-4+s2,y-26,9,6);disk(g,'#939b6d',x-5+s2,y-29,5,3);
+    for(let i=0;i<10;i++)rect(g,i%2?'#9fa67b':'#416353',x-12+(i*7)%23+s1,y-25+(i*11)%15,1+(i%3),1);
+  }
+  function paintCrystalBody(g,x,y,bright){
+    poly(g,'#356f78',[[x-5,y],[x-3,y-9],[x-1,y-12],[x+1,y-4],[x,y]]);
+    poly(g,bright?'#8ff0e4':'#6fd5d1',[[x-2,y],[x,y-15],[x+2,y-17],[x+4,y-8],[x+4,y]]);
+    poly(g,'#b8fff4',[[x,y-4],[x+1,y-15],[x+2,y-16],[x+2,y-5]]);
+    poly(g,'#46969b',[[x+3,y],[x+5,y-7],[x+8,y-9],[x+8,y]]);
+  }
   function diamond(c,color,x,y,r=4){poly(c,color,[[x,y-r],[x+r,y],[x,y+r],[x-r,y]]);}
   function makeLampGlow(){
     const image=canvas(88,62),g=image.getContext('2d');
@@ -4165,10 +4188,7 @@ window.ActorArt = (() => {
       const sway=still?0:Math.sin(time*.8+x*.11),s1=Math.round(sway),s2=Math.round(sway*1.6);
       const reach=scene.known?Math.abs(scene.sunDx):0;
       disk(c,scene.treeShadow||'rgba(36,53,56,.52)',x+scene.sunDx,y+3,14+reach*.6,5);
-      rect(c,'#62564a',x-2,y-19,4,19);rect(c,'#927759',x-1,y-16,1,16);
-      disk(c,'#3c574f',x+s1,y-19,14,13);disk(c,'#59745b',x-3+s1,y-22,12,11);
-      disk(c,'#738962',x-4+s2,y-26,9,6);disk(c,'#939b6d',x-5+s2,y-29,5,3);
-      for(let i=0;i<10;i++)rect(c,i%2?'#9fa67b':'#416353',x-12+(i*7)%23+s1,y-25+(i*11)%15,1+(i%3),1);
+      c.drawImage(propSprite('tree'+s1+'/'+s2,(g,ax,ay)=>paintTreeBody(g,ax,ay,s1,s2)),(x|0)-24,(y|0)-38);
       if(!still){
         for(let i=0;i<2;i++){
           const phase=(time*.3+i*.5+x*.013)%1;
@@ -4178,10 +4198,7 @@ window.ActorArt = (() => {
     }else if(name==='crystal'){
       const pulse=still?1:Math.sin(time*1.7+x*.37),bright=pulse>.4;
       disk(c,'rgba(26,42,50,.4)',x+scene.sunDx*.4,y+2,7,3);
-      poly(c,'#356f78',[[x-5,y],[x-3,y-9],[x-1,y-12],[x+1,y-4],[x,y]]);
-      poly(c,bright?'#8ff0e4':'#6fd5d1',[[x-2,y],[x,y-15],[x+2,y-17],[x+4,y-8],[x+4,y]]);
-      poly(c,'#b8fff4',[[x,y-4],[x+1,y-15],[x+2,y-16],[x+2,y-5]]);
-      poly(c,'#46969b',[[x+3,y],[x+5,y-7],[x+8,y-9],[x+8,y]]);
+      c.drawImage(propSprite(bright?'crystal-b':'crystal-d',(g,ax,ay)=>paintCrystalBody(g,ax,ay,bright)),(x|0)-24,(y|0)-38);
       if(!still&&Math.sin(time*2.3+x)>.86)rect(c,'#ffffff',x+3,y-13,1,1);
     }else if(name==='lamp'){
       rect(c,'#45464a',x-3,y,7,2);rect(c,'#675f51',x-1,y-19,2,19);
