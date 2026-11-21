@@ -4,6 +4,8 @@ Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGEN
 
 ## [2026-11-21] Piano del Generatore Procedurale Urbano 2.0 — Codex
 
+Commit del piano `a88b8bd`.
+
 ### Documentazione
 - Analisi di Velaris, architettura ibrida, persistenza, prestazioni, raccordo con le due unità economiche della Fase 3 e incrementi verificabili. Proposti il Borgo dei Filoni come primo prototipo e Calis come seconda tipologia. Collegato il piano alla roadmap e al passaggio di consegne (file `MEGA_CITY_OVERHAUL.md`, `ROADMAP.md`, `PROGRESS.md`).
 
