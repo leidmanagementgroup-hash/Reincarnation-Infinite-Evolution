@@ -63,13 +63,14 @@ Apri `Reincarnation.html` in un browser moderno. Grafica, musica sintetizzata e 
 
 ### Ricostruire l’HTML
 
-Dalla cartella dei sorgenti esegui `python build.py Reincarnation.html`. Lo script usa soltanto la libreria standard di Python 3.
+Dalla cartella dei sorgenti esegui `python build.py Reincarnation.html`. Lo script usa soltanto la libreria standard di Python 3. Le mappe disegnate con Tiled Map Editor nella cartella `mappe/` (se attive) entrano nella build: vedi `GUIDA_TILED.md`.
 
 | File | Contenuto |
 |---|---|
 | `world.js` | Geografia della regione, percorsi, elementi procedurali, collisioni e mappa |
 | `expansion-world.js` | Cava delle Braci, Fenditura Astrale e passaggi regionali |
 | `continents.js` | Geografia delle nove nuove regioni e della Cripta delle Soglie, rotte, caricamento e monumenti |
+| `tiled-maps.js` | Mappe modificate con Tiled Map Editor: lettura, controllo e applicazione (guida in `GUIDA_TILED.md`) |
 | `urban-exterior.js`, `urban-interiors.js`, `urban-world.js` | Quartieri e interni di Velaris, collisioni, mappa, percorsi e collegamenti con la Selva degli Alambicchi |
 | `urban-life.js`, `urban-services.js` | Residenti, orari, commissioni, scorte urbane, fonte della piazza e servizi interattivi |
 | `sprites.js` | Sprite animati, forme evolute, icone e ritratti |

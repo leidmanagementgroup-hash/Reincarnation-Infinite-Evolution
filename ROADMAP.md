@@ -19,6 +19,8 @@
 - [ ] Economia, passi successivi (da approvare): lista dinamica dei mercati in `Economy` (ECO-002), interfaccia di tendenze e merci in viaggio (ECO-003), mestieri dei residenti collegati a `MarketFlows.activity`, profondità dei mercati per dimensione (ECO-001), eventi e leggi come modificatori di `traits`/`routes` (Fase 4).
 - [x] **PERF-001**: `path()` medio da 5,9 a 0,78 ms e p95 da 21 a 2 ms, percorsi identici (unito a `main` il 2026-11-21, `a1e4c54`).
 - [ ] PERF-002: distribuire su più fotogrammi la pianificazione dei residenti al cambio di giorno (55–63 ms in un fotogramma, una volta per giorno di gioco).
+- [x] **Mappe con Tiled Map Editor**, area di prova degli Orti dell’Alambicco (branch `claude/tiled-borgo-prova`, in attesa del merge): `GUIDA_TILED.md`.
+- [ ] Tiled per i borghi dei continenti dopo il World Art Overhaul (TILED-001) e per altre aree di Velaris; valutare l’uso delle mappe come livello manuale sopra il Generatore Procedurale Urbano 2.0.
 - [ ] **Fase successiva —** Generatore Procedurale Urbano 2.0: generalizzare lotti, vie, confini e oggetti dell'annesso (oggi a coordinate fisse) partendo da `settlementTypes`, cache per settori e routine per quartiere.
 - [x] BUG-011: risolto e unito a `main` (2026-11-21).
 - [ ] Verificare in partita il bilanciamento dei danni ai compagni (quanto spesso scendono in stato critico).

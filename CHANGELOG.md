@@ -2,6 +2,18 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-21] Modifica delle mappe con Tiled Map Editor: area di prova degli Orti dell’Alambicco — Claude
+Branch `claude/tiled-borgo-prova` (non unito a `main`), da `main` `7060f17`. Guida: `GUIDA_TILED.md`.
+### Aggiunto
+- `tiled-maps.js` (`TiledMaps`): lettura e controllo delle mappe Tiled (.tmj), conversione in coordinate del mondo, piastrelle di terreno nello stile del gioco, modello modificabile, verifiche di porte, soste e sovrapposizioni.
+- `urban-exterior.js`: chiavi stabili per edifici (`annesso-<riga>-<colonna>`, servizi) e oggetti (`<tipo>@x,y`, `planter@<edificio>`); applicazione della mappa all’area dopo la generazione procedurale, con ricostruzione delle collisioni, soste, piastrelle di terreno su suolo e minimappa; ritorno alla versione procedurale se i controlli falliscono; `exportArea` per il modello. Senza mappe attive il comportamento è identico (percorsi verificati byte per byte).
+- `build.py`: incorpora le mappe attive di `mappe/` (`--mappe` per un’altra cartella, `--mappe-json` per i test), risolve tileset esterni, gruppi e codifiche CSV/base64/zlib/gzip; si ferma con messaggi in italiano.
+- `mappe/`: progetto Tiled degli Orti (non attivo), tileset di terreno, oggetti ed edifici con gli sprite originali, immagine di riferimento, dimostrazione in `mappe/esempi/`.
+- `strumenti/esporta-mappa-tiled.cjs`, `strumenti/crea-mappa-dimostrazione.cjs`, `strumenti/verifica-mappe.cjs`; test `tests/verifica-mappe-tiled.cjs` (150 controlli, giro completo con Tiled se installato).
+### Verifica
+- Tutte le suite esistenti superate senza mappe attive; prove nel browser superate sulla build di prova con la mappa attiva. Nessun cambiamento ai salvataggi. Limiti: TILED-001, TILED-002.
+
+
 ## [2026-11-21] PERF-001: ricerca dei percorsi di Velaris più veloce, percorsi identici — Claude
 Branch `claude/perf-001-pathfinding`, da `main` `96a03f5`; unito a `main` per fast-forward il 2026-11-21 (`96a03f5` → `a1e4c54`) su approvazione dell'utente. Dopo il merge: test di integrazione, percorsi (BUG-011), sovrapposizioni, economia e browser rieseguiti su `main`, percorsi identici a `96a03f5`, HTML allineato, stato remoto verificato.
 ### Corretto

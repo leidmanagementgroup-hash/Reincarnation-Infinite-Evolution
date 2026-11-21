@@ -21,7 +21,7 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 - **Rendering**: Canvas 2D (`#field`) con pixel art disegnata **a runtime** su griglia di pixel logici (`sprites.js`, `expansion-art.js`, `world.js`…); minimappa e pannelli in DOM. Solo la copertina è un'immagine (`cover.webp`, incorporata in base64).
 - **Audio**: Web Audio, musica sintetizzata originale con arrangiamento dinamico (`audio.js`, globale `Score`); impostazioni in `localStorage` (`lumora-audio-v1`).
 - **Interfaccia**: `template.html` (schermata titolo, schermata di gioco, `#veil`/`#dialog` modale con schede, toast) + `style.css`; logica in `interface.js` (input, ciclo di gioco, camera, HUD) e `panels.js` + pannelli specializzati. Controlli touch (croce direzionale) presenti.
-- **Build**: `python build.py [destinazione]` legge `template.html`, inserisce `style.css` (con la copertina in base64) e concatena i moduli nell'ordine della tupla `MODULES`, producendo `Reincarnation.html` (~1,5 MB). Solo libreria standard Python 3.
+- **Build**: `python build.py [destinazione]` legge `template.html`, inserisce `style.css` (con la copertina in base64) e concatena i moduli nell'ordine della tupla `MODULES`, producendo `Reincarnation.html` (~1,7 MB). Incorpora anche le mappe di Tiled attive della cartella `mappe/` come `window.TILED_MAPS` (opzione `--mappe` per un’altra cartella). Solo libreria standard Python 3.
 - **Persistenza**: `localStorage`, chiave `reincarnation.lumora.save.v7` (versione 7, limite `saveMaxBytes` 12.000.000), migrazione da `v6…v1` tramite `saveKeys` in `engine.js`. Export/import JSON dal menu Opzioni. Altre preferenze: `lumora-effects`, `lumora-guidance`, `lumora-audio-v1`.
 - **Numeri esatti**: inventario, valute e mercati usano `BigInt` internamente e stringhe decimali in JSON.
 - **Determinismo**: elementi procedurali di mondo/eventi usano semi fissi.
@@ -39,38 +39,39 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 | 6 | `expansion-art.js` | `ActorArt` | Arte delle nuove stirpi, creature, guardiani |
 | 7 | `continental-species.js` | `EvolutionContent`, `ContinentalBiology`, `ActorArt` | Otto stirpi aggiuntive e profili biologici |
 | 8 | `legendary-land.js` | `LegendaryLand`, `World` | Area del Santuario della Marea Muta (`nadir-vault`) |
-| 9 | `urban-exterior.js` | `UrbanExterior` | Quartieri, edifici, canale, ponti e percorsi deterministici di Velaris (tratti verificati in modo esatto per il raggio del corpo); luce dal calendario, finestre, cristalli, riflessi, ombre e vegetazione animata (movimento ridotto rispettato) |
-| 10 | `urban-interiors.js` | `UrbanInteriors` | Sette interni visitabili e cache delle superfici |
-| 11 | `urban-world.js` | `UrbanWorld, World` | Collegamenti con la Selva degli Alambicchi, rotte, collisioni e accesso ai servizi |
-| 12 | `calendar.js` | `Calendar` | Calendario persistente unico (giorno = 1800 s reali = 1440 min di gioco) |
-| 13 | `inventory.js` | `Inventory` | Magazzino a pile, quantità esatte, deposito |
-| 14 | `lantern.js` | `Lantern` | Evento serale nel Bosco di Vetro |
-| 15 | `growth.js` | `Growth` | Biologia fantasy, predisposizioni, innata evolutiva, allenamento, metamorfosi |
-| 16 | `world-life.js` | `Life` | Mestieri, luoghi di lavoro, routine NPC, eventi, statue/rinascita |
-| 17 | `construction.js` | `Build` | Lotti, costruzioni (casa, fattoria, laboratorio…), collisioni, proprietà |
-| 18 | `society.js` | `Society` | Abitanti, memorie, commercio, accordi, famiglia |
-| 19 | `guild.js` | `Guild` | Registri pubblici, incarichi, rango F–S, compagni, gilda personale |
-| 20 | `trades-practice.js` | `GamePractice` | Minigiochi di mestiere (puri, senza DOM/Canvas) |
-| 21 | `tradecraft.js` | `Tradecraft` | Attività, raccolti, allevamento, ricette |
-| 22 | `daily-life.js` | `Daily` | Bisogni, incarichi facoltativi quotidiani |
-| 23 | `market-flows.js` | `MarketFlows` | Economia dinamica: produzione, consumo, rotte, prezzi, registro delle merci, profili per nuove città |
-| 24 | `trade-economy.js` | `Economy` | Mercati regionali, valute, banca |
-| 25 | `gear.js` | `Gear` | Equipaggiamento: rarità, durabilità, riparazioni, maestria, tempra, ascensione, incantamento |
-| 26 | `adaptive-combat.js` | `Adaptive` | Boss che riconoscono lo stile ripetuto (melee/projectile/field) e rispondono |
-| 27 | `legendary.js` | `Legendary` | Scoperta, bottino unico, successione del Santuario; Nadir, Arma Divina, Eco della Rinascita |
-| 28 | `npc-conflicts.js` | `Conflicts` | Pattuglie, ferite, soccorsi, morte permanente NPC, memoriali, rito della rinascita |
-| 29 | `reputation.js` | `Reputation` | Reputazione con insediamenti, regni, gilde, fazioni; titoli |
-| 30 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
-| 31 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
-| 32 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
-| 33 | `audio.js` | `Score` | Musica e suoni |
-| 34 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
-| 35 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
-| 36 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
-| 37 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
-| 38 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
-| 39 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
-| 40 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
+| 9 | `tiled-maps.js` | `TiledMaps` | Mappe modificate con Tiled Map Editor: lettura, controllo, conversione in coordinate del mondo, terreno, modello e verifiche |
+| 10 | `urban-exterior.js` | `UrbanExterior` | Quartieri, edifici, canale, ponti e percorsi deterministici di Velaris (tratti verificati in modo esatto per il raggio del corpo); luce dal calendario, finestre, cristalli, riflessi, ombre e vegetazione animata (movimento ridotto rispettato) |
+| 11 | `urban-interiors.js` | `UrbanInteriors` | Sette interni visitabili e cache delle superfici |
+| 12 | `urban-world.js` | `UrbanWorld, World` | Collegamenti con la Selva degli Alambicchi, rotte, collisioni e accesso ai servizi |
+| 13 | `calendar.js` | `Calendar` | Calendario persistente unico (giorno = 1800 s reali = 1440 min di gioco) |
+| 14 | `inventory.js` | `Inventory` | Magazzino a pile, quantità esatte, deposito |
+| 15 | `lantern.js` | `Lantern` | Evento serale nel Bosco di Vetro |
+| 16 | `growth.js` | `Growth` | Biologia fantasy, predisposizioni, innata evolutiva, allenamento, metamorfosi |
+| 17 | `world-life.js` | `Life` | Mestieri, luoghi di lavoro, routine NPC, eventi, statue/rinascita |
+| 18 | `construction.js` | `Build` | Lotti, costruzioni (casa, fattoria, laboratorio…), collisioni, proprietà |
+| 19 | `society.js` | `Society` | Abitanti, memorie, commercio, accordi, famiglia |
+| 20 | `guild.js` | `Guild` | Registri pubblici, incarichi, rango F–S, compagni, gilda personale |
+| 21 | `trades-practice.js` | `GamePractice` | Minigiochi di mestiere (puri, senza DOM/Canvas) |
+| 22 | `tradecraft.js` | `Tradecraft` | Attività, raccolti, allevamento, ricette |
+| 23 | `daily-life.js` | `Daily` | Bisogni, incarichi facoltativi quotidiani |
+| 24 | `market-flows.js` | `MarketFlows` | Economia dinamica: produzione, consumo, rotte, prezzi, registro delle merci, profili per nuove città |
+| 25 | `trade-economy.js` | `Economy` | Mercati regionali, valute, banca |
+| 26 | `gear.js` | `Gear` | Equipaggiamento: rarità, durabilità, riparazioni, maestria, tempra, ascensione, incantamento |
+| 27 | `adaptive-combat.js` | `Adaptive` | Boss che riconoscono lo stile ripetuto (melee/projectile/field) e rispondono |
+| 28 | `legendary.js` | `Legendary` | Scoperta, bottino unico, successione del Santuario; Nadir, Arma Divina, Eco della Rinascita |
+| 29 | `npc-conflicts.js` | `Conflicts` | Pattuglie, ferite, soccorsi, morte permanente NPC, memoriali, rito della rinascita |
+| 30 | `reputation.js` | `Reputation` | Reputazione con insediamenti, regni, gilde, fazioni; titoli |
+| 31 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
+| 32 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
+| 33 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
+| 34 | `audio.js` | `Score` | Musica e suoni |
+| 35 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
+| 36 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
+| 37 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
+| 38 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
+| 39 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
+| 40 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
+| 41 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
 
 Nota: `World`, `ActorArt` ed `EvolutionContent` sono **estesi da più moduli** successivi (ciascuno incapsula e riassegna il globale precedente): l'ordine in `build.py` è vincolante.
 
@@ -97,6 +98,8 @@ La locanda, la bottega, la fucina, la Gilda del Compasso, l’archivio, l’acca
 La serra ha un’aiuola persistente. Il campo facoltativo `cityWorks.seedbedAt` vale −1 per il terreno vuoto, 0 dopo la semina e indica il minuto assoluto di maturazione dopo l’irrigazione. Costa una semente, richiede 80 minuti di calendario e produce due erbe per raccolta. Semina e raccolta usano gli eventi `sow` e `reap` dei mestieri. Le partite v7 anteriori all’espansione ricevono un’aiuola vuota.
 
 Routine per quartiere: ogni residente abita nel quartiere del proprio lavoro (`homesByDistrict` in `urban-life.js`) e la sera passeggia verso la piazza del suo quartiere invece che tutti verso la Piazza delle Quattro Lenti; le soste restano distribuite da `spread()` e i percorsi verificati in modo esatto (BUG-011). Gli edifici dell’annesso registrano i vetri come quelli storici, quindi di notte si accendono con lo stesso strato precalcolato del passo 2; le atmosfere locali del passo 2 restano limitate ai quartieri storici a est del canale.
+
+**Modifiche con Tiled Map Editor.** Un’area di Velaris (per ora gli Orti dell’Alambicco) può essere disegnata in Tiled: livelli `terreno` (piastrelle 16×16, solo aspetto), `decorazioni` e `oggetti` (stessi oggetti e raggi di collisione della generazione), `edifici` (sprite originali; modelli per edifici nuovi), `collisioni` (rettangoli aggiunti) e `ingressi` (soste e porte). Le proprietà della mappa `regione`, `origineX`, `origineY` e `attiva` la collocano nel mondo. Gli elementi esistenti sono riconosciuti da chiavi stabili (`annesso-<riga>-<colonna>`, id dei servizi, `<tipo>@x,y`); un elemento assente dalla mappa è eliminato, uno senza id è nuovo. Servizi e porte degli interni restano bloccati. Con la mappa attiva l’area ha la stessa disposizione per ogni seme; il resto della città resta procedurale. Nessun dato nuovo nei salvataggi. Guida: `GUIDA_TILED.md`.
 
 Il formato v7 conserva `urban` (routine, scorte, memorie e commissioni), `cityWorks` (restauro, colazione, esercitazioni e letture) ed `economy.flows` (campo facoltativo, `schema: 1`: giorno, ricchezza, spedizioni in viaggio, riporti frazionari e registro delle merci; assente nei salvataggi precedenti, che lo ricevono al giorno corrente senza recuperi retroattivi, e ricreato se non valido). Le mappe si rigenerano dallo stesso seme. I salvataggi precedenti ricevono i nuovi campi al caricamento. La v5 di GitHub può includere equipaggiamento, conflitti, reputazione e Santuario. La migrazione conserva i campi presenti e inizializza quelli mancanti nelle v5 precedenti.
 
