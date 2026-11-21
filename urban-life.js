@@ -14,16 +14,17 @@
     ['forge','Velek Cordeferro','dwarf','Fabbro','Preferisce un buon acciaio a una grande promessa.'],
     ['guild','Kaia del Ponte','elf','Cancelliera della gilda','Accetta consegne per i magazzini della città.'],
     ['archive','Innel delle Volte','spirit','Archivista','Ordina testimonianze e itinerari nell’archivio.'],
-    ['academy','Merio Semechiaro','dryad','Docente','Conosce sia il valore della teoria sia quello della pratica.']
+    ['academy','Merio Semechiaro','dryad','Docente','Conosce sia il valore della teoria sia quello della pratica.'],
+    ['greenhouse','Mirea dal Seme di Vetro','dryad','Custode della serra','Conserva i semi delle colture che resistono ai terreni della Selva.']
   ];
   const tracks=[
-    ['Portatore','market','plaza'],['Maniscalco','forge','plaza'],['Notaia','archive','market'],
+    ['Portatore','arcades-court','market'],['Maniscalco','forge','plaza'],['Notaia','archive','market'],
     ['Cuoca','inn','market'],['Apprendista','academy','plaza'],['Scriba','archive','market'],
-    ['Corriere','guild','market'],['Guardia civica','plaza','gate'],['Orticoltrice','market','plaza'],
-    ['Carpentiere','forge','market'],['Mercante di stoffe','shop','plaza'],['Copista','academy','archive'],
-    ['Carovaniera','gate','market'],['Cartografo','guild','archive'],['Tessitrice','market','inn'],
-    ['Birraio','inn','market'],['Maestra d’acqua','plaza','inn'],['Erborista','market','academy'],
-    ['Artigiana di cuoio','shop','market'],['Mediatore','plaza','guild']
+    ['Corriere','guild','market'],['Guardia civica','plaza','gate'],['Orticoltrice','orchards-work','orchards-court'],
+    ['Carpentiere','forge','market'],['Mercante di stoffe','arcades-court','arcades-work'],['Copista','academy','archive'],
+    ['Carovaniera','gate','market'],['Cartografo','guild','archive'],['Tessitrice','arcades-work','arcades-court'],
+    ['Birraio','inn','market'],['Maestra d’acqua','plaza','inn'],['Erborista','orchards-work','orchards-court'],
+    ['Artigiana di cuoio','arcades-work','arcades-court'],['Mediatore','plaza','guild']
   ];
   const fallbackRaces=[
     'human','goblin','elf','spirit','dryad','dwarf','orc','wolf','slime','vampire','kobold','triton','drake','skeleton','troll','golem'
@@ -131,7 +132,7 @@
   }
 
   function interiorKind(region){
-    return window.UrbanWorld?.kind?.(region)||(/^city-velaris-(inn|shop|forge|guild|archive|academy|house)$/.exec(region||'')?.[1]||null);
+    return window.UrbanWorld?.kind?.(region)||(/^city-velaris-(inn|shop|forge|guild|archive|academy|house|greenhouse)$/.exec(region||'')?.[1]||null);
   }
   function exterior(s){
     return window.UrbanWorld?.exterior?.(s.seed)||window.UrbanExterior?.create?.(s.seed)||null;
@@ -179,28 +180,37 @@
     }
     const points=Object.values(ext.waypoints||{}).map((p,i)=>stop(p,'Via '+(i+1),'street',p.id||'street-'+i))
       .filter(Boolean).filter(q=>checkPathPoint(runtime,q));
-    const squares=points.filter(p=>/plaz|piazz|mercat|market|quay|canal/i.test(p.id+' '+p.name));
-    const plaza=squares[0]||points.find(p=>distance(p,fallback)<95)||fallback;
+    const byId=Object.fromEntries(points.map(p=>[p.id,p]));
+    const plaza=byId.plaza||fallback;
+    const market=byId['district-wind']||services.shop||plaza;
+    const gate=byId.entry||plaza;
+    const squares=[plaza,market,byId['arcades-court'],byId['orchards-court']].filter(Boolean);
     const graphHomes=Object.values(ext.residences||{}).map((p,i)=>stop(p,'Corte '+(i+1),'home',p.id||'home-'+i)).filter(Boolean);
     const residential=graphHomes.length?graphHomes:points.filter(p=>!Object.values(services).some(q=>distance(p,q)<60));
-    const market=squares.find(p=>/mercat|market/i.test(p.id+' '+p.name))||services.shop||plaza;
-    const gate=points.find(p=>/gate|ingress|arriv/i.test(p.id+' '+p.name))||points[0]||plaza;
     const inn=services.inn||plaza;
     const homes=residential.length?residential:points.length?points:[plaza];
-    runtime.places={homes,squares:squares.length?squares:[plaza,market],anchors:{...services,plaza,market,gate,inn}};
+    const homesByDistrict=new Map();
+    for(const home of homes){
+      const district=ext.districtAt(home.x,home.y).id;
+      if(!homesByDistrict.has(district))homesByDistrict.set(district,[]);
+      homesByDistrict.get(district).push(home);
+    }
+    runtime.places={homes,homesByDistrict,squares,anchors:{...byId,...services,plaza,market,gate,inn}};
     return runtime.places;
   }
 
   function basePlan(s,p,runtime){
-    const {homes,squares,anchors}=allPlaces(runtime);
+    const {homes,homesByDistrict,squares,anchors}=allPlaces(runtime);
     const standard=p.timetable,d=day(s),market=anchors.market;
-    const homeBase=homes[p.homeKey%homes.length];
-    const home=sidestep(runtime,{...homeBase,name:'Casa presso '+homeBase.name},p.planBias%8,9);
     const duty=anchors[p.workKind]||market;
+    const district=runtime.ext.districtAt(duty.x,duty.y).id;
+    const housing=homesByDistrict.get(district)||homes;
+    const homeBase=housing[p.homeKey%housing.length];
+    const home=sidestep(runtime,{...homeBase,name:'Casa presso '+homeBase.name},p.planBias%8,9);
     const work=p.staff?sidestep(runtime,duty,p.planBias%8,12):sidestep(runtime,duty,p.planBias%8,17);
     const rest=sidestep(runtime,anchors[p.pauseKind]||anchors.plaza,(p.planBias+3)%8,14);
     const errands=squares[(p.planBias+d)%squares.length]||rest;
-    const evening=sidestep(runtime,(standard%6===0?anchors.inn:anchors.plaza),standard%8,16);
+    const evening=sidestep(runtime,standard%6===0?anchors.inn:anchors['district-'+district]||anchors.plaza,standard%8,16);
     const wake=p.staff?391:(342+standard%158);
     const lunch=p.staff?777+standard%17:687+standard%179;
     const shiftEnd=p.staff?1200:1032+standard%136;

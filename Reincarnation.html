@@ -4428,6 +4428,23 @@ window.ActorArt = (() => {
       services:[['house-bed',150,148,'Riposa nella stanza privata'],['house-cache',607,405,'Esamina il cassone']],
       npcs:[],
       marks:[['Camera da letto',150,148],['Sala privata',529,166],['Soggiorno',342,380],['Uscita',384,493]]
+    },
+    greenhouse:{
+      name:'Serra delle Talee',floor:'stone',colors:['#233538','#435f52','#5c7560','#65836b','#84947a','#49635e','#d6d0a3','#94b8a9'],
+      rooms:[[3,3,10,6],[19,3,10,6],[11,5,10,6],[4,9,24,9],[11,17,10,4]],
+      furniture:[
+        ['glasswall',147,76],['glasswall',250,76],['glasswall',517,76],['glasswall',620,76],
+        ['plant',110,135],['nursery',182,151,1],['plant',249,162],['nursery',523,147,2],['plant',603,142],
+        ['fountain',384,165],['lamp',332,172],['lamp',436,172],
+        ['nursery',159,276,2],['nursery',239,276,1],['shelf',114,352],['plant',280,322],
+        ['nursery',384,295],['barrel',476,297],['table',569,255,2],
+        ['nursery',586,344,2],['plant',654,339],['bench',530,406],['crate',622,406],
+        ['lamp',280,398],['lamp',488,398]
+      ],
+      carpets:[[126,254,146,54,3],[533,318,121,66,3]],
+      services:[['greenhouse-bed',384,326,'Coltiva l’aiuola comune']],
+      npcs:[['gardener','Custode della serra','dryad',465,241]],
+      marks:[['Vasche delle talee',198,205],['Cisterna',384,195],['Aiuola comune',384,326],['Uscita',384,493]]
     }
   };
   const point=(x,y)=>({x,y});
@@ -4437,7 +4454,7 @@ window.ActorArt = (() => {
     const sites=sitesFor(spec);
     const npcLocations=spec.npcs.map(([id,name,race,x,y])=>({id,name,race,x,y,point:point(x,y),dir:'down'}));
     return [kind,{id:'city-velaris-'+kind,kind,name:spec.name,description:'Interno di '+spec.name,continent:'continent-3',
-      width,height,indoor:true,ambience:{inn:'hearth',shop:'market',forge:'forge',guild:'hall',archive:'quiet',academy:'runes',house:'hearth'}[kind],
+      width,height,indoor:true,ambience:{inn:'hearth',shop:'market',forge:'forge',guild:'hall',archive:'quiet',academy:'runes',house:'hearth',greenhouse:'quiet'}[kind],
       spawn:{...center},points:{gates:[],mobs:[],resources:[],bosses:[]},
       sites,npcLocations,landmarks:spec.marks.map(([name,x,y])=>({name,x,y}))}];
   }));
@@ -4450,7 +4467,7 @@ window.ActorArt = (() => {
     shelf:[55,14],hearth:[56,19],stove:[48,19],fountain:[35,22],counter:[120,20],
     display:[41,22],crate:[20,14],barrel:[19,17],furnace:[70,26],workbench:[63,19],
     anvil:[39,17],bellows:[22,16],ore:[36,15],target:[20,14],
-    dummy:[19,13],rack:[43,12],lectern:[34,16],board:[63,12],plant:[14,13],tray:[36,16]
+    dummy:[19,13],rack:[43,12],lectern:[34,16],board:[63,12],plant:[14,13],tray:[36,16],nursery:[57,17]
   };
   const lightTypes=new Set(['lamp','hearth','furnace','stove','window','rune']);
   const trim=['#e8a882','#b6a5d0','#edcca7','#a5d4d2'];
@@ -4581,6 +4598,24 @@ window.ActorArt = (() => {
     const [,wall,stone,wood,woodLight,dark,bright,accent]=colors;
     const i=variant||0;
     const box=(col,x,y,w,h)=>rectangle(c,col,x,y,w,h);
+    if(type==='glasswall'){
+      box(ink,-48,-38,96,39);box('#567979',-46,-36,92,34);
+      for(let x=-44;x<45;x+=15){
+        box('#96bbb0',x,-34,12,29);box('#c3d4ba',x+2,-30,3,13);
+        box('#678d87',x+7,-13,4,7);box('#86795b',x+12,-36,2,35);
+      }
+      box('#546961',-46,-20,92,2);box('#b4a471',-48,-3,96,3);
+      return;
+    }
+    if(type==='nursery'){
+      box(ink,-30,-13,60,17);box('#997958',-28,-12,56,13);box('#4a4439',-25,-10,50,7);
+      for(let x=-21;x<=21;x+=7){
+        box('#796950',x,-7,4,1);
+        if(i){box('#3b6851',x,-14,2,9);box('#89aa69',x-3,-13,4,3);box('#618766',x+2,-16,3,3);}
+        if(i===2)box('#dca880',x,-17,3,2);
+      }
+      box('#bf9d72',-28,-2,56,2);return;
+    }
     const shadow=(rx,ry=5)=>disc(c,shade,1,2,rx,ry);
 
     if(type==='window'){
@@ -4894,7 +4929,13 @@ window.ActorArt = (() => {
   'use strict';
   const base=window.World;
   const cityId='city-velaris',originId='verdant-canopy';
-  const venueIds=['inn','shop','forge','guild','archive','academy','house'];
+  const settlementTypes={
+    hamlet:{label:'Borgo',minBuildings:5,maxBuildings:15},
+    village:{label:'Villaggio',minBuildings:20,maxBuildings:50},
+    town:{label:'Cittadina',minBuildings:60,maxBuildings:150},
+    city:{label:'Grande città',minBuildings:200,maxBuildings:500},
+    capital:{label:'Capitale',minBuildings:500,maxBuildings:null}
+  };
   const entry={x:575,y:382};
   const returnToWood={x:594,y:382};
   const exit={x:94,y:726};
@@ -4902,9 +4943,9 @@ window.ActorArt = (() => {
   const intoCity=gate('gate-velaris',entry,cityId,UrbanExterior.region.spawn,'Entra a Velaris');
   const outOfCity=gate('gate-selva',exit,originId,returnToWood,'Torna alla Selva degli Alambicchi');
   const forest=base.regions[originId];
-  const kinds=new Map(venueIds.map(kind=>[UrbanInteriors.get(kind)?.id,kind]).filter(([id])=>id));
+  const kinds=new Map(UrbanInteriors.kinds.map(kind=>[UrbanInteriors.get(kind).id,kind]));
   const forestRegion={...forest,points:{...forest.points,gates:[...forest.points.gates,intoCity]}};
-  const cityRegion={...UrbanExterior.region,points:{...UrbanExterior.region.points,gates:[outOfCity]}};
+  const cityRegion={...UrbanExterior.region,settlementType:'town',points:{...UrbanExterior.region.points,gates:[outOfCity]}};
   const regions={...base.regions,[originId]:forestRegion,[cityId]:cityRegion,
     ...Object.fromEntries([...kinds].map(([id,kind])=>[id,{...UrbanInteriors.get(kind),hidden:true}]))};
   const continents=base.continents.map(continent=>continent.id===cityRegion.continent
@@ -5062,13 +5103,24 @@ window.ActorArt = (() => {
     return hit?.name||closest?.name||null;
   }
   function actors(s,t){
+    if(kind(s.region)==='greenhouse'&&s.cityWorks.seedbedAt!==-1){
+      const ready=s.cityWorks.seedbedAt,mature=ready>0&&Calendar.timestamp(s.calendar,s.time)>=ready;
+      return [{x:384,y:296,draw(ctx){
+        for(let x=363;x<=405;x+=7){
+          if(ready===0){ctx.fillStyle='#c7a866';ctx.fillRect(x,288,2,1);continue;}
+          ctx.fillStyle='#3a7454';ctx.fillRect(x,282,2,7);
+          ctx.fillStyle=mature?'#a6c882':'#789e67';ctx.fillRect(x-3,283,4,2);
+          if(mature){ctx.fillRect(x+1,280,3,3);ctx.fillStyle='#cee2bf';ctx.fillRect(x+2,279,2,2);}
+        }
+      }}];
+    }
     if(s.region!==cityId)return [];
     const {x,y}=exterior(s.seed).plaza;
     return [{x,y:y-13,draw:ctx=>marker(ctx,x,y-13,t,s.cityWorks?.restored?'restored':'inert')}];
   }
 
   window.World=api;
-  window.UrbanWorld={cityId,originId,exterior,interior,kind,inCity,localRegion,location,site,access,sites,use,actors};
+  window.UrbanWorld={cityId,originId,settlementTypes,exterior,interior,kind,inCity,localRegion,location,site,access,sites,use,actors};
 })();
 
 
@@ -9688,20 +9740,34 @@ window.Lantern = (() => {
     'house-cache':{name:'Cassone del custode',description:'Un mantello cerato e una lanterna di riserva accompagnano il custode nelle sue ronde lungo il canale.'}
   };
   const serviceId=id=>id==='archive-reading'?'archive':id==='academy-study'?'academy':id;
-  const create=()=>({schema:1,restored:false,breakfast:-1,training:-1,read:[]});
+  const growingMinutes=80;
+  const create=()=>({schema:1,restored:false,breakfast:-1,training:-1,read:[],seedbedAt:-1});
   const day=s=>Calendar.absoluteDays(s.calendar,s.time);
   const own=(o,id)=>Object.hasOwn(o,id);
   function restore(raw,s){
     if(raw===undefined)return create();
     if(!raw||raw.schema!==1||typeof raw.restored!=='boolean'||!Array.isArray(raw.read)||new Set(raw.read).size!==raw.read.length||
       !raw.read.every(id=>id==='archive'||id==='inn-cache')||!['breakfast','training'].every(id=>Number.isSafeInteger(raw[id])&&raw[id]>=-1&&raw[id]<=day(s)))return null;
-    return raw;
+    const seedbedAt=raw.seedbedAt===undefined?-1:raw.seedbedAt;
+    if(!Number.isFinite(seedbedAt)||(seedbedAt<0&&seedbedAt!==-1)||seedbedAt>Calendar.timestamp(s.calendar,s.time)+growingMinutes+1e-6)return null;
+    return {...raw,seedbedAt};
   }
   function nearby(s,id){
     const x=UrbanWorld.sites(s).find(s=>s.id===id);
     return !!x&&Math.hypot(x.point.x-s.player.x,x.point.y-s.player.y)<=x.range;
   }
   function view(s,site){
+    if(site==='greenhouse-bed'){
+      const ready=s.cityWorks.seedbedAt,now=Calendar.timestamp(s.calendar,s.time);
+      const bed={name:'Aiuola delle erbe di rugiada',description:'Il vetro trattiene il calore anche in inverno. Il canale porta acqua dalla cisterna.',allowed:nearby(s,site)};
+      if(ready===-1){
+        const seeds=Inventory.quantity(s,'seeds')>0n;
+        return {...bed,op:'sow',action:'Semina una semente',allowed:bed.allowed&&seeds,note:seeds?'La terra è pronta.':'Serve una semente. Puoi acquistarla al mercato.'};
+      }
+      if(ready===0)return {...bed,op:'water',action:'Apri la chiusa',note:'I semi sono nella terra asciutta.'};
+      if(ready>now)return {...bed,allowed:false,note:'Le talee cresceranno fra '+Math.ceil(ready-now)+' minuti di gioco.'};
+      return {...bed,op:'reap',action:'Raccogli le erbe',note:'Le foglie mature sono pronte da tagliare.'};
+    }
     const id=serviceId(site);
     if(!own(info,id))return null;
     if(!info[id].action)return {...info[id],allowed:false};
@@ -9725,6 +9791,19 @@ window.Lantern = (() => {
     if(!station?.allowed)return {ok:false,text:station?.note||'Avvicinati al luogo.'};
     const result=(text,event,meta)=>({ok:true,changed:true,text,panel:{id:'city-site',detail:site},event:event&&{id:event,amount:1,meta}});
     switch(id){
+      case 'greenhouse-bed':
+        if(value.op!==station.op)return {ok:false,text:'L’aiuola è già cambiata.'};
+        if(station.op==='sow'){
+          if(!Inventory.take(s,'seeds',1))return {ok:false,text:'Serve una semente.'};
+          s.cityWorks.seedbedAt=0;
+          return result('Hai seminato l’aiuola. Apri la chiusa per irrigarla.','sow');
+        }
+        if(station.op==='water'){
+          s.cityWorks.seedbedAt=Calendar.timestamp(s.calendar,s.time)+growingMinutes;
+          return result('L’acqua della cisterna raggiunge le talee.');
+        }
+        Inventory.add(s,'herb',2);s.cityWorks.seedbedAt=-1;
+        return result('Hai raccolto due erbe di rugiada.','reap',{kind:'herb'});
       case 'civic-fountain':
         Inventory.take(s,'ore',2);Inventory.take(s,'work',2);s.cityWorks.restored=true;
         return result('La fonte delle Lenti è tornata a scorrere.','urban-restoration',{region:UrbanWorld.originId});
@@ -9757,16 +9836,17 @@ window.Lantern = (() => {
     ['forge','Velek Cordeferro','dwarf','Fabbro','Preferisce un buon acciaio a una grande promessa.'],
     ['guild','Kaia del Ponte','elf','Cancelliera della gilda','Accetta consegne per i magazzini della città.'],
     ['archive','Innel delle Volte','spirit','Archivista','Ordina testimonianze e itinerari nell’archivio.'],
-    ['academy','Merio Semechiaro','dryad','Docente','Conosce sia il valore della teoria sia quello della pratica.']
+    ['academy','Merio Semechiaro','dryad','Docente','Conosce sia il valore della teoria sia quello della pratica.'],
+    ['greenhouse','Mirea dal Seme di Vetro','dryad','Custode della serra','Conserva i semi delle colture che resistono ai terreni della Selva.']
   ];
   const tracks=[
-    ['Portatore','market','plaza'],['Maniscalco','forge','plaza'],['Notaia','archive','market'],
+    ['Portatore','arcades-court','market'],['Maniscalco','forge','plaza'],['Notaia','archive','market'],
     ['Cuoca','inn','market'],['Apprendista','academy','plaza'],['Scriba','archive','market'],
-    ['Corriere','guild','market'],['Guardia civica','plaza','gate'],['Orticoltrice','market','plaza'],
-    ['Carpentiere','forge','market'],['Mercante di stoffe','shop','plaza'],['Copista','academy','archive'],
-    ['Carovaniera','gate','market'],['Cartografo','guild','archive'],['Tessitrice','market','inn'],
-    ['Birraio','inn','market'],['Maestra d’acqua','plaza','inn'],['Erborista','market','academy'],
-    ['Artigiana di cuoio','shop','market'],['Mediatore','plaza','guild']
+    ['Corriere','guild','market'],['Guardia civica','plaza','gate'],['Orticoltrice','orchards-work','orchards-court'],
+    ['Carpentiere','forge','market'],['Mercante di stoffe','arcades-court','arcades-work'],['Copista','academy','archive'],
+    ['Carovaniera','gate','market'],['Cartografo','guild','archive'],['Tessitrice','arcades-work','arcades-court'],
+    ['Birraio','inn','market'],['Maestra d’acqua','plaza','inn'],['Erborista','orchards-work','orchards-court'],
+    ['Artigiana di cuoio','arcades-work','arcades-court'],['Mediatore','plaza','guild']
   ];
   const fallbackRaces=[
     'human','goblin','elf','spirit','dryad','dwarf','orc','wolf','slime','vampire','kobold','triton','drake','skeleton','troll','golem'
@@ -9874,7 +9954,7 @@ window.Lantern = (() => {
   }
 
   function interiorKind(region){
-    return window.UrbanWorld?.kind?.(region)||(/^city-velaris-(inn|shop|forge|guild|archive|academy|house)$/.exec(region||'')?.[1]||null);
+    return window.UrbanWorld?.kind?.(region)||(/^city-velaris-(inn|shop|forge|guild|archive|academy|house|greenhouse)$/.exec(region||'')?.[1]||null);
   }
   function exterior(s){
     return window.UrbanWorld?.exterior?.(s.seed)||window.UrbanExterior?.create?.(s.seed)||null;
@@ -9922,28 +10002,37 @@ window.Lantern = (() => {
     }
     const points=Object.values(ext.waypoints||{}).map((p,i)=>stop(p,'Via '+(i+1),'street',p.id||'street-'+i))
       .filter(Boolean).filter(q=>checkPathPoint(runtime,q));
-    const squares=points.filter(p=>/plaz|piazz|mercat|market|quay|canal/i.test(p.id+' '+p.name));
-    const plaza=squares[0]||points.find(p=>distance(p,fallback)<95)||fallback;
+    const byId=Object.fromEntries(points.map(p=>[p.id,p]));
+    const plaza=byId.plaza||fallback;
+    const market=byId['district-wind']||services.shop||plaza;
+    const gate=byId.entry||plaza;
+    const squares=[plaza,market,byId['arcades-court'],byId['orchards-court']].filter(Boolean);
     const graphHomes=Object.values(ext.residences||{}).map((p,i)=>stop(p,'Corte '+(i+1),'home',p.id||'home-'+i)).filter(Boolean);
     const residential=graphHomes.length?graphHomes:points.filter(p=>!Object.values(services).some(q=>distance(p,q)<60));
-    const market=squares.find(p=>/mercat|market/i.test(p.id+' '+p.name))||services.shop||plaza;
-    const gate=points.find(p=>/gate|ingress|arriv/i.test(p.id+' '+p.name))||points[0]||plaza;
     const inn=services.inn||plaza;
     const homes=residential.length?residential:points.length?points:[plaza];
-    runtime.places={homes,squares:squares.length?squares:[plaza,market],anchors:{...services,plaza,market,gate,inn}};
+    const homesByDistrict=new Map();
+    for(const home of homes){
+      const district=ext.districtAt(home.x,home.y).id;
+      if(!homesByDistrict.has(district))homesByDistrict.set(district,[]);
+      homesByDistrict.get(district).push(home);
+    }
+    runtime.places={homes,homesByDistrict,squares,anchors:{...byId,...services,plaza,market,gate,inn}};
     return runtime.places;
   }
 
   function basePlan(s,p,runtime){
-    const {homes,squares,anchors}=allPlaces(runtime);
+    const {homes,homesByDistrict,squares,anchors}=allPlaces(runtime);
     const standard=p.timetable,d=day(s),market=anchors.market;
-    const homeBase=homes[p.homeKey%homes.length];
-    const home=sidestep(runtime,{...homeBase,name:'Casa presso '+homeBase.name},p.planBias%8,9);
     const duty=anchors[p.workKind]||market;
+    const district=runtime.ext.districtAt(duty.x,duty.y).id;
+    const housing=homesByDistrict.get(district)||homes;
+    const homeBase=housing[p.homeKey%housing.length];
+    const home=sidestep(runtime,{...homeBase,name:'Casa presso '+homeBase.name},p.planBias%8,9);
     const work=p.staff?sidestep(runtime,duty,p.planBias%8,12):sidestep(runtime,duty,p.planBias%8,17);
     const rest=sidestep(runtime,anchors[p.pauseKind]||anchors.plaza,(p.planBias+3)%8,14);
     const errands=squares[(p.planBias+d)%squares.length]||rest;
-    const evening=sidestep(runtime,(standard%6===0?anchors.inn:anchors.plaza),standard%8,16);
+    const evening=sidestep(runtime,standard%6===0?anchors.inn:anchors['district-'+district]||anchors.plaza,standard%8,16);
     const wake=p.staff?391:(342+standard%158);
     const lunch=p.staff?777+standard%17:687+standard%179;
     const shiftEnd=p.staff?1200:1032+standard%136;
@@ -12604,7 +12693,7 @@ window.Lantern = (() => {
         if(!service)break;
         top.textContent=service.name;
         html='<p class="lead">'+esc(service.description)+'</p>'+(service.note?'<p class="narrative">'+esc(service.note)+'</p>':'')+
-          (service.allowed?actions(cmd(service.action,'city-service',{id:detail},false,'primary')):'')+actions(btn('Mappa','map'));
+          (service.allowed?actions(cmd(service.action,'city-service',{id:detail,op:service.op},false,'primary')):'')+actions(btn('Mappa','map'));
         break;}
       case 'conflicts':
         html=window.ConflictPanel?.render(s,detail)||'';
@@ -12910,7 +12999,8 @@ window.Lantern = (() => {
   function urbanMap(s){
     const outside=s.region===UrbanWorld.cityId;
     const layout=outside&&UrbanWorld.exterior(s.seed),labels=layout?.districts||[];
-    return (labels.length?row('Cittadina di Velaris',layout.buildings.length+' edifici · '+labels.length+' quartieri')+
+    const type=outside&&UrbanWorld.settlementTypes[World.regions[s.region].settlementType];
+    return (labels.length?row(type.label+' di Velaris',layout.buildings.length+' edifici · '+labels.length+' quartieri')+
       h('Quartieri')+labels.map(d=>row(d.name,d.description||d.theme||'',btn('Segna','trackDistrict','',d.id))).join(''):'')+
       h(outside?'Ingressi e servizi':'Stanze e servizi')+urbanMapSources(s).map(site=>{
         const route=UI.routeInfo(s.player,site.point);

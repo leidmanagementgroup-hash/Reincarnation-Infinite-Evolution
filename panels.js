@@ -97,7 +97,7 @@
         if(!service)break;
         top.textContent=service.name;
         html='<p class="lead">'+esc(service.description)+'</p>'+(service.note?'<p class="narrative">'+esc(service.note)+'</p>':'')+
-          (service.allowed?actions(cmd(service.action,'city-service',{id:detail},false,'primary')):'')+actions(btn('Mappa','map'));
+          (service.allowed?actions(cmd(service.action,'city-service',{id:detail,op:service.op},false,'primary')):'')+actions(btn('Mappa','map'));
         break;}
       case 'conflicts':
         html=window.ConflictPanel?.render(s,detail)||'';
@@ -403,7 +403,8 @@
   function urbanMap(s){
     const outside=s.region===UrbanWorld.cityId;
     const layout=outside&&UrbanWorld.exterior(s.seed),labels=layout?.districts||[];
-    return (labels.length?row('Cittadina di Velaris',layout.buildings.length+' edifici · '+labels.length+' quartieri')+
+    const type=outside&&UrbanWorld.settlementTypes[World.regions[s.region].settlementType];
+    return (labels.length?row(type.label+' di Velaris',layout.buildings.length+' edifici · '+labels.length+' quartieri')+
       h('Quartieri')+labels.map(d=>row(d.name,d.description||d.theme||'',btn('Segna','trackDistrict','',d.id))).join(''):'')+
       h(outside?'Ingressi e servizi':'Stanze e servizi')+urbanMapSources(s).map(site=>{
         const route=UI.routeInfo(s.player,site.point);

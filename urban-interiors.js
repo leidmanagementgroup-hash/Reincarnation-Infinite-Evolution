@@ -115,6 +115,23 @@
       services:[['house-bed',150,148,'Riposa nella stanza privata'],['house-cache',607,405,'Esamina il cassone']],
       npcs:[],
       marks:[['Camera da letto',150,148],['Sala privata',529,166],['Soggiorno',342,380],['Uscita',384,493]]
+    },
+    greenhouse:{
+      name:'Serra delle Talee',floor:'stone',colors:['#233538','#435f52','#5c7560','#65836b','#84947a','#49635e','#d6d0a3','#94b8a9'],
+      rooms:[[3,3,10,6],[19,3,10,6],[11,5,10,6],[4,9,24,9],[11,17,10,4]],
+      furniture:[
+        ['glasswall',147,76],['glasswall',250,76],['glasswall',517,76],['glasswall',620,76],
+        ['plant',110,135],['nursery',182,151,1],['plant',249,162],['nursery',523,147,2],['plant',603,142],
+        ['fountain',384,165],['lamp',332,172],['lamp',436,172],
+        ['nursery',159,276,2],['nursery',239,276,1],['shelf',114,352],['plant',280,322],
+        ['nursery',384,295],['barrel',476,297],['table',569,255,2],
+        ['nursery',586,344,2],['plant',654,339],['bench',530,406],['crate',622,406],
+        ['lamp',280,398],['lamp',488,398]
+      ],
+      carpets:[[126,254,146,54,3],[533,318,121,66,3]],
+      services:[['greenhouse-bed',384,326,'Coltiva l’aiuola comune']],
+      npcs:[['gardener','Custode della serra','dryad',465,241]],
+      marks:[['Vasche delle talee',198,205],['Cisterna',384,195],['Aiuola comune',384,326],['Uscita',384,493]]
     }
   };
   const point=(x,y)=>({x,y});
@@ -124,7 +141,7 @@
     const sites=sitesFor(spec);
     const npcLocations=spec.npcs.map(([id,name,race,x,y])=>({id,name,race,x,y,point:point(x,y),dir:'down'}));
     return [kind,{id:'city-velaris-'+kind,kind,name:spec.name,description:'Interno di '+spec.name,continent:'continent-3',
-      width,height,indoor:true,ambience:{inn:'hearth',shop:'market',forge:'forge',guild:'hall',archive:'quiet',academy:'runes',house:'hearth'}[kind],
+      width,height,indoor:true,ambience:{inn:'hearth',shop:'market',forge:'forge',guild:'hall',archive:'quiet',academy:'runes',house:'hearth',greenhouse:'quiet'}[kind],
       spawn:{...center},points:{gates:[],mobs:[],resources:[],bosses:[]},
       sites,npcLocations,landmarks:spec.marks.map(([name,x,y])=>({name,x,y}))}];
   }));
@@ -137,7 +154,7 @@
     shelf:[55,14],hearth:[56,19],stove:[48,19],fountain:[35,22],counter:[120,20],
     display:[41,22],crate:[20,14],barrel:[19,17],furnace:[70,26],workbench:[63,19],
     anvil:[39,17],bellows:[22,16],ore:[36,15],target:[20,14],
-    dummy:[19,13],rack:[43,12],lectern:[34,16],board:[63,12],plant:[14,13],tray:[36,16]
+    dummy:[19,13],rack:[43,12],lectern:[34,16],board:[63,12],plant:[14,13],tray:[36,16],nursery:[57,17]
   };
   const lightTypes=new Set(['lamp','hearth','furnace','stove','window','rune']);
   const trim=['#e8a882','#b6a5d0','#edcca7','#a5d4d2'];
@@ -268,6 +285,24 @@
     const [,wall,stone,wood,woodLight,dark,bright,accent]=colors;
     const i=variant||0;
     const box=(col,x,y,w,h)=>rectangle(c,col,x,y,w,h);
+    if(type==='glasswall'){
+      box(ink,-48,-38,96,39);box('#567979',-46,-36,92,34);
+      for(let x=-44;x<45;x+=15){
+        box('#96bbb0',x,-34,12,29);box('#c3d4ba',x+2,-30,3,13);
+        box('#678d87',x+7,-13,4,7);box('#86795b',x+12,-36,2,35);
+      }
+      box('#546961',-46,-20,92,2);box('#b4a471',-48,-3,96,3);
+      return;
+    }
+    if(type==='nursery'){
+      box(ink,-30,-13,60,17);box('#997958',-28,-12,56,13);box('#4a4439',-25,-10,50,7);
+      for(let x=-21;x<=21;x+=7){
+        box('#796950',x,-7,4,1);
+        if(i){box('#3b6851',x,-14,2,9);box('#89aa69',x-3,-13,4,3);box('#618766',x+2,-16,3,3);}
+        if(i===2)box('#dca880',x,-17,3,2);
+      }
+      box('#bf9d72',-28,-2,56,2);return;
+    }
     const shadow=(rx,ry=5)=>disc(c,shade,1,2,rx,ry);
 
     if(type==='window'){

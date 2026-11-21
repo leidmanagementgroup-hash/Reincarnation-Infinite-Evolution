@@ -3,7 +3,13 @@
   'use strict';
   const base=window.World;
   const cityId='city-velaris',originId='verdant-canopy';
-  const venueIds=['inn','shop','forge','guild','archive','academy','house'];
+  const settlementTypes={
+    hamlet:{label:'Borgo',minBuildings:5,maxBuildings:15},
+    village:{label:'Villaggio',minBuildings:20,maxBuildings:50},
+    town:{label:'Cittadina',minBuildings:60,maxBuildings:150},
+    city:{label:'Grande città',minBuildings:200,maxBuildings:500},
+    capital:{label:'Capitale',minBuildings:500,maxBuildings:null}
+  };
   const entry={x:575,y:382};
   const returnToWood={x:594,y:382};
   const exit={x:94,y:726};
@@ -11,9 +17,9 @@
   const intoCity=gate('gate-velaris',entry,cityId,UrbanExterior.region.spawn,'Entra a Velaris');
   const outOfCity=gate('gate-selva',exit,originId,returnToWood,'Torna alla Selva degli Alambicchi');
   const forest=base.regions[originId];
-  const kinds=new Map(venueIds.map(kind=>[UrbanInteriors.get(kind)?.id,kind]).filter(([id])=>id));
+  const kinds=new Map(UrbanInteriors.kinds.map(kind=>[UrbanInteriors.get(kind).id,kind]));
   const forestRegion={...forest,points:{...forest.points,gates:[...forest.points.gates,intoCity]}};
-  const cityRegion={...UrbanExterior.region,points:{...UrbanExterior.region.points,gates:[outOfCity]}};
+  const cityRegion={...UrbanExterior.region,settlementType:'town',points:{...UrbanExterior.region.points,gates:[outOfCity]}};
   const regions={...base.regions,[originId]:forestRegion,[cityId]:cityRegion,
     ...Object.fromEntries([...kinds].map(([id,kind])=>[id,{...UrbanInteriors.get(kind),hidden:true}]))};
   const continents=base.continents.map(continent=>continent.id===cityRegion.continent
@@ -171,11 +177,22 @@
     return hit?.name||closest?.name||null;
   }
   function actors(s,t){
+    if(kind(s.region)==='greenhouse'&&s.cityWorks.seedbedAt!==-1){
+      const ready=s.cityWorks.seedbedAt,mature=ready>0&&Calendar.timestamp(s.calendar,s.time)>=ready;
+      return [{x:384,y:296,draw(ctx){
+        for(let x=363;x<=405;x+=7){
+          if(ready===0){ctx.fillStyle='#c7a866';ctx.fillRect(x,288,2,1);continue;}
+          ctx.fillStyle='#3a7454';ctx.fillRect(x,282,2,7);
+          ctx.fillStyle=mature?'#a6c882':'#789e67';ctx.fillRect(x-3,283,4,2);
+          if(mature){ctx.fillRect(x+1,280,3,3);ctx.fillStyle='#cee2bf';ctx.fillRect(x+2,279,2,2);}
+        }
+      }}];
+    }
     if(s.region!==cityId)return [];
     const {x,y}=exterior(s.seed).plaza;
     return [{x,y:y-13,draw:ctx=>marker(ctx,x,y-13,t,s.cityWorks?.restored?'restored':'inert')}];
   }
 
   window.World=api;
-  window.UrbanWorld={cityId,originId,exterior,interior,kind,inCity,localRegion,location,site,access,sites,use,actors};
+  window.UrbanWorld={cityId,originId,settlementTypes,exterior,interior,kind,inCity,localRegion,location,site,access,sites,use,actors};
 })();

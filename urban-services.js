@@ -10,20 +10,34 @@
     'house-cache':{name:'Cassone del custode',description:'Un mantello cerato e una lanterna di riserva accompagnano il custode nelle sue ronde lungo il canale.'}
   };
   const serviceId=id=>id==='archive-reading'?'archive':id==='academy-study'?'academy':id;
-  const create=()=>({schema:1,restored:false,breakfast:-1,training:-1,read:[]});
+  const growingMinutes=80;
+  const create=()=>({schema:1,restored:false,breakfast:-1,training:-1,read:[],seedbedAt:-1});
   const day=s=>Calendar.absoluteDays(s.calendar,s.time);
   const own=(o,id)=>Object.hasOwn(o,id);
   function restore(raw,s){
     if(raw===undefined)return create();
     if(!raw||raw.schema!==1||typeof raw.restored!=='boolean'||!Array.isArray(raw.read)||new Set(raw.read).size!==raw.read.length||
       !raw.read.every(id=>id==='archive'||id==='inn-cache')||!['breakfast','training'].every(id=>Number.isSafeInteger(raw[id])&&raw[id]>=-1&&raw[id]<=day(s)))return null;
-    return raw;
+    const seedbedAt=raw.seedbedAt===undefined?-1:raw.seedbedAt;
+    if(!Number.isFinite(seedbedAt)||(seedbedAt<0&&seedbedAt!==-1)||seedbedAt>Calendar.timestamp(s.calendar,s.time)+growingMinutes+1e-6)return null;
+    return {...raw,seedbedAt};
   }
   function nearby(s,id){
     const x=UrbanWorld.sites(s).find(s=>s.id===id);
     return !!x&&Math.hypot(x.point.x-s.player.x,x.point.y-s.player.y)<=x.range;
   }
   function view(s,site){
+    if(site==='greenhouse-bed'){
+      const ready=s.cityWorks.seedbedAt,now=Calendar.timestamp(s.calendar,s.time);
+      const bed={name:'Aiuola delle erbe di rugiada',description:'Il vetro trattiene il calore anche in inverno. Il canale porta acqua dalla cisterna.',allowed:nearby(s,site)};
+      if(ready===-1){
+        const seeds=Inventory.quantity(s,'seeds')>0n;
+        return {...bed,op:'sow',action:'Semina una semente',allowed:bed.allowed&&seeds,note:seeds?'La terra è pronta.':'Serve una semente. Puoi acquistarla al mercato.'};
+      }
+      if(ready===0)return {...bed,op:'water',action:'Apri la chiusa',note:'I semi sono nella terra asciutta.'};
+      if(ready>now)return {...bed,allowed:false,note:'Le talee cresceranno fra '+Math.ceil(ready-now)+' minuti di gioco.'};
+      return {...bed,op:'reap',action:'Raccogli le erbe',note:'Le foglie mature sono pronte da tagliare.'};
+    }
     const id=serviceId(site);
     if(!own(info,id))return null;
     if(!info[id].action)return {...info[id],allowed:false};
@@ -47,6 +61,19 @@
     if(!station?.allowed)return {ok:false,text:station?.note||'Avvicinati al luogo.'};
     const result=(text,event,meta)=>({ok:true,changed:true,text,panel:{id:'city-site',detail:site},event:event&&{id:event,amount:1,meta}});
     switch(id){
+      case 'greenhouse-bed':
+        if(value.op!==station.op)return {ok:false,text:'L’aiuola è già cambiata.'};
+        if(station.op==='sow'){
+          if(!Inventory.take(s,'seeds',1))return {ok:false,text:'Serve una semente.'};
+          s.cityWorks.seedbedAt=0;
+          return result('Hai seminato l’aiuola. Apri la chiusa per irrigarla.','sow');
+        }
+        if(station.op==='water'){
+          s.cityWorks.seedbedAt=Calendar.timestamp(s.calendar,s.time)+growingMinutes;
+          return result('L’acqua della cisterna raggiunge le talee.');
+        }
+        Inventory.add(s,'herb',2);s.cityWorks.seedbedAt=-1;
+        return result('Hai raccolto due erbe di rugiada.','reap',{kind:'herb'});
       case 'civic-fountain':
         Inventory.take(s,'ore',2);Inventory.take(s,'work',2);s.cityWorks.restored=true;
         return result('La fonte delle Lenti è tornata a scorrere.','urban-restoration',{region:UrbanWorld.originId});
