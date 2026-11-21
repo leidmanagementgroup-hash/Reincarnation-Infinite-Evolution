@@ -148,27 +148,48 @@
     const mx=Math.floor(x/2),my=Math.floor(y/2);
     return mx>=0&&my>=0&&mx<map.maskW&&my<map.maskH&&map.mask[my*map.maskW+mx]===1;
   }
+  const groundColors={
+    quarry:[[72,57,61],[88,64,62],[102,72,64],[115,80,66],[131,92,71]],
+    rift:[[45,46,74],[55,54,87],[62,61,100],[65,70,109],[78,79,123]]
+  };
+  const strata={
+    quarry:[[104,615,138,94,.52],[552,525,146,91,.61],[824,341,192,128,1],[1044,256,130,94,.37]],
+    rift:[[425,502,154,112,.63],[731,455,174,124,.56],[1058,219,196,138,1],[955,555,154,104,.55]]
+  };
+  function terrainLight(name,x,y){
+    let light=0;
+    for(const [cx,cy,rx,ry,level] of strata[name]){
+      const falloff=1-((x-cx)/rx)**2-((y-cy)/ry)**2;
+      if(falloff>0)light=Math.max(light,falloff*falloff*level);
+    }
+    return light;
+  }
   function vertexColor(map,x,y,ground,edge,face,road){
     const stir=hash(x,y,map.seed), isRift=map.reg.id==='rift';
     if(ground){
-      const table=isRift?[[57,54,85],[67,61,96],[65,65,103],[71,71,111],[76,75,116]]:[[83,58,56],[95,65,59],[96,70,65],[110,77,64],[121,86,71]];
-      const v=noise(x,y,51,map.seed)*.72+noise(x,y,16,map.seed+71)*.28;
+      const table=groundColors[map.reg.id];
+      const broad=noise(x,y,83,map.seed),fine=noise(x,y,18,map.seed+71);
+      const v=broad*.73+fine*.27;
       const choice=clamp(Math.floor(v*5),0,4);
-      const rgb=edge?(isRift?[122,116,144]:[154,114,79]):road?(isRift?[95,91,113]:[123,92,70]):table[choice];
-      const grit=stir%11-5;
-      return [rgb[0]+grit,rgb[1]+grit,rgb[2]+grit];
+      const rgb=edge?(isRift?[109,108,140]:[132,96,76]):road?(isRift?[84,87,116]:[111,87,70]):table[choice];
+      const grit=stir%7-3, light=terrainLight(map.reg.id,x,y);
+      const ledge=(y+Math.floor(broad*14))%15<2&&!road&&!edge?4:0;
+      return [rgb[0]+grit+(isRift?11:37)*light+ledge,rgb[1]+grit+(isRift?22:19)*light+ledge,rgb[2]+grit+(isRift?31:3)*light+ledge];
     }
     if(face){
-      const shimmer=(y%12>=8?9:0)+stir%7;
-      return isRift?[48+shimmer,39+shimmer,68+shimmer]:[67+shimmer,47+shimmer,54+shimmer];
+      const seam=(y+(stir>>>27)%4)%14, shimmer=(seam>9?11:seam===0?-4:0)+stir%5;
+      const base=solidAt(map,x,y-6)?6:0;
+      return isRift?[41+shimmer,39+shimmer+base,70+shimmer+base]:[65+shimmer+base,44+shimmer,51+shimmer];
     }
     if(isRift){
-      const fog=noise(x,y,112,map.seed)*.8+noise(x,y,38,map.seed+6)*.2, d=stir%4;
-      return [15+fog*25+d,13+fog*15+d,38+fog*36+d];
+      const fog=noise(x,y,128,map.seed)*.81+noise(x,y,44,map.seed+6)*.19, d=stir%4;
+      const cloud=Math.max(0, fog-.48)*2;
+      return [12+fog*24+d,13+fog*16+cloud*10+d,34+fog*38+cloud*13+d];
     }
     const ripple=.5+.5*Math.sin(y*.056+Math.sin(x*.019)*2.8), ember=noise(x,y,31,map.seed+31);
     if(x<29||y<31||x>map.reg.width-26||y>map.reg.height-27)return [31+stir%10,26+stir%7,34+stir%9];
-    return [103+ember*66+ripple*16,37+ripple*26+ember*38,36+stir%12+ripple*4];
+    const current=Math.max(0,ripple*ember-.24)*1.4;
+    return [108+ember*53+current*54,36+ember*30+current*48,35+stir%8+current*8];
   }
   function prepareTerrain(reg,worldSeed){
     const map={reg,seed:worldSeed,maskW:Math.ceil(reg.width/2),maskH:Math.ceil(reg.height/2),scenery:[],signals:[],
@@ -224,7 +245,7 @@
 
   function paintStones(map,random){
     const c=map.ctx,{width,height}=map.reg,rift=map.reg.id==='rift';
-    const colors=rift?['#484975','#8a81a3','#aba1b0','#666183']:['#4d3940','#ab806d','#c69878','#815c53'];
+    const colors=rift?['#464973','#68668f','#9697b0','#5b5c81']:['#523c46','#946d5e','#b2876c','#765650'];
     for(let i=0;i<15000;i++){
       const x=Math.floor(random()*width),y=Math.floor(random()*height);
       if(solidAt(map,x,y)){
@@ -253,6 +274,29 @@
       pixLine(c,x,y+1,x-1,y+5,rift?'#b49fad':'#ae755a');
       pixLine(c,x+1,y+2,x,y+10,rift?'#302642':'#593d46');
       if(rift&&random()>.50)map.signals.push({x,y:y+2,size:2,kind:'splash',phase:random()*6.3});
+    }
+  }
+  function paintTerrainRelief(map){
+    const {ctx:c,reg}=map,rift=reg.id==='rift';
+    for(let y=36;y<reg.height-28;y+=6)for(let x=36;x<reg.width-35;x+=6){
+      const h=hash(x,y,map.seed+177),px=x+h%4,py=y+(h>>>5)%4;
+      const land=solidAt(map,px,py);
+      if(land&&h%23===0&&solidAt(map,px+10,py)&&roadDistance(reg.roads,px,py)>4){
+        const len=4+(h>>>9)%8;
+        pixLine(c,px,py,px+len,py+1,rift?'#464365':'#59434c');
+        rect(c,px+1,py-1,len-2,1,rift?'#8384a1':'#9d7562');
+        if(h%3===0)rect(c,px+len-3,py-2,2,1,rift?'#b2a8bb':'#bb8a68');
+      }
+      if(!land&&h%8===0&&solidAt(map,px,py-8)){
+        const len=4+(h>>>12)%6;
+        rect(c,px,py+1,len,1,rift?'#4d526f':'#ae5f48');
+        rect(c,px+1,py+2,len-2,1,rift?'#2d303f':'#703d42');
+      }
+      if(!land&&!solidAt(map,px,py-14)&&!solidAt(map,px+14,py)&&h%37===0){
+        const len=3+(h>>>11)%12;
+        rect(c,px,py,len,1,rift?'#897faa21':'#ec865448');
+        if(h%3===0)rect(c,px+1,py+2,len*.64,1,rift?'#aac2d625':'#ffc37b68');
+      }
     }
   }
   function paintArena(c,a,isRift,rank){
@@ -658,6 +702,7 @@
     const map=prepareTerrain(reg,worldSeed);
     const random=rng(worldSeed+(reg.id==='quarry'?25773:77189)),rift=reg.id==='rift';
     paintStones(map,random);
+    paintTerrainRelief(map);
     for(const [i,a] of reg.arenas.entries())paintArena(map.ctx,a,rift,i+1);
     if(rift)paintRiftInfra(map);else paintQuarryInfra(map);
     bulkScenery(map,random);

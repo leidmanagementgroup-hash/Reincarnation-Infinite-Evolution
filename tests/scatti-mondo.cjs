@@ -10,6 +10,7 @@
 // alternando le build ROUNDS volte (default 2).
 // Usare PW_HEADED=1 per Edge a finestra visibile con GPU.
 const fs = require('node:fs');
+const crypto = require('node:crypto');
 const path = require('node:path');
 const { chromium } = require(process.env.PW_CORE || 'playwright-core');
 
@@ -32,7 +33,9 @@ const SPOTS = {
   'myrathen-conca': ['moon-grove', 850, 300],
   'voryndhal-namar': ['golden-savanna', 454, 404], 'voryndhal-radici': ['root-sanctuary', 850, 300],
   'azheryon-calis': ['dune-port', 454, 404], 'azheryon-damar': ['sunken-dunes', 850, 300],
-  'cava': ['quarry', 558, 540], 'fenditura': ['rift', 731, 470], 'cripta': ['ardel-crypt', 694, 500],
+  'cava': ['quarry', 558, 540], 'cava-ingresso': ['quarry', 300, 560], 'cava-forgia': ['quarry', 840, 430],
+  'fenditura': ['rift', 731, 470], 'fenditura-osservatorio': ['rift', 425, 560], 'fenditura-cuore': ['rift', 1068, 300],
+  'cripta': ['ardel-crypt', 694, 500],
   'velaris-piazza': ['city-velaris', 940, 740]
 };
 const scenes = (sceneFilter ? sceneFilter.split(',') : Object.keys(SPOTS)).filter(k => SPOTS[k]);
@@ -162,6 +165,10 @@ async function bench() {
 }
 
 (async () => {
+  // Impronta delle build usate: permette di dimostrare quale HTML ha prodotto gli scatti.
+  const manifest = builds.map(f => ({ file: f, bytes: fs.statSync(f).size, sha256: crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex') }));
+  fs.writeFileSync(path.join(out, 'build-usate.json'), JSON.stringify(manifest, null, 1));
+  for (const m of manifest) console.log('build ' + path.basename(m.file) + ' sha256 ' + m.sha256);
   if (process.env.BENCH) return bench();
   const runs = [];
   for (const file of builds) {
