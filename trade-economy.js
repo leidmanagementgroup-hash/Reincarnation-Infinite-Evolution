@@ -121,6 +121,17 @@
     if(qty===0n)delete where.stock[id];
     else where.stock[id]=String(qty);
   }
+  function supplyVelarisMarket(s,id,quantity){
+    const profile=marketBook.velaris,market=s.economy?.markets[profile.id];
+    if(!market||quantity<=0n||!own(profile.goods,id))return 0n;
+    const where=restocked(market,profile,clock(s).day),stock=stockAt(where,id);
+    const capacity=BigInt(profile.goods[id][0]+2);
+    if(stock>=capacity)return 0n;
+    const delivered=minBig(quantity,capacity-stock);
+    updateStock(where,id,stock+delivered);
+    s.economy.markets[profile.id]=where;
+    return delivered;
+  }
   function tradeAllowed(s,item){
     return !!item&&!item.quest&&!window.Gear?.isEquipped(s,item.id)&&s.player.equipped!==item.id&&s.player.tool!==item.id&&
       s.player.equippedTool!==item.id&&s.trades?.tool!==item.id&&s.workshop?.weapon!==item.id&&s.workshop?.weapon?.id!==item.id;
@@ -251,6 +262,6 @@
     }}));
   }
 
-  window.Economy={create,restore,wallet,view,command,tick,sites,use,actors,shortage};
+  window.Economy={create,restore,wallet,view,command,tick,sites,use,actors,shortage,supplyVelarisMarket};
 })();
 

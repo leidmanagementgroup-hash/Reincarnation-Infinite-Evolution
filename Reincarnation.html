@@ -3350,7 +3350,9 @@ window.ActorArt = (() => {
   const bands=[[127,226],[292,450],[519,682],[767,926],[997,1178],[1250,1390]];
   const streetsY=[101,256,489,726,964,1218,1422];
   const streetsX=[45,200,385,598,828,1108,1304,1494,1693,1888,2104];
-  const bridges=[256,726,1218], canal={left:994,right:1090};
+  const mainBridge=plaza.y,bridges=[256,mainBridge,1218],canal={left:994,right:1090};
+  const bridgeLamps=[{x:1001,y:mainBridge-30},{x:1083,y:mainBridge-30},
+    {x:1001,y:mainBridge+31},{x:1083,y:mainBridge+31}];
 
   const parks=[
     {id:'atrium',x:409,y:300,w:176,h:150,tone:'lenses'},
@@ -3405,6 +3407,23 @@ window.ActorArt = (() => {
     }
   }
   function diamond(c,color,x,y,r=4){poly(c,color,[[x,y-r],[x+r,y],[x,y+r],[x-r,y]]);}
+  function makeLampGlow(){
+    const image=canvas(88,62),g=image.getContext('2d');
+    g.save();
+    g.translate(44,33);g.scale(1,.49);
+    const pool=g.createRadialGradient(0,0,0,0,0,43);
+    pool.addColorStop(0,'rgba(255,182,86,.42)');
+    pool.addColorStop(.36,'rgba(248,160,69,.25)');
+    pool.addColorStop(1,'rgba(212,101,43,0)');
+    rect(g,pool,-44,-44,88,88);
+    g.restore();
+    const lantern=g.createRadialGradient(44,14,0,44,14,14);
+    lantern.addColorStop(0,'rgba(255,196,98,.49)');
+    lantern.addColorStop(.3,'rgba(255,166,73,.20)');
+    lantern.addColorStop(1,'rgba(255,138,53,0)');
+    rect(g,lantern,30,0,28,28);
+    return image;
+  }
   function hasWater(x,y,r=0){
     if(x+r<canal.left||x-r>canal.right)return false;
     return !bridges.some(at=>y-r>=at-28&&y+r<=at+28);
@@ -3494,6 +3513,9 @@ window.ActorArt = (() => {
       [830,775],[1458,687],[1105,779]])add('crate',x,y,{district:districtAt(x,y).id});
     for(const [x,y] of [[1557,814],[1638,853],[1577,887]])add('stall',x,y,{district:'wind',solid:9});
     for(const [x,y] of [[662,807],[767,864]])add('anvil',x,y,{district:'kilns',solid:7});
+    for(const {x,y} of bridgeLamps)add('prismLamp',x,y);
+    add('prismLamp',863,675);
+    add('prismLamp',965,780);
     for(const entry of services)add('sign',entry.x+12,entry.y-5,{district:entry.district,label:entry.id});
     for(const b of buildings){
       if(b.service||b.skin%4>1)continue;
@@ -3571,18 +3593,54 @@ window.ActorArt = (() => {
       return result;
     }
 
-    let ground=null,chart=null;
+    const lamps=props.filter(o=>o.name==='lamp'||o.name==='prismLamp');
+    let ground=null,chart=null,lampGlow=null;
+    function drawLight(c,cam,time){
+      const state=window.Game?.s;
+      if(!state?.calendar)return;
+      const {minutes,sunriseMinutes,sunsetMinutes}=window.Calendar.view(state.calendar,state.time,id);
+      const daytime=minutes>=sunriseMinutes&&minutes<=sunsetMinutes;
+      const dayLength=sunsetMinutes-sunriseMinutes;
+      const light=daytime?Math.sin((minutes-sunriseMinutes)*Math.PI/dayLength):
+        -Math.sin(((minutes-sunsetMinutes+1440)%1440)*Math.PI/(1440-dayLength));
+      const twilight=Math.max(0,1-Math.abs(light)*4);
+      const night=Math.max(0,-light);
+      if(twilight>.015)rect(c,`rgba(195,112,73,${.14*twilight})`,cam.x,cam.y,cam.w,cam.h);
+      if(night>.015)rect(c,`rgba(15,28,61,${.55*night})`,cam.x,cam.y,cam.w,cam.h);
+      const strength=Math.min(1,night*1.8+twilight*.26);
+      if(strength<.025)return;
+      if(!lampGlow)lampGlow=makeLampGlow();
+      const centerX=cam.x+cam.w/2,centerY=cam.y+cam.h/2;
+      const near=lamps.filter(o=>o.x+44>=cam.x&&o.x-44<=cam.x+cam.w&&o.y+28>=cam.y&&o.y-34<=cam.y+cam.h);
+      near.sort((a,b)=>(a.x-centerX)**2+(a.y-centerY)**2-((b.x-centerX)**2+(b.y-centerY)**2));
+      c.save();
+      c.globalCompositeOperation='screen';
+      for(const o of near.slice(0,8)){
+        const flicker=window.UI?.effects===false?1:.97+.03*Math.sin(time*2+o.x);
+        c.globalAlpha=strength*flicker*(o.name==='prismLamp'?1:.72);
+        c.drawImage(lampGlow,o.x-44,o.y-34);
+        rect(c,'#ffdf94',o.x-1,o.y-(o.name==='prismLamp'?21:19),2,3);
+      }
+      c.restore();
+    }
     function drawGround(c,cam,time=0){
       if(!ground){const pair=paintTerrain(seed,buildings);ground=pair.ground;chart=pair.chart;}
       const x=Math.max(0,Math.floor(cam.x)),y=Math.max(0,Math.floor(cam.y));
       const cw=Math.min(width-x,Math.ceil(cam.w)+1),ch=Math.min(height-y,Math.ceil(cam.h)+1);
       if(cw>0&&ch>0)c.drawImage(ground,x,y,cw,ch,x,y,cw,ch);
       if(x+cw<canal.left||x>canal.right)return;
-      const u=Math.floor(time*4);
+      const u=window.UI?.effects===false?0:Math.floor(time*4);
       for(let py=Math.floor(y/11)*11;py<y+ch;py+=11){
-        if(!hasWater(1042,py,0))continue;
+        if(bridges.some(at=>Math.abs(at-py)<=36))continue;
         const dx=canal.left+9+((py*13+u*3)%57);
-        rect(c,'rgba(142,180,171,.25)',dx,py,5+(py+u)%9,1);
+        const extent=5+(py+u)%9;
+        rect(c,'rgba(121,199,185,.28)',dx,py,extent);
+        rect(c,'rgba(142,214,185,.14)',dx+2,py+1,extent-3);
+        if(Math.abs(mainBridge-py)<82){
+          const glintX=canal.left+11+(py+u)%7;
+          rect(c,'rgba(188,193,151,.25)',glintX,py+2,4);
+          rect(c,'rgba(188,193,151,.21)',canal.right-16+(py+u)%5,py+2,5);
+        }
       }
     }
     function drawFront(c,cam,t,actors=[]){
@@ -3602,6 +3660,7 @@ window.ActorArt = (() => {
       for(const actor of actors)if(visible(actor.x,actor.y,45,63))entries.push(actor);
       entries.sort((a,b)=>a.y-b.y);
       for(const entry of entries)entry.draw(c);
+      drawLight(c,cam,t);
     }
     function drawMap(c,w,h,p){
       if(!chart){const pair=paintTerrain(seed,buildings);ground=pair.ground;chart=pair.chart;}
@@ -3614,6 +3673,95 @@ window.ActorArt = (() => {
       c.restore();
     }
     return {region,buildings,districts,services,residences,waypoints,plaza,drawGround,drawFront,drawMap,canWalk,path,districtAt};
+  }
+
+  function paintPlaza(c,rnd){
+    const {x,y,w,h}=plazaRect,cx=plaza.x,cy=plaza.y;
+    const cut=[[x-2,y+12],[x+10,y-2],[x+w-11,y-2],[x+w+2,y+12],
+      [x+w+2,y+h-13],[x+w-11,y+h+2],[x+10,y+h+2],[x-2,y+h-13]];
+    poly(c,'#4f5554',cut);
+    c.save();c.beginPath();
+    c.moveTo(...cut[0]);
+    for(const corner of cut.slice(1))c.lineTo(...corner);
+    c.closePath();c.clip();
+    rect(c,'#7a786c',x,y,w,h);
+    const stones=['#a79e87','#bdb095','#aaa48d','#a39e91','#b0a993'];
+    for(let row=0;row<18;row++){
+      for(let col=0;col<10;col++){
+        const p=x-9+(row%2)*7+col*15,q=y+3+row*8;
+        const shade=integer(rnd,0,4);
+        rect(c,stones[shade],p,q,14,7);
+        if(shade<3)rect(c,'#c7bd9e',p+1,q,11);
+        if(shade===1||shade===4)rect(c,'#8d8777',p+3,q+5,5);
+      }
+    }
+    for(const edge of [x+5,x+w-9]){
+      rect(c,'#77817b',edge,y+13,4,h-26);
+      rect(c,'#c3ab78',edge+1,y+14,1,h-28);
+      for(let p=y+18;p<y+h-18;p+=15)diamond(c,'#d0c09c',edge+1,p,2);
+    }
+    for(const edge of [y+6,y+h-8]){
+      rect(c,'#71807a',x+13,edge,w-26,3);
+      rect(c,'#c3ab78',x+14,edge+1,w-28);
+    }
+    rect(c,'#c2af82',cx-1,cy-51,3,104);
+    rect(c,'#c2af82',cx-59,cy-1,118,3);
+    const medallion=(color,rx,ry,corner)=>poly(c,color,[[cx-rx,cy-ry+corner],[cx-rx+corner,cy-ry],
+      [cx+rx-corner,cy-ry],[cx+rx,cy-ry+corner],[cx+rx,cy+ry-corner],
+      [cx+rx-corner,cy+ry],[cx-rx+corner,cy+ry],[cx-rx,cy+ry-corner]]);
+    medallion('#4c5d5a',39,33,15);
+    medallion('#beaa77',37,31,14);
+    medallion('#607e76',35,29,13);
+    medallion('#89978e',32,26,12);
+    diamond(c,'#4e6f6b',cx,cy,18);
+    diamond(c,'#d5bc80',cx,cy,14);
+    diamond(c,'#639c92',cx,cy,12);
+    diamond(c,'#9bc7ae',cx,cy-1,8);
+    rect(c,'#e2dfb8',cx-2,cy-4,5);
+    for(const [dx,dy] of [[0,-22],[-25,0],[0,22],[25,0]]){
+      diamond(c,'#42706e',cx+dx,cy+dy,5);
+      diamond(c,'#adccae',cx+dx,cy+dy,3);
+    }
+    c.restore();
+  }
+
+  function paintMainBridge(c,left,right,y){
+    rect(c,'#223940',left-2,y-35,right-left+4,71);
+    rect(c,'#7b8176',left,y-31,right-left,62);
+    rect(c,'#b6ad92',left+2,y-27,right-left-4,54);
+    const pavers=['#c0b498','#ada88f','#b9af98','#a39f8b'];
+    for(let py=y-22,row=0;py<y+22;py+=8,row++){
+      for(let px=left+3+(row%2)*2,col=0;px<right-7;px+=12,col++){
+        rect(c,pavers[(row*3+col)%pavers.length],px,py,10,7);
+        rect(c,'#909282',px,py+6,10);
+      }
+    }
+    for(const edge of [y-31,y+26]){
+      rect(c,'#355d5a',left,edge,right-left,5);
+      rect(c,'#628b80',left+2,edge,right-left-4);
+      for(let px=left+4;px<right-4;px+=11){
+        rect(c,'#9b9e83',px,edge-2,3,7);
+        rect(c,'#d3b884',px-1,edge-2,5,2);
+      }
+      rect(c,'#bca477',left+2,edge+5,right-left-4,2);
+    }
+  }
+
+  function paintMarketApproach(c){
+    const end=1490,first=canal.right+18,y=mainBridge;
+    for(const edge of [y-23,y+20]){
+      rect(c,'#796c5e',first,edge,end-first,5);
+      rect(c,'#d8bc8b',first,edge+1,end-first);
+      for(let x=first+6;x<end-8;x+=16){
+        rect(c,'#a08c70',x,edge+2,12,2);
+        if(x%3===0)rect(c,'#cfb591',x+1,edge+2,5);
+      }
+    }
+    for(const x of [1138,1261,1367,1466]){
+      diamond(c,'#a79073',x,y,10);
+      diamond(c,'#bfab8a',x,y,7);
+      diamond(c,'#6b8b80',x,y,4);
+    }
   }
 
   function paintTerrain(seed,buildings){
@@ -3689,31 +3837,27 @@ window.ActorArt = (() => {
         }
       }
     }
-    const pr=plazaRect;
-    rect(c,'#716b62',pr.x-2,pr.y-2,pr.w+4,pr.h+4);
-    rect(c,'#afad94',pr.x,pr.y,pr.w,pr.h);
-    for(let y=pr.y+6;y<pr.y+pr.h-5;y+=7){
-      for(let x=pr.x+4+((y&1)?7:0);x<pr.x+pr.w-7;x+=15){
-        rect(c,rnd()<.52?'#aca48a':'#bbb195',x,y,10,4);
-        if(rnd()>.55)rect(c,'#969077',x+1,y+4,9);
-      }
-    }
-    poly(c,'#6b8177',[[plaza.x-34,plaza.y],[plaza.x,plaza.y-31],[plaza.x+34,plaza.y],[plaza.x,plaza.y+31]]);
-    poly(c,'#a4a996',[[plaza.x-29,plaza.y],[plaza.x,plaza.y-26],[plaza.x+29,plaza.y],[plaza.x,plaza.y+26]]);
-    diamond(c,'#698c89',plaza.x,plaza.y,12);
-    diamond(c,'#a6c4b4',plaza.x,plaza.y,8);
-    for(const [dx,dy] of [[0,-17],[-19,0],[0,17],[19,0]])diamond(c,'#bdb8a0',plaza.x+dx,plaza.y+dy,3);
+    paintPlaza(c,rnd);
 
     const waterW=canal.right-canal.left;
-    rect(c,'#3a5155',canal.left-6,22,waterW+13,height-40);
-    rect(c,'#827c6b',canal.left-5,22,4,height-42);rect(c,'#81796b',canal.right+1,22,4,height-42);
-    rect(c,'#2a4858',canal.left,22,waterW,height-43);
+    rect(c,'#3b5959',canal.left-6,22,waterW+13,height-40);
+    rect(c,'#9f9780',canal.left-5,22,4,height-42);rect(c,'#8c8f7a',canal.right+1,22,4,height-42);
+    rect(c,'#285560',canal.left,22,waterW,height-43);
+    rect(c,'#254554',canal.left,22,9,height-43);
+    rect(c,'#3a6a6d',canal.right-14,22,14,height-43);
+    for(let y=28;y<height-31;y+=11){
+      rect(c,'#b9ac8f',canal.left-5,y,3,6);
+      rect(c,'#5f746d',canal.left+1,y,2,9);
+      rect(c,'#a7a689',canal.right+2,y+4,3,5);
+      rect(c,'#4d817d',canal.right-4,y+5,3);
+    }
     for(let j=0;j<2350;j++){
       const x=canal.left+2+rnd()*(waterW-4),y=25+rnd()*(height-51);
-      rect(c,['#345568','#406477','#365b68','#294b5a'][integer(rnd,0,3)],x,y,integer(rnd,2,11),integer(rnd,1,2));
+      rect(c,['#32616a','#437677','#3a7071','#2d535e'][integer(rnd,0,3)],x,y,integer(rnd,2,11),integer(rnd,1,2));
     }
     for(const y of bridges){
       const left=canal.left-18,right=canal.right+18;
+      if(y===mainBridge){paintMainBridge(c,left,right,y);continue;}
       rect(c,'#263e47',left-2,y-36,right-left+4,73);
       rect(c,'#7c796c',left,y-35,right-left,70);
       rect(c,'#a6a18a',left+2,y-29,right-left-4,58);
@@ -3725,6 +3869,7 @@ window.ActorArt = (() => {
         rect(c,'#c0b49a',x,y-35,10,4);rect(c,'#c0b49a',x,y+31,10,4);
       }
     }
+    paintMarketApproach(c);
     for(let x=21;x<width-25;x+=31){
       rect(c,'#4a5454',x,24,27,8);rect(c,'#65716c',x,24,27,2);
       rect(c,'#4b5857',x,height-31,27,8);rect(c,'#6e7770',x,height-30,27,2);
@@ -3756,7 +3901,9 @@ window.ActorArt = (() => {
     }else diamond(c,color,x,y,4);
   }
   function makeBuilding(b){
-    const q=b.box,d=districts.find(w=>w.id===b.district),colors=d.roofs[b.color],rnd=random(b.skin);
+    const q=b.box,d=districts.find(w=>w.id===b.district),rnd=random(b.skin);
+    const copper=b.service==='inn';
+    const colors=copper?['#395450','#587c70','#7c9d86','#a1ac87']:d.roofs[b.color];
     const offset=14,raise=70,w=q.w,h=q.h;
     const image=canvas(w+offset*2,h+raise+9),g=image.getContext('2d'),x=offset,y=raise+h;
     const [shadow,mid,highlight,trim]=colors,[border,stucco,cream]=d.wall;
@@ -3790,6 +3937,12 @@ window.ActorArt = (() => {
       for(let px=x-6+((py>>1)&7);px<x+w+6;px+=10){
         if(rnd()>.32)rect(g,'rgba(214,213,184,.24)',px,py-2,7);
         if(rnd()>.2)rect(g,'rgba(27,38,53,.37)',px+9,py,1,5);
+      }
+    }
+    if(copper){
+      for(let px=x;px<x+w+3;px+=13){
+        rect(g,'#3f655c',px,high,2,eave-high);
+        rect(g,'#859f80',px+2,high,1,eave-high);
       }
     }
     rect(g,trim,x+7,ridge,w-14,2);rect(g,shadow,x-5,eave-4,w+12,5);
@@ -3827,12 +3980,20 @@ window.ActorArt = (() => {
         diamond(g,'#c5d3be',midX,top+7,3);
       }
     }else if(style==='inn'||style==='shop'||style==='gallery'){
-      const awning=style==='inn'?'#935957':style==='shop'?'#657b75':'#84778a';
+      const awning=copper?'#a7564c':style==='inn'?'#935957':style==='shop'?'#657b75':'#84778a';
       for(const dx of [-w*.28,w*.20]){
         const left=midX+dx-5,top=y-front+4,awningWidth=Math.max(11,w*.2);
         rect(g,awning,left-2,top,awningWidth+4,6);
         for(let i=0;i<awningWidth;i+=5)rect(g,'rgba(217,201,155,.42)',left+i,top,2,7);
         rect(g,'#675b51',left,top+7,awningWidth,2);
+        if(copper){
+          rect(g,'#d0ab79',left-2,top+6,awningWidth+4,1);
+          rect(g,'#704d4a',left-1,top+8,2,15);
+          rect(g,'#704d4a',left+awningWidth,top+8,2,15);
+          rect(g,'#8c7863',left+1,top+22,awningWidth-1,3);
+          rect(g,'#b1936c',left+1,top+21,awningWidth-1,1);
+          for(let i=3;i<awningWidth-2;i+=4)rect(g,'#967a5d',left+i,top+22,1,2);
+        }
       }
     }else if(style==='forge'||style==='workroom'||style==='shed'||style==='warehouse'){
       const stackX=x+w*.18;
@@ -3854,7 +4015,7 @@ window.ActorArt = (() => {
   }
 
   function paintProp(c,o,time){
-    const {x,y,name}=o,glow=(Math.floor(time*4+x/12)%4);
+    const {x,y,name}=o,glow=window.UI?.effects===false?0:(Math.floor(time*4+x/12)%4);
     if(name==='tree'){
       disk(c,'rgba(36,53,56,.52)',x,y+3,14,5);
       rect(c,'#62564a',x-2,y-19,4,19);rect(c,'#927759',x-1,y-16,1,16);
@@ -3865,6 +4026,15 @@ window.ActorArt = (() => {
       rect(c,'#45464a',x-3,y,7,2);rect(c,'#675f51',x-1,y-19,2,19);
       rect(c,'#504945',x-4,y-22,8,8);rect(c,glow===0?'#f3d392':'#dbad72',x-2,y-21,4,6);
       rect(c,'#9a8e6d',x-5,y-23,10,2);
+    }else if(name==='prismLamp'){
+      disk(c,'rgba(34,42,38,.35)',x+3,y+2,7,3);
+      rect(c,'#3c5350',x-4,y-1,9,3);rect(c,'#9da98d',x-3,y-2,7,1);
+      rect(c,'#374d49',x-2,y-20,4,18);rect(c,'#6f8b70',x-1,y-17,1,15);
+      rect(c,'#4d6252',x-5,y-23,11,9);rect(c,'#b48854',x-3,y-23,7,7);
+      rect(c,glow<2?'#f6d58f':'#eec785',x-2,y-22,5,5);
+      rect(c,'#8a7253',x,y-22,1,5);rect(c,'#90a180',x-5,y-16,11,2);
+      poly(c,'#446e65',[[x-6,y-23],[x-2,y-28],[x+3,y-28],[x+6,y-23]]);
+      rect(c,'#b3a475',x-2,y-28,5,1);rect(c,'#a1ae8c',x,y-31,1,3);
     }else if(name==='pond'||name==='fountain'){
       const wide=name==='pond',rx=wide?25:12,ry=wide?17:8;
       disk(c,'#516358',x,y,rx,ry);disk(c,'#b0ad92',x,y-1,rx-1,ry-2);
@@ -7772,6 +7942,17 @@ window.Lantern = (() => {
     if(qty===0n)delete where.stock[id];
     else where.stock[id]=String(qty);
   }
+  function supplyVelarisMarket(s,id,quantity){
+    const profile=marketBook.velaris,market=s.economy?.markets[profile.id];
+    if(!market||quantity<=0n||!own(profile.goods,id))return 0n;
+    const where=restocked(market,profile,clock(s).day),stock=stockAt(where,id);
+    const capacity=BigInt(profile.goods[id][0]+2);
+    if(stock>=capacity)return 0n;
+    const delivered=minBig(quantity,capacity-stock);
+    updateStock(where,id,stock+delivered);
+    s.economy.markets[profile.id]=where;
+    return delivered;
+  }
   function tradeAllowed(s,item){
     return !!item&&!item.quest&&!window.Gear?.isEquipped(s,item.id)&&s.player.equipped!==item.id&&s.player.tool!==item.id&&
       s.player.equippedTool!==item.id&&s.trades?.tool!==item.id&&s.workshop?.weapon!==item.id&&s.workshop?.weapon?.id!==item.id;
@@ -7902,7 +8083,7 @@ window.Lantern = (() => {
     }}));
   }
 
-  window.Economy={create,restore,wallet,view,command,tick,sites,use,actors,shortage};
+  window.Economy={create,restore,wallet,view,command,tick,sites,use,actors,shortage,supplyVelarisMarket};
 })();
 
 
@@ -9686,6 +9867,13 @@ window.Lantern = (() => {
       reward:record.pay*(2+(n>>>12)%3)+7,day:d+1,accepted:!!q.active,claimed:false};
   }
 
+  function stockMarket(s,id,received){
+    const stock=s.urban.city.stock;
+    const surplus=Math.max(0,stock[id]-resources[id].base);
+    const delivered=window.Economy?.supplyVelarisMarket(s,id,BigInt(Math.min(surplus,received)))??0n;
+    stock[id]-=Number(delivered);
+  }
+
   function tick(s,delta,worldAccess){
     if(!s?.urban||s.urban.pulse>s.time)return [];
     const state=s.urban,city=state.city,now=day(s);
@@ -9700,6 +9888,7 @@ window.Lantern = (() => {
       const output=passed*resources[id].rate+bonuses;
       city.produced[id]=Math.min(limit,city.produced[id]+output);
       city.stock[id]=Math.min(180,city.stock[id]+output);
+      stockMarket(s,id,output);
     }
     return present(s.region)?['I mestieri di Velaris rinnovano le scorte all’alba.']:[];
   }
@@ -9760,6 +9949,7 @@ window.Lantern = (() => {
       if(!m.active||s.player.gold+q.reward>1e10||!Inventory.take(s,q.item,q.amount))return failure('La consegna non è riuscita.');
       const city=s.urban.city;
       city.stock[q.item]=Math.min(180,city.stock[q.item]+q.amount);
+      stockMarket(s,q.item,q.amount);
       city.trade=Math.min(limit,city.trade+q.amount);
       s.player.gold+=q.reward;
       m.active=null;m.claimed=day(s);m.completed=Math.min(limit,m.completed+1);
@@ -11826,7 +12016,9 @@ window.Lantern = (() => {
       '<div class="economyHead">'+head(market.name)+
         '<span class="economyStatus" data-open="'+Boolean(market.open)+'">'+(market.open?'Aperto':'Chiuso')+'</span></div>'+
       '<p>'+esc(market.regionName)+' · '+esc(market.hours)+' · '+esc(access)+'</p>'+
-      '<p class="caption">Le scorte appartengono a questo mercato. I prodotti di base vengono riforniti col passare dei giorni.</p>'+
+      '<p class="caption">'+(market.id==='velaris'?
+        'Le botteghe ricevono beni dai mestieri locali all’alba e dalle commissioni consegnate a Velaris. Le scorte influenzano i prezzi.':
+        'Le scorte appartengono a questo mercato. I prodotti di base vengono riforniti col passare dei giorni.')+'</p>'+
       '<section aria-label="Scorte e prezzi del mercato">'+(market.rows.length?market.rows.map(r=>row(r,market.available,carried)).join(''):'<p>Le scorte sono esaurite.</p>')+'</section>'+
       bank(s,data)+'</div>';
   }

@@ -60,7 +60,8 @@ Cartella principale (non esistono sottocartelle sorgente):
 - `Reincarnation.html` — **artefatto generato**. Non modificarlo a mano.
 - `LEGGIMI.md` — guida per il giocatore e mappa dei moduli.
 - `AGENTS.md`, `CLAUDE.md`, `GAME_DESIGN.md`, `PROGRESS.md`, `ROADMAP.md`, `CHANGELOG.md` — memoria condivisa fra gli agenti.
-- `PIANO_GRAFICO.md` — proposta artistica e tecnica per il successivo intervento grafico, da approvare prima della sua applicazione.
+- `MEGA_CITY_OVERHAUL.md` — piano ufficiale dell’Aggiornamento 5, con requisiti, fasi e criteri di verifica.
+- `PIANO_GRAFICO.md` — direzione artistica e tecnica con ambiti e verifiche della prova grafica.
 
 ## 4. Regole di sviluppo
 

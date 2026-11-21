@@ -355,6 +355,13 @@
       reward:record.pay*(2+(n>>>12)%3)+7,day:d+1,accepted:!!q.active,claimed:false};
   }
 
+  function stockMarket(s,id,received){
+    const stock=s.urban.city.stock;
+    const surplus=Math.max(0,stock[id]-resources[id].base);
+    const delivered=window.Economy?.supplyVelarisMarket(s,id,BigInt(Math.min(surplus,received)))??0n;
+    stock[id]-=Number(delivered);
+  }
+
   function tick(s,delta,worldAccess){
     if(!s?.urban||s.urban.pulse>s.time)return [];
     const state=s.urban,city=state.city,now=day(s);
@@ -369,6 +376,7 @@
       const output=passed*resources[id].rate+bonuses;
       city.produced[id]=Math.min(limit,city.produced[id]+output);
       city.stock[id]=Math.min(180,city.stock[id]+output);
+      stockMarket(s,id,output);
     }
     return present(s.region)?['I mestieri di Velaris rinnovano le scorte all’alba.']:[];
   }
@@ -429,6 +437,7 @@
       if(!m.active||s.player.gold+q.reward>1e10||!Inventory.take(s,q.item,q.amount))return failure('La consegna non è riuscita.');
       const city=s.urban.city;
       city.stock[q.item]=Math.min(180,city.stock[q.item]+q.amount);
+      stockMarket(s,q.item,q.amount);
       city.trade=Math.min(limit,city.trade+q.amount);
       s.player.gold+=q.reward;
       m.active=null;m.claimed=day(s);m.completed=Math.min(limit,m.completed+1);

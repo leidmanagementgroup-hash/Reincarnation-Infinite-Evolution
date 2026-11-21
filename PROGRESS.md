@@ -1,19 +1,20 @@
 # PROGRESS.md — Stato del progetto
 
-> Aggiornare dopo ogni intervento. Ultimo aggiornamento 2026-11-21, Codex, integrazione di Velaris.
+> Ultimo aggiornamento 2026-11-21, Codex, prima fase del Mega City Overhaul.
 
 ## In corso
-_Nessuna modifica in corso. Il piano grafico attende approvazione._
+_Nessuna modifica in corso._
 
 ## Prossimo passo
-1. Rivedere [il piano artistico e tecnico](PIANO_GRAFICO.md). Dopo l’approvazione, usare piazza, ponte e accesso al mercato di Velaris per il confronto diurno e notturno.
-2. Ripartire dall’HTML v7 e acquisire la scena di riferimento prima di intervenire su luci, materiali o sprite.
-3. Ripetere le verifiche su movimento, collisioni, mappa, interni, combattimento e salvataggio.
+1. Aprire un branch dalla versione corrente di `main` per la **fase 2** del [piano ufficiale](MEGA_CITY_OVERHAUL.md). Estendere il contrasto visivo tra il Mercato dei Venti e i Giardini delle Lanterne e facilitare l’orientamento con segnaletica e mappa. Partire da `urban-exterior.js`, `urban-world.js` e dal [piano grafico](PIANO_GRAFICO.md).
+2. Verificare l’affollamento nei punti di sosta. A mezzogiorno alcuni residenti si sovrappongono nella piazza. Distribuire le soste su punti percorribili in `urban-life.js` e verificare accesso agli abitanti, orari e commissioni prima di ampliare la popolazione.
+3. Per la **fase 3** il banco di Velaris riceve già prodotti locali e merci di commissione. Riutilizzare le scorte persistenti e il mercato condiviso con la Selva. Restano da collegare altre filiere, richieste individuali, eventi e servizi.
 
 ## Versione e stato generale
 - **Aggiornamento 5 · Velaris**, salvataggio **v7** con migrazione da v1 a v6.
 - `Reincarnation.html` è il prodotto offline. La build integrata coincide byte per byte con una ricostruzione indipendente dei sorgenti.
 - Il commit iniziale di GitHub `3f72b69` usava il formato v5 e includeva parti dell’Aggiornamento 4. L’integrazione è partita da quel commit in un branch separato. Prima dell’intervento sono stati conservati un bundle Git e un archivio della v6 e di Velaris.
+- La fase 1 parte da `875ac74` sul branch `codex/mega-city-fase-1`. Il piano ufficiale conserva il brief originale in 18 sezioni e aggiunge criteri di verifica e passaggio di consegne fra modelli.
 
 ## Funzionalità implementate
 La tabella elenca i sistemi disponibili. La sezione seguente indica le verifiche eseguite sulla build integrata.
@@ -22,6 +23,8 @@ La tabella elenca i sistemi disponibili. La sezione seguente indica le verifiche
 |---|---|---|
 | Mondo di Lùmora, cinque continenti, Cripta delle Soglie e campagna | ✅ | `world.js`, `expansion-world.js`, `continents.js` |
 | Velaris, quattro quartieri, sette interni e servizi interattivi | ✅ | `urban-exterior.js`, `urban-interiors.js`, `urban-world.js`, `urban-services.js`, `urban-life.js` |
+| Piazza e ponte centrale di Velaris con intarsi, riflessi e lanterne governate dal calendario | ✅ | `urban-exterior.js` |
+| Rifornimento del Mercato di Velaris dai mestieri all’alba e dalle commissioni consegnate | ✅ | `urban-life.js`, `trade-economy.js`, `economy-panel.js` |
 | 44 stirpi, rami evolutivi, predisposizioni, innate, metamorfosi | ✅ | `engine.js`, `expansion-species.js`, `continental-species.js`, `growth.js` |
 | Arte pixel procedurale (sprite, forme evolute, ritratti, icone) | ✅ | `sprites.js`, `expansion-art.js`, `legendary-land.js` |
 | Combattimento, tecniche, fusioni (K), boss a fasi | ✅ | `engine.js` |
@@ -44,12 +47,27 @@ La tabella elenca i sistemi disponibili. La sezione seguente indica le verifiche
 | Build a file singolo | ✅ | `build.py` |
 
 ## Test e verifiche
+### Mega City Overhaul, fase 1
+
+- ✅ `node tests/verifica-integrazione.cjs`. Il test include ora quantità e prezzi dopo il rifornimento all’alba, acquisto, consegna, mancata duplicazione, riserva cittadina e ricaricamento delle scorte.
+- ✅ Edge su Windows. Percorsi a piedi con i semi `18420` e `42`, quattro quartieri, sette interni, commissione, mercato, banca, Gilda, fucina e restauro, senza richieste di rete o errori JavaScript.
+- ✅ Confronto geometrico per i semi `18420`, `42` e `4294967295`. Edifici, porte, 21 percorsi piazza-servizi e 582.429 verifiche di percorribilità coincidono con la base.
+- ✅ Edge. Importati salvataggi nativi v5 di GitHub, v6 locale e v7 di Velaris. Verificati stirpe, posizione, quantità esatte, equipaggiamento usurato e restauro v7.
+- ✅ Edge. Campagna fino all’epilogo, quattro boss della campagna, due evoluzioni Goblin, usura e riparazione di una lama importata dalla v5.
+- ✅ Edge. Dopo il sonno in locanda il grano passa da 0 a 7 unità e da 7 a 5 Scintille. Acquisto dal pannello e salvataggio confermano 6 unità residue e 1 unità nello zaino.
+- ✅ Giorno e notte su Edge a parità di seme, ora e camera. Nel confronto notturno a 1366×768, con quattro tratte fra piazza e mercato in 30 secondi per build, mediana 4,2 ms e 95º percentile 4,3 ms in entrambe le build. Misura relativa locale in Edge headless.
+- ✅ Edge. Con effetti disattivati, luci e scena notturna restano leggibili a entrambe le inquadrature. L’acqua e i bagliori restano fissi.
+- ✅ `node --check` su tutti i moduli e build indipendente con `python build.py` identica byte per byte.
+- 🟡 Il tocco su dispositivo reale resta da provare.
+
+### Integrazione precedente
+
 - ✅ `node tests/verifica-integrazione.cjs`. Usa un Canvas simulato per verificare migrazione v5/v6, quantità esatte, equipaggiamento usurato, soccorso magico, sette interni e restauro persistente.
 - ✅ `node --check` sui moduli JavaScript e ricostruzione indipendente con `python build.py`.
 - ✅ Edge su Windows. Importati salvataggi prodotti dalle build archiviate v2, v3, v4, v5 precedente, v5 di GitHub, v6 e v7 di Velaris. Verificato anche un caso v1 ricostruito e il caricamento successivo in v7.
 - ✅ Edge. Percorsa la campagna fino all’epilogo. Verificati evoluzioni, boss adattivi, cinque minigiochi, soccorso e morte degli NPC, rito e ricompensa unica del Santuario, successione di Nerav e conquista del trono.
 - ✅ Edge. Verificati a piedi i collegamenti ai quattro quartieri e ai sette interni. Provati riposo, mercato, banca, fucina, missione della gilda, consegna cittadina e ricaricamento del restauro. Nessuna richiesta di rete durante la prova urbana.
-- 🟡 Il collaudo in Edge è stato eseguito localmente. Restano da condividere i test del browser, verificare il tocco su dispositivo reale e misurare i fotogrammi del futuro prototipo grafico.
+- 🟡 Il collaudo in Edge è stato eseguito localmente. I test del browser restano da integrare nella suite condivisa.
 
 ## Problemi conosciuti
 _Nessun bug confermato è stato registrato finora._ Rischi e debiti noti (non bug verificati):

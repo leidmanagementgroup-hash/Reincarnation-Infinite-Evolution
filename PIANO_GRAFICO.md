@@ -1,6 +1,6 @@
 # Piano grafico di Reincarnation — Infinite Evolution
 
-Proposta artistica e tecnica in attesa di approvazione. La prima prova riguarda la Piazza delle Quattro Lenti a Velaris, il ponte sul canale e l’accesso al Mercato dei Venti. La build integrata serve da riferimento per il confronto.
+Direzione artistica e tecnica per [l’Aggiornamento 5](MEGA_CITY_OVERHAUL.md). La prima prova riguarda la Piazza delle Quattro Lenti a Velaris, il ponte sul canale e l’accesso al Mercato dei Venti. La build integrata `875ac74` serve da riferimento per il confronto.
 
 ## Direzione artistica
 
@@ -27,7 +27,7 @@ Ogni asset sarà originale. Per separare i quartieri anche a colpo d’occhio, l
 - **Scena.** Aggiungere strati visivi al disegno attuale. `urban-exterior.js` e `urban-interiors.js` mantengono i dati di percorso, le porte, le collisioni e i semi. La base resta in `World.drawGround`, il disegno di oggetti e attori in `World.drawFront` con ordinamento in profondità. Il Canvas continua a usare pixel logici senza interpolazione.
 - **Atmosfera ed effetti.** In `interface.js` la luce ambientale oggi tinge la scena dopo gli attori. Preparare una maschera Canvas riutilizzabile e applicarla prima degli avvisi di combattimento. Usare maschere di luce e ombre brevi precalcolate. `Game.drawFX` conserva la visibilità degli avvisi e la simulazione continua a decidere quando questi appaiono.
 - **Sprite e HUD.** Estendere `ActorArt` in `sprites.js`, `expansion-art.js` e `continental-species.js` conservando le chiavi dei personaggi e delle forme. Le animazioni aggiungono pose di disegno mantenendo i tempi di attacco. Per l’interfaccia intervenire in `template.html`, `style.css` e nei pannelli, mantenendo scorciatoie ed etichette ARIA.
-- **Prestazioni e compatibilità.** Riutilizzare le superfici Canvas, disegnare solo gli elementi visibili e limitare le fonti di luce dinamica a quelle vicine alla camera. Avviare la prova con un massimo di otto fonti attive. Collegare animazioni e particelle all’opzione effetti esistente. Usare un’impostazione separata e reversibile per la prova grafica, conservando la distribuzione offline in un unico HTML e il formato dei salvataggi di gioco.
+- **Prestazioni e compatibilità.** Riutilizzare le superfici Canvas, disegnare solo gli elementi visibili e limitare le fonti di luce dinamica a quelle vicine alla camera. La prova usa al massimo otto fonti attive e collega il movimento di acqua e luci all’opzione effetti esistente. Gli interventi grafici conservano la distribuzione offline in un unico HTML e il formato dei salvataggi di gioco.
 
 ## Condizioni di accettazione proposte
 
@@ -35,4 +35,4 @@ Ogni asset sarà originale. Per separare i quartieri anche a colpo d’occhio, l
 2. Confrontare quattro acquisizioni fisse, una coppia diurna e una notturna. Controllare l’orientamento senza mappa fra piazza, ponte e mercato, la separazione fra personaggi e sfondo e la leggibilità degli avvisi di combattimento.
 3. Ripetere ingresso e uscita da Velaris, interni e servizi, combattimento e riapertura di una partita precedente. Confrontare posizione, inventario, missioni e stato urbano dopo il salvataggio.
 
-L’approvazione richiesta riguarda il prototipo della piazza e il confronto giorno/notte. L’estensione alle altre regioni e alle famiglie di creature dipenderà dal risultato di quella prova.
+La prima prova rimane circoscritta a Velaris. Per la verifica effettiva e per riprendere il lavoro consulta [PROGRESS.md](PROGRESS.md).

@@ -85,6 +85,8 @@ Nota: `World`, `ActorArt` ed `EvolutionContent` sono **estesi da più moduli** s
 
 L’ingresso dalla Selva degli Alambicchi porta a `city-velaris`. I quartieri occupano una mappa di 2144×1496 pixel logici. Il seme determina gli edifici e le varianti del terreno. Piazza, ponti, porte e punti di servizio forniscono riferimenti stabili.
 
+Nella Piazza delle Quattro Lenti, sul ponte centrale e sulla via del Mercato dei Venti, le superfici in pietra e rame sono incluse nel Canvas del terreno già in cache. Il calendario tinge gli esterni di Velaris prima degli effetti di combattimento e illumina fino a otto lanterne visibili con una maschera riutilizzata. L’opzione effetti ridotti ferma il luccichio delle lanterne e le increspature del canale.
+
 La locanda, la bottega, la fucina, la Gilda del Compasso, l’archivio, l’accademia e la casa del custode sono regioni interne. Usano gli stessi comandi, collisioni e regole di salvataggio. La bottega condivide merci e deposito del mercato di Velaris. La bacheca della gilda assegna e riscuote gli incarichi per la Selva degli Alambicchi.
 
 Il formato v7 conserva `urban` (routine, scorte, memorie e commissioni) e `cityWorks` (restauro, colazione, esercitazioni e letture). Le mappe si rigenerano dallo stesso seme. I salvataggi precedenti ricevono i nuovi campi al caricamento. La v5 di GitHub può includere equipaggiamento, conflitti, reputazione e Santuario. La migrazione conserva i campi presenti e inizializza quelli mancanti nelle v5 precedenti.
@@ -105,6 +107,8 @@ Pesca, forgia, agricoltura, allevamento, cucina con minigiochi (tocco vs tenuto 
 
 ### 4.5 Economia
 Valute: **Scintille, Lunari, Solari, Astrali** (rapporto 100:1). Mercato per continente (07:00–20:00), prezzi e scorte regionali influenzati dagli scambi. Banca con deposito (cinque sportelli).
+
+Velaris trasferisce legno, minerale, erbe e grano dalla riserva urbana al mercato condiviso fra la bottega e il banco della Selva. All’alba i mestieri producono nuove unità. Le merci delle commissioni alimentano la stessa riserva e possono rifornire il banco appena consegnate. Ogni trasferimento conserva le unità e lascia la scorta minima in città. Il limite dell’approvvigionamento urbano è due unità sopra la scorta di riferimento del mercato, per merce. Le scorte e i prezzi usano le regole di commercio esistenti. I dati continuano a usare i campi `urban` ed `economy` del salvataggio v7.
 
 ### 4.6 Società e costruzione
 Abitanti con memorie, accordi commerciali, crescita e famiglia; insediamenti con scorte e maestri. Costruzione su lotti designati (casa, fattoria, laboratorio…) con materiali (legno, minerale, oro); villaggi e città assemblabili ai limiti dei lotti, con entrate dagli scambi.
@@ -127,7 +131,7 @@ Movimento WASD/frecce · Attacco J/clic · Schivata Spazio · Abilità 1-2-3 · 
 - Campagna "Dal Borgo al Varco" giocabile dall'inizio all'epilogo (stato: vedi `PROGRESS.md`).
 - Sistema di vita/economia/società profondo e coerente fra regioni.
 - Mantenere il gioco in un solo file offline, leggibile e modificabile da più agenti AI.
-- Sviluppi futuri: `ROADMAP.md`.
+- Sviluppi futuri in [ROADMAP.md](ROADMAP.md). Requisiti urbani e fasi dell’Aggiornamento 5 in [MEGA_CITY_OVERHAUL.md](MEGA_CITY_OVERHAUL.md).
 
 ## 7. Limiti dichiarati della fase attuale
 

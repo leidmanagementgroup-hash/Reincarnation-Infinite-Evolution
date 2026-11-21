@@ -2,6 +2,19 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-21] Piazza, ponte e mercato di Velaris — Codex
+
+### Aggiunto
+- Piazza delle Quattro Lenti con intarsi in pietra e rame, ponte con parapetti e lanterne a prisma, riflessi del canale, accesso al Mercato dei Venti e locanda con copertura in rame (file `urban-exterior.js`).
+- L’ora del calendario regola le luci di Velaris. L’opzione effetti ridotti ferma il movimento di acqua e bagliori (file `urban-exterior.js`).
+- I mestieri e le consegne della città riforniscono il mercato di Velaris, con effetto su disponibilità e prezzi (file `urban-life.js`, `trade-economy.js`, `economy-panel.js`).
+
+### Verifica
+- Esteso il test a consegne, prezzi, riserve, ricaricamento del mercato e mancanza di duplicazioni. Ricostruito `Reincarnation.html` (file `tests/verifica-integrazione.cjs`, `Reincarnation.html`).
+
+### Documentazione
+- Aggiunto il [piano ufficiale Mega City Overhaul](MEGA_CITY_OVERHAUL.md). Collegati fasi, criteri di verifica e consegne al resto della memoria condivisa (file `ROADMAP.md`, `PROGRESS.md`, `AGENTS.md`, `CLAUDE.md`, `PIANO_GRAFICO.md`, `GAME_DESIGN.md`, `LEGGIMI.md`).
+
 ## [2026-11-21] Versione integrata e città di Velaris — Codex
 
 Commit di integrazione `7f182be`.

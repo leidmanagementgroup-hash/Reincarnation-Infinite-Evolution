@@ -1,6 +1,6 @@
 # ROADMAP.md — Sviluppi futuri
 
-> Aggiornare quando un obiettivo è completato (spostarlo in `CHANGELOG.md`/`PROGRESS.md`), cambia priorità o ne emergono di nuovi. Le voci con ★ derivano dai "limiti" dichiarati in `LEGGIMI.md`; le altre sono proposte tecniche da validare con l'utente prima di avviarle.
+> Aggiornare quando un obiettivo è completato (spostarlo in `CHANGELOG.md`/`PROGRESS.md`), cambia priorità o ne emergono di nuovi. Le voci con ★ derivano dai limiti dichiarati in `LEGGIMI.md`. L’Aggiornamento 5 segue il piano ufficiale indicato sotto.
 
 ## Priorità Alta — Fondamenta del lavoro a più agenti
 - [x] **Verificare la build integrata** e registrare l’esito in `PROGRESS.md`.
@@ -8,9 +8,15 @@
 - [x] **Controllo automatico dell’integrazione** con `node tests/verifica-integrazione.cjs`.
 - [ ] Ampliare la suite condivisa con casi per i minigiochi e l’intera campagna, e configurarne l’esecuzione automatica.
 
-## Prossima priorità — Grafica
+## Priorità di sviluppo — Aggiornamento 5
 
-- [ ] Ottenere l’approvazione del [piano artistico e tecnico](PIANO_GRAFICO.md). La prima prova riguarda la piazza di Velaris e il confronto giorno/notte.
+- [Piano ufficiale Mega City Overhaul](MEGA_CITY_OVERHAUL.md), con requisiti, fasi, criteri di verifica e passaggio di consegne fra modelli.
+- [x] **Fase 0.** Verificare l’integrazione v5/v6 e la base urbana di Velaris.
+- [x] **Fase 1.** Prima porzione grafica di Velaris fra piazza, ponte e mercato, secondo il [piano artistico e tecnico](PIANO_GRAFICO.md).
+- [ ] **Fase 2.** Estendere l’identità dei quartieri, vegetazione, orientamento e varietà degli interni.
+- [ ] **Fase 3.** Estendere routine, produzione ed economia urbana. Il primo flusso di merci collega mestieri e commissioni al mercato di Velaris.
+- [ ] **Fase 4.** Allacciare eventi al calendario, reputazione, quest e leggi locali.
+- [ ] **Fase 5.** Applicare la struttura urbana ad altri insediamenti, con luoghi unici e capitali nei cinque continenti.
 
 ## Priorità Media — Contenuti ★
 - [x] ★ **Primo ampliamento di Velaris** con quattro quartieri, sette interni e servizi integrati.

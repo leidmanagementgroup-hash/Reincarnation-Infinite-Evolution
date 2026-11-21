@@ -88,7 +88,9 @@
       '<div class="economyHead">'+head(market.name)+
         '<span class="economyStatus" data-open="'+Boolean(market.open)+'">'+(market.open?'Aperto':'Chiuso')+'</span></div>'+
       '<p>'+esc(market.regionName)+' · '+esc(market.hours)+' · '+esc(access)+'</p>'+
-      '<p class="caption">Le scorte appartengono a questo mercato. I prodotti di base vengono riforniti col passare dei giorni.</p>'+
+      '<p class="caption">'+(market.id==='velaris'?
+        'Le botteghe ricevono beni dai mestieri locali all’alba e dalle commissioni consegnate a Velaris. Le scorte influenzano i prezzi.':
+        'Le scorte appartengono a questo mercato. I prodotti di base vengono riforniti col passare dei giorni.')+'</p>'+
       '<section aria-label="Scorte e prezzi del mercato">'+(market.rows.length?market.rows.map(r=>row(r,market.available,carried)).join(''):'<p>Le scorte sono esaurite.</p>')+'</section>'+
       bank(s,data)+'</div>';
   }

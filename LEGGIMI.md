@@ -11,8 +11,10 @@ Apri `Reincarnation.html` in un browser moderno. Grafica, musica sintetizzata e 
 
 - Apri **M**, entra nell’Atlante e scegli **Segna Velaris**. La strada passa dalla Valle degli Antichi alla Selva degli Alambicchi e da lì raggiunge la porta della città. Con **E** attraversi la porta ed entri negli edifici segnalati.
 - Le Terrazze delle Lenti, la Corte delle Fornaci, il Mercato dei Venti e i Giardini delle Lanterne si collegano tramite la Piazza delle Quattro Lenti e i ponti sul canale. Il numero e la forma delle abitazioni dipendono dal seme del mondo.
+- Cerca il mosaico delle Quattro Lenti e segui le lanterne sul ponte centrale per raggiungere il Mercato dei Venti e la Locanda della Lanterna Salmastra.
 - Puoi entrare in sette edifici. La locanda offre un letto, acqua e colazione. La bottega usa le scorte e il deposito già disponibili a Velaris. Alla fucina puoi forgiarti una lama e riparare l’equipaggiamento. La Gilda del Compasso usa l’iscrizione e la progressione esistenti. Archivio, accademia e casa del custode si visitano a piedi.
 - Premi **O** in città per vedere abitanti, orari e commissioni. Il salvataggio conserva le interazioni, le consegne e il restauro della fonte della piazza.
+- Legno, minerale, erbe e grano dei mestieri locali riforniscono all’alba le scorte condivise dalla bottega e dal banco nella Selva. Anche le commissioni consegnate in città possono rifornire questi banchi. I prezzi seguono la disponibilità.
 
 ### Vita quotidiana
 

@@ -38,7 +38,7 @@ for (const file of modules) {
   if (file === 'audio.js') break;
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), scope, { filename: file });
 }
-const { Game, World, Inventory, Gear, UrbanWorld, UrbanLife, Life, Conflicts } = scope;
+const { Game, World, Inventory, Gear, UrbanWorld, UrbanLife, Life, Conflicts, Calendar, Economy } = scope;
 
 vm.runInContext('Math.random = (() => { let n = 0; return () => n++ === 0 ? 19425 / 4294967296 : .24; })()', scope);
 assert(Game.newGame());
@@ -104,4 +104,55 @@ assert(Game.save() && Game.load());
 assert(Game.s.cityWorks.restored);
 assert.equal(Inventory.quantity(Game.s, 'ore'), 2n ** 100n - 2n);
 
-console.log('OK: compatibilità v5/v6→v7, inventario, equipaggiamento, soccorso, sette interni di Velaris e restauro persistente.');
+const grainAtMarket = () => Economy.view(Game.s).market.rows.find(row => row.id === 'grain');
+const velaBeforeSupply = JSON.stringify(Game.s.economy.markets.vela);
+const grainBeforeSupply = Game.s.urban.city.stock.grain;
+const emptyMarket = Game.s.economy.markets.velaris;
+delete emptyMarket.stock.grain;
+const shortagePrice = grainAtMarket().buy;
+UrbanLife.tick(Game.s, 0);
+Calendar.advance(Game.s.calendar, Calendar.secondsPerDay);
+Game.s.time += 4;
+UrbanLife.tick(Game.s, 4);
+assert.equal(grainAtMarket().stock, '7');
+assert(grainAtMarket().buy < shortagePrice);
+assert.equal(Game.s.urban.city.stock.grain, grainBeforeSupply);
+assert.equal(JSON.stringify(Game.s.economy.markets.vela), velaBeforeSupply);
+
+const shop = city.services.find(site => site.id === 'shop');
+position(shop.point);
+assert(Game.action('interact'));
+position(UrbanWorld.site(Game.s, 'shop').point);
+const goldBeforeTrade = Game.s.player.gold;
+const priceBeforeTrade = grainAtMarket().buy;
+assert(Game.command('economy', { op: 'buy', id: 'grain', amount: '1' }));
+assert.equal(Game.s.player.gold, goldBeforeTrade - priceBeforeTrade);
+assert(Game.save() && Game.load());
+assert.equal(grainAtMarket().stock, '6');
+assert.equal(Game.s.urban.city.stock.grain, grainBeforeSupply);
+
+position(UrbanWorld.site(Game.s, 'exit').point);
+assert(Game.action('interact'));
+position(city.services.find(site => site.id === 'guild').point);
+assert(Game.action('interact'));
+Calendar.advance(Game.s.calendar, 225);
+position(UrbanWorld.interior('guild', Game.s.seed).npcLocations[0].point);
+const clerk = UrbanLife.sites(Game.s).find(site => site.id === 'velaris-staff-guild');
+assert(clerk, 'Cancelliera presente al turno del mattino');
+position(clerk.point);
+assert(Game.command('urban', { op: 'accept', id: clerk.id }));
+const order = UrbanLife.view(Game.s, clerk.id).commission;
+delete Game.s.economy.markets.velaris.stock[order.item];
+const reserveBeforeOrder = Game.s.urban.city.stock[order.item];
+Inventory.add(Game.s, order.item, order.amount);
+const carriedBeforeOrder = Inventory.quantity(Game.s, order.item);
+assert(Game.command('urban', { op: 'deliver', id: clerk.id }));
+assert.equal(Game.s.economy.markets.velaris.stock[order.item], String(order.amount));
+assert.equal(Game.s.urban.city.stock[order.item], reserveBeforeOrder);
+assert.equal(Inventory.quantity(Game.s, order.item), carriedBeforeOrder - BigInt(order.amount));
+assert(!Game.command('urban', { op: 'deliver', id: clerk.id }));
+assert(Game.save() && Game.load());
+assert.equal(Game.s.economy.markets.velaris.stock[order.item], String(order.amount));
+assert.equal(Game.s.urban.mission.completed, 1);
+
+console.log('OK: compatibilità v5/v6→v7, inventario, equipaggiamento, soccorso, sette interni, restauro e rifornimenti di Velaris.');

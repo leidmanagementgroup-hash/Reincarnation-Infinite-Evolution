@@ -6,7 +6,7 @@ Le regole di sviluppo condivise sono in `AGENTS.md` (importato sopra) e valgono 
 
 Memoria condivisa con OpenAI Codex: non affidarti alla sola memoria personale di Claude per lo stato del progetto. Ciò che serve a un altro agente va scritto nei file `.md` della cartella principale.
 
-Per il lavoro grafico, consulta `PIANO_GRAFICO.md` e verifica lo stato dell’approvazione in `PROGRESS.md`.
+Per l’Aggiornamento 5, consulta anche `MEGA_CITY_OVERHAUL.md`. Per il lavoro grafico, consulta `PIANO_GRAFICO.md` e verifica lo stato della fase in `PROGRESS.md`.
 
 Note operative per Claude Code:
 - Usa gli strumenti dedicati (Read/Edit/Grep/Glob) per esplorare e modificare i file; i sorgenti sono grandi (es. `engine.js` ~1350 righe molto dense, `panels.js`, `interface.js`): leggi per intervalli mirati.
