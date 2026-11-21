@@ -171,7 +171,7 @@
       const broad=noise(x,y,83,map.seed),fine=noise(x,y,18,map.seed+71);
       const v=broad*.73+fine*.27;
       const choice=clamp(Math.floor(v*5),0,4);
-      const rgb=edge?(isRift?[109,108,140]:[132,96,76]):road?(isRift?[84,87,116]:[111,87,70]):table[choice];
+      const rgb=edge?(isRift?[109,108,140]:[132,96,76]):road?(isRift?[104,100,130]:[111,87,70]):table[choice];
       const grit=stir%7-3, light=terrainLight(map.reg.id,x,y);
       const ledge=(y+Math.floor(broad*14))%15<2&&!road&&!edge?4:0;
       return [rgb[0]+grit+(isRift?11:37)*light+ledge,rgb[1]+grit+(isRift?22:19)*light+ledge,rgb[2]+grit+(isRift?31:3)*light+ledge];
@@ -191,6 +191,68 @@
     const current=Math.max(0,ripple*ember-.24)*1.4;
     return [108+ember*53+current*54,36+ember*30+current*48,35+stir%8+current*8];
   }
+  // Profondità (World Art Overhaul): modifica rgb sul posto e restituisce il colore emissivo [r,g,b,a] o null.
+  // Usa solo la maschera già calcolata: le collisioni non cambiano.
+  function lavaAt(map,x,y){return map.reg.id==='quarry'&&!solidAt(map,x,y)&&x>34&&y>34&&x<map.reg.width-30&&y<map.reg.height-30&&quarryHazard(x,y);}
+  function depthShade(map,x,y,ground,edge,face,rgb){
+    const isRift=map.reg.id==='rift',stir=hash(x,y,map.seed+977);
+    const tint=(r,g,b)=>{rgb[0]+=r;rgb[1]+=g;rgb[2]+=b;};
+    const scale=k=>{rgb[0]*=k;rgb[1]*=k;rgb[2]*=k;};
+    if(ground){
+      // Orlo verso chi guarda illuminato, orlo lontano in ombra: la quota delle terrazze si legge senza mappa.
+      if(edge){
+        if(!solidAt(map,x,y+4))tint(isRift?14:16,isRift?14:10,isRift?20:4);
+        else if(!solidAt(map,x,y-4))scale(.8);
+      }else if(!solidAt(map,x,y+10))tint(5,4,isRift?7:1);
+      if(!isRift){
+        // Calore della lava sul terreno vicino.
+        let heat=0;
+        for(const [dx,dy] of [[0,9],[0,-9],[9,0],[-9,0],[0,18],[13,13],[-13,13],[0,-16]])if(lavaAt(map,x+dx,y+dy))heat+=Math.abs(dx)+Math.abs(dy)>15?.5:1;
+        if(heat)tint(Math.min(46,heat*9),Math.min(14,heat*3),-Math.min(10,heat*2));
+      }
+      return null;
+    }
+    if(face){
+      // Parete: più chiara sotto l'orlo, più scura in basso, fenditure verticali e riflesso della lava alla base.
+      let d=2;while(d<14&&!solidAt(map,x,y-d))d+=2;
+      scale(1.08-d/14*.42);
+      if((hash(x>>2,0,map.seed+31)%7)===0&&d>3)scale(.78);
+      if(!isRift&&lavaAt(map,x,y+4)){tint(42,12,0);return [120,40,10,150];}
+      // Vene di minerale incandescente nelle pareti della Cava.
+      if(!isRift&&d>4&&stir%37===0){rgb[0]=226;rgb[1]=118;rgb[2]=58;return [240,120,50,200];}
+      if(isRift&&d>=12&&stir%23===0)return [90,140,170,160];
+      return null;
+    }
+    if(isRift){
+      // Sottofondo pendente delle isole: roccia che si assottiglia nel vuoto, con gocce di cristallo in punta.
+      const len=16+Math.floor(noise(x,0,10,map.seed+5)*30)+(hash(x>>1,1,map.seed)%5);
+      let d=16;while(d<=len&&!solidAt(map,x,y-d))d+=2;
+      if(d<=len){
+        // Roccia viva sotto l'isola: chiara vicino alla parete, si scurisce e si sfrangia verso la punta.
+        const t=d/len,band=((y+(hash(x>>3,2,map.seed)%5))%7)<2,side=(hash(x>>2,4,map.seed)%3)-1;
+        rgb[0]=74-t*40+(band?8:0)+side*4;rgb[1]=64-t*36+(band?7:0)+side*3;rgb[2]=106-t*44+(band?10:0)+side*5;
+        if(len-d<3&&hash(x>>1,3,map.seed)%6===0){rgb[0]=118;rgb[1]=196;rgb[2]=214;return [80,150,170,190];}
+        return null;
+      }
+      // Frammenti lontani nel vuoto: piccole rocce sospese, solo dove non c'è terra vicina.
+      const fx=Math.floor(x/56),fy=Math.floor(y/48),h=hash(fx,fy,map.seed+433);
+      if(h%5===0){
+        const cx=fx*56+14+h%28,cy=fy*48+10+(h>>>8)%26,rx=4+(h>>>4)%7,ry=2+(h>>>12)%3;
+        const q=((x-cx)/rx)**2+((y-cy)/ry)**2;
+        if(q<1&&!solidAt(map,cx,cy-24)&&!solidAt(map,cx,cy+24)&&!solidAt(map,cx-30,cy)&&!solidAt(map,cx+30,cy)){
+          const top=y<cy;rgb[0]=top?70:38;rgb[1]=top?66:34;rgb[2]=top?104:64;
+          if(top&&y<cy-ry+1){rgb[0]=96;rgb[1]=92;rgb[2]=132;}
+        }else if(q<1.6&&y>cy&&Math.abs(x-cx)<rx*.6&&!solidAt(map,cx,cy-24)){rgb[0]=26;rgb[1]=22;rgb[2]=48;}
+      }
+      return null;
+    }
+    // Lava: crosta scura che galleggia, crepe incandescenti ai bordi delle placche.
+    if(x<29||y<31||x>map.reg.width-26||y>map.reg.height-27)return null;
+    const crust=noise(x,y,16,map.seed+611)*.7+noise(x,y,6,map.seed+612)*.3;
+    if(crust>.735){const k=(crust-.735)*6;rgb[0]=112-k*30+stir%8;rgb[1]=44-k*10+stir%5;rgb[2]=36;return [60,14,6,110];}
+    if(crust>.722&&stir%3){rgb[0]=Math.min(255,rgb[0]+52);rgb[1]=Math.min(220,rgb[1]+46);rgb[2]+=18;return [255,160,70,230];}
+    return [Math.min(255,rgb[0]+30),Math.min(255,rgb[1]+6),rgb[2],200];
+  }
   function prepareTerrain(reg,worldSeed){
     const map={reg,seed:worldSeed,maskW:Math.ceil(reg.width/2),maskH:Math.ceil(reg.height/2),scenery:[],signals:[],
       index:new Map(), sprites:new Map(), image:canvas(reg.width,reg.height), chart:null};
@@ -209,17 +271,24 @@
         (isRift?riftGround(x,y,road):!quarryHazard(x,y)));
     }
     const coarse=canvas(maskW,maskH),surface=coarse.getContext('2d'),data=surface.createImageData(maskW,maskH);
+    // Strato emissivo (lava, crepe incandescenti, gocce di cristallo): di notte WorldLight lo riaccende sopra il velo.
+    const glowHalf=canvas(maskW,maskH),gh=glowHalf.getContext('2d'),glow=gh.createImageData(maskW,maskH);
     for(let j=0;j<maskH;j++)for(let i=0;i<maskW;i++){
       const index=j*maskW+i,x=i*2,y=j*2,ground=map.mask[index]===1;
       const edge=ground&&(!solidAt(map,x-4,y)||!solidAt(map,x+4,y)||!solidAt(map,x,y+4)||!solidAt(map,x,y-4));
       const face=!ground&&(solidAt(map,x,y-14)||solidAt(map,x,y-6));
       const rgb=vertexColor(map,x,y,ground,edge,face,roads[index]===1);
-      const c=index*4;data.data[c]=rgb[0];data.data[c+1]=rgb[1];data.data[c+2]=rgb[2];data.data[c+3]=255;
+      const lit=depthShade(map,x,y,ground,edge,face,rgb);
+      const c=index*4;data.data[c]=clamp(Math.round(rgb[0]),0,255);data.data[c+1]=clamp(Math.round(rgb[1]),0,255);data.data[c+2]=clamp(Math.round(rgb[2]),0,255);data.data[c+3]=255;
+      if(lit){glow.data[c]=lit[0];glow.data[c+1]=lit[1];glow.data[c+2]=lit[2];glow.data[c+3]=lit[3];}
     }
     surface.putImageData(data,0,0);
+    gh.putImageData(glow,0,0);
     map.ctx=map.image.getContext('2d');
     map.ctx.imageSmoothingEnabled=false;
     map.ctx.drawImage(coarse,0,0,reg.width,reg.height);
+    map.glow=canvas(reg.width,reg.height);map.glowCtx=map.glow.getContext('2d');
+    map.glowCtx.imageSmoothingEnabled=false;map.glowCtx.drawImage(glowHalf,0,0,reg.width,reg.height);
     return map;
   }
   function addObject(map,type,x,y,v=0,r=0){
@@ -707,6 +776,13 @@
     if(rift)paintRiftInfra(map);else paintQuarryInfra(map);
     bulkScenery(map,random);
     for(const g of reg.points.gates)map.scenery.push({...g,type:'gate',r:0});
+    // Ombre di contatto a terra, spostate a destra e in basso come la luce delle pareti; solo su suolo calpestabile.
+    for(const o of map.scenery){
+      const big={hoist:42,forge:52,observatory:46,astralCore:40,arch:30,chimney:14,pipeworks:26}[o.type];
+      const rx=big||(o.r>0?o.r+4:o.type==='lamp'?5:0);
+      if(!rx||!solidAt(map,o.x+3,o.y+2))continue;
+      oval(map.ctx,o.x+4,o.y+2,rx,Math.max(2,Math.round(rx*.22)),rift?'rgba(10,8,26,.30)':'rgba(24,10,14,.28)');
+    }
     map.scenery.sort((a,b)=>a.y-b.y);
     map.chart=canvas(390,Math.round(390*reg.height/reg.width));
     const m=map.chart.getContext('2d');m.imageSmoothingEnabled=false;
@@ -734,6 +810,22 @@
     return router;
   }
   function canWalk(x,y,r=6){return area?collision(area,x,y,r):valley.canWalk(x,y,r);}
+  // Sorgenti di luce di Cava e Fenditura per WorldLight: lanterne, forgia, nucleo astrale, osservatorio, guglie,
+  // varchi e strato emissivo della lava e dei cristalli.
+  function lightSources(){
+    if(!area)return null;
+    const lights=[],rift=active.id==='rift';
+    for(const o of area.scenery){
+      if(o.type==='lamp')lights.push({x:o.x+7,y:o.y,kind:rift?'crystal':'lamp',lift:27,core:[o.x+5,o.y-15,4,5,rift?'#d7faf0':'#ffe09a']});
+      else if(o.type==='forge')lights.push({x:o.x,y:o.y,kind:'fire',lift:42});
+      else if(o.type==='astralCore')lights.push({x:o.x,y:o.y,kind:'spirit',lift:60,p:1});
+      else if(o.type==='observatory')lights.push({x:o.x,y:o.y,kind:'crystal',lift:54,p:1});
+      else if(o.type==='gate')lights.push({x:o.x,y:o.y,kind:rift?'spirit':'lamp',lift:36,p:1});
+      else if(o.type==='spire'&&rift)lights.push({x:o.x,y:o.y,kind:'crystal',lift:24,p:2});
+    }
+    return {lights,windows:[],emissive:{image:area.glow,alpha:1}};
+  }
+  window.WorldLight?.provide(rid=>(rid==='quarry'||rid==='rift')&&!!area&&active.id===rid,lightSources,rid=>rid==='quarry'?'ember':'astral');
   function drawGround(c,cam,t){
     if(!area){valley.drawGround(c,cam,t);return;}
     const x=Math.max(0,Math.floor(cam.x)),y=Math.max(0,Math.floor(cam.y));

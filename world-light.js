@@ -19,7 +19,10 @@
     root:{dusk:'204,140,88',night:'8,34,42',depth:.52},
     shore:{dusk:'232,150,100',night:'18,36,74',depth:.46},
     canyon:{dusk:'238,128,72',night:'42,24,62',depth:.48},
-    under:{dusk:'0,0,0',night:'12,16,34',depth:.34,under:true}
+    under:{dusk:'0,0,0',night:'12,16,34',depth:.34,under:true},
+    // Cava delle Braci: crepuscolo di brace e notte rossastra; Fenditura Astrale: viola profondo.
+    ember:{dusk:'240,120,70',night:'46,18,32',depth:.46},
+    astral:{dusk:'190,120,210',night:'26,18,72',depth:.44}
   };
   const tones={
     lamp:{pool:['rgba(255,182,86,.40)','rgba(248,160,69,.22)','rgba(212,101,43,0)'],core:['rgba(255,200,104,.5)','rgba(255,166,73,.2)','rgba(255,138,53,0)']},
@@ -61,8 +64,14 @@
     const strength=Math.min(1,e.night*1.8+e.dusk*.3),wStrength=Math.min(1,e.night*2+e.dusk*.7);
     if(strength<.03&&wStrength<.05)return 0;
     const calm=e.calm||reduced();
-    const {lights=[],windows=[]}=p.sources(cam)||{};
+    const {lights=[],windows=[],emissive=null}=p.sources(cam)||{};
     c.save();c.translate(-cam.x,-cam.y);
+    if(emissive?.image&&strength>.03){
+      // Superfici che emettono luce (lava, crepe, cristalli): riaccese sopra il velo notturno.
+      const img=emissive.image,sx=Math.max(0,Math.floor(cam.x)),sy=Math.max(0,Math.floor(cam.y));
+      const sw=Math.min(img.width-sx,Math.ceil(cam.w)+1),sh=Math.min(img.height-sy,Math.ceil(cam.h)+1);
+      if(sw>0&&sh>0){c.globalCompositeOperation='screen';c.globalAlpha=Math.min(1,e.night*1.1+e.dusk*.45)*(emissive.alpha??1);c.drawImage(img,sx,sy,sw,sh,sx,sy,sw,sh);c.globalCompositeOperation='source-over';}
+    }
     if(wStrength>.05){
       // Finestre accese: più numerose la sera, poche nel cuore della notte; decise dalla posizione, non dal caso.
       const m=e.minutes??1200,share=m>=1000&&m<1400?.85:(m>=1400||m<300)?.35:.6;
