@@ -4,6 +4,8 @@ Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGEN
 
 ## [2026-11-21] World Art Overhaul · Selva degli Alambicchi — Codex
 
+Commit del pilota `4d8b060`.
+
 ### Modificato
 - Terreno e margini dei sentieri della Selva, chiome con profondità, tetti e banchi riconoscibili, sprite riutilizzati dalla cache. Ricostruito `Reincarnation.html` (file `continents.js`).
 
