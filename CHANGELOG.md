@@ -2,6 +2,11 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-21] Piano del Generatore Procedurale Urbano 2.0 — Codex
+
+### Documentazione
+- Analisi di Velaris, architettura ibrida, persistenza, prestazioni, raccordo con le due unità economiche della Fase 3 e incrementi verificabili. Proposti il Borgo dei Filoni come primo prototipo e Calis come seconda tipologia. Collegato il piano alla roadmap e al passaggio di consegne (file `MEGA_CITY_OVERHAUL.md`, `ROADMAP.md`, `PROGRESS.md`).
+
 ## [2026-11-21] Rifinitura dei quartieri orientali di Velaris — Codex
 
 Commit della rifinitura `b0d570b`.

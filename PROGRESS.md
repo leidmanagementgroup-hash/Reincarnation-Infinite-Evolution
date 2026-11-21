@@ -1,14 +1,14 @@
 # PROGRESS.md — Stato del progetto
 
-> Ultimo aggiornamento 2026-11-21, Codex, rifinitura dei quartieri orientali.
+> Ultimo aggiornamento 2026-11-21, Codex, progettazione del Generatore Procedurale Urbano 2.0.
 
 ## In corso
 _Nessuna modifica in corso._
 
 ## Prossimo passo
-1. La rifinitura orientale chiude UX-002 e UX-003. Il prossimo intervento previsto è il **Generatore Procedurale Urbano 2.0**, da avviare con approvazione. Partire dai lotti orientali, da `settlementTypes` e dalle cache del terreno. Conservare porte, seed e compatibilità dei salvataggi.
+1. [Piano 2.0](MEGA_CITY_OVERHAUL.md#generatore-procedurale-urbano-20) redatto su `codex/piano-generatore-urbano-2`. L’implementazione resta da avviare. Prima misurare Velaris, fissare il registro di definizioni e validare la planimetria senza Canvas. Prototipo proposto al Borgo dei Filoni. Conservare porte, semi e salvataggi.
 2. I passi grafici 3–5 attendono una nuova conferma. I branch precedenti `velaris-city-expansion` e `velaris-city-verified` restano come copie di lavoro. Ripartire da `main`.
-3. Per la **fase 3** il banco di Velaris riceve già prodotti locali e merci di commissione. Riutilizzare le scorte persistenti e il mercato condiviso con la Selva. Restano da collegare altre filiere, richieste individuali, eventi e servizi.
+3. La **Fase 3** è in integrazione separata. Verificare le API disponibili su `main` prima di collegare nuovi mercati. Il piano 2.0 riusa il mercato `filoni` per il primo prototipo e isola il registro dinamico in una consegna successiva.
 4. La morte dei compagni di gilda (RISK-007) è confermata dall'utente e documentata in `GAME_DESIGN.md` §4.9; resta da verificarne il bilanciamento in partita. La misura grafica comparativa è disponibile in questo registro. Lo script per ripeterla resta da integrare nella suite condivisa.
 
 ## Versione e stato generale
@@ -48,6 +48,11 @@ La tabella elenca i sistemi disponibili. La sezione seguente indica le verifiche
 | Build a file singolo | ✅ | `build.py` |
 
 ## Test e verifiche
+
+### Piano del Generatore Procedurale Urbano 2.0
+
+- Consultati `main` a `07e42e9` e le API pubblicate sul ramo economico di Claude a `26893c5` in sola lettura.
+- `node tests/verifica-integrazione.cjs` superato sulla build attuale. `python build.py` su file separato riproduce lo stesso HTML. Il collaudo del generatore e le misure di scala restano da eseguire quando esisterà il prototipo.
 
 ### Rifinitura dei quartieri orientali
 

@@ -15,7 +15,7 @@
 - [x] UX-001: affollamento serale ridotto dalle routine per quartiere di Codex (unite a `main` il 2026-11-21).
 - [x] Integrazione del lavoro di Codex (quartieri orientali, Serra delle Talee, tipi di insediamento) unita a `main` (2026-11-21, `769d231`).
 - [x] **Rifinitura di Velaris.** UX-002 (lanterne e atmosfere dei quartieri orientali) e UX-003 (soste e turni distribuiti nei Portici).
-- [ ] **Fase successiva —** Generatore Procedurale Urbano 2.0: generalizzare lotti, vie, confini e oggetti dell'annesso (oggi a coordinate fisse) partendo da `settlementTypes`, cache per settori e routine per quartiere.
+- [ ] **[Generatore Procedurale Urbano 2.0](MEGA_CITY_OVERHAUL.md#generatore-procedurale-urbano-20).** Progettazione pronta per la verifica. Prima prova proposta al Borgo dei Filoni, poi Calis e verifiche di scala. Il raccordo economico segue l’integrazione della Fase 3.
 - [x] BUG-011: risolto e unito a `main` (2026-11-21).
 - [ ] Verificare in partita il bilanciamento dei danni ai compagni (quanto spesso scendono in stato critico).
 - [x] Prima prova nel browser con Playwright: `tests/prova-browser.cjs` (menu principali, Atlante, Segna Velaris, salvataggi). Da estendere a combattimento, minigiochi e interni.
