@@ -3,7 +3,7 @@
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
 ## [2026-11-21] PERF-001: ricerca dei percorsi di Velaris più veloce, percorsi identici — Claude
-Branch `claude/perf-001-pathfinding` (non unito a `main`), da `main` `96a03f5`.
+Branch `claude/perf-001-pathfinding`, da `main` `96a03f5`; unito a `main` per fast-forward il 2026-11-21 (`96a03f5` → `a1e4c54`) su approvazione dell'utente. Dopo il merge: test di integrazione, percorsi (BUG-011), sovrapposizioni, economia e browser rieseguiti su `main`, percorsi identici a `96a03f5`, HTML allineato, stato remoto verificato.
 ### Corretto
 - `path()` in `urban-exterior.js`: la ricerca in ampiezza ricalcolava `canWalk` a ogni vicino (21,6 milioni di chiamate su 3 350 tratte) e allocava un array per vicino; ora la percorribilità dei nodi è memorizzata per raggio, i buffer si riusano e il ciclo non alloca. `segmentClear` e `segmentBoxDistance2` (verifica esatta di BUG-011) senza array e funzioni temporanee, stesse operazioni nello stesso ordine. Media da 5,9 a 0,78 ms, p95 da 21 a 2 ms, chiamate oltre 16 ms da ~990 a 7–8 su 6 700; in gioco fotogrammi oltre 16 ms da 510 a 21 su 3 456. Percorsi, collisioni e routine identici (verifica esaustiva contro `main`).
 ### Aggiunto
