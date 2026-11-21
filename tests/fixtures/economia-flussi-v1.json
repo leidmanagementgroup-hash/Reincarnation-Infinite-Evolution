@@ -1,0 +1,1007 @@
+{
+ "seed": 19425,
+ "source": "6bf7317",
+ "day": 80,
+ "economy": {
+  "schema": 1,
+  "balance": "777",
+  "markets": {
+   "vela": {
+    "day": 1,
+    "stock": {
+     "herb": "10",
+     "ore": "6",
+     "seeds": "18",
+     "grain": "8",
+     "work": "10",
+     "wool": "5",
+     "potion": "5",
+     "bread": "5",
+     "water": "8"
+    }
+   },
+   "filoni": {
+    "day": 1,
+    "stock": {
+     "herb": "5",
+     "ore": "28",
+     "seeds": "5",
+     "grain": "2",
+     "work": "27",
+     "wool": "17",
+     "potion": "2",
+     "bread": "5",
+     "water": "7"
+    }
+   },
+   "velaris": {
+    "day": 1,
+    "stock": {
+     "herb": "16",
+     "ore": "4",
+     "essence": "14",
+     "seeds": "8",
+     "work": "7",
+     "potion": "12",
+     "bread": "5",
+     "water": "7",
+     "grain": "3"
+    }
+   },
+   "namar": {
+    "day": 1,
+    "stock": {
+     "herb": "10",
+     "ore": "4",
+     "seeds": "20",
+     "grain": "16",
+     "work": "13",
+     "wool": "27",
+     "potion": "4",
+     "bread": "5",
+     "water": "8"
+    }
+   },
+   "calis": {
+    "day": 1,
+    "stock": {
+     "herb": "5",
+     "ore": "12",
+     "essence": "7",
+     "seeds": "7",
+     "work": "19",
+     "wool": "5",
+     "potion": "6",
+     "bread": "5",
+     "water": "6",
+     "grain": "2"
+    }
+   }
+  },
+  "flows": {
+   "schema": 1,
+   "seed": 19425,
+   "day": 80,
+   "opening": {
+    "vela": {
+     "herb": "10",
+     "ore": "4",
+     "seeds": "8",
+     "grain": "6",
+     "work": "6",
+     "wool": "3",
+     "potion": "4",
+     "bread": "5",
+     "water": "6"
+    },
+    "filoni": {
+     "herb": "3",
+     "ore": "14",
+     "seeds": "2",
+     "grain": "2",
+     "work": "11",
+     "wool": "8",
+     "potion": "3",
+     "bread": "5",
+     "water": "6"
+    },
+    "velaris": {
+     "herb": "12",
+     "ore": "2",
+     "essence": "5",
+     "seeds": "4",
+     "grain": "3",
+     "work": "3",
+     "potion": "8",
+     "bread": "5",
+     "water": "6"
+    },
+    "namar": {
+     "herb": "7",
+     "ore": "2",
+     "seeds": "11",
+     "grain": "14",
+     "work": "6",
+     "wool": "10",
+     "potion": "3",
+     "bread": "5",
+     "water": "6"
+    },
+    "calis": {
+     "herb": "3",
+     "ore": "7",
+     "essence": "2",
+     "seeds": "3",
+     "grain": "6",
+     "work": "9",
+     "wool": "3",
+     "potion": "5",
+     "bread": "5",
+     "water": "6"
+    }
+   },
+   "wealth": {
+    "vela": 1036,
+    "filoni": 968,
+    "velaris": 1137,
+    "namar": 976,
+    "calis": 1213
+   },
+   "carry": {
+    "produce": {
+     "vela": {
+      "grain": 527,
+      "seeds": 419,
+      "herb": 985,
+      "work": 838,
+      "water": 494,
+      "wool": 648,
+      "bread": 0,
+      "potion": 494
+     },
+     "filoni": {
+      "ore": 157,
+      "work": 475,
+      "grain": 554,
+      "seeds": 502,
+      "herb": 489,
+      "water": 407,
+      "wool": 292,
+      "bread": 600
+     },
+     "velaris": {
+      "herb": 124,
+      "essence": 459,
+      "grain": 244,
+      "seeds": 469,
+      "work": 985,
+      "water": 693,
+      "potion": 725,
+      "bread": 800
+     },
+     "namar": {
+      "grain": 245,
+      "seeds": 689,
+      "wool": 144,
+      "herb": 486,
+      "water": 507,
+      "work": 258,
+      "bread": 800
+     },
+     "calis": {
+      "essence": 465,
+      "work": 432,
+      "ore": 372,
+      "water": 919,
+      "grain": 46,
+      "seeds": 272,
+      "bread": 600
+     }
+    },
+    "eat": {
+     "vela": {
+      "herb": 520,
+      "ore": 900,
+      "seeds": 821,
+      "grain": 30,
+      "work": 91,
+      "wool": 459,
+      "potion": 571,
+      "bread": 287,
+      "water": 268
+     },
+     "filoni": {
+      "herb": 944,
+      "ore": 581,
+      "seeds": 806,
+      "grain": 312,
+      "work": 536,
+      "wool": 29,
+      "potion": 263,
+      "bread": 959,
+      "water": 130
+     },
+     "velaris": {
+      "herb": 29,
+      "ore": 471,
+      "essence": 875,
+      "seeds": 711,
+      "grain": 881,
+      "work": 494,
+      "potion": 451,
+      "bread": 774,
+      "water": 211
+     },
+     "namar": {
+      "herb": 222,
+      "ore": 923,
+      "seeds": 756,
+      "grain": 240,
+      "work": 968,
+      "wool": 748,
+      "potion": 239,
+      "bread": 478,
+      "water": 349
+     },
+     "calis": {
+      "herb": 436,
+      "ore": 576,
+      "essence": 555,
+      "seeds": 510,
+      "grain": 904,
+      "work": 287,
+      "wool": 855,
+      "potion": 863,
+      "bread": 790,
+      "water": 100
+     }
+    },
+    "spoil": {
+     "vela": {
+      "herb": 650,
+      "seeds": 730,
+      "grain": 820,
+      "wool": 475,
+      "potion": 290,
+      "bread": 840
+     },
+     "filoni": {
+      "herb": 50,
+      "seeds": 90,
+      "grain": 40,
+      "wool": 520,
+      "potion": 980,
+      "bread": 560
+     },
+     "velaris": {
+      "herb": 800,
+      "essence": 848,
+      "seeds": 650,
+      "grain": 540,
+      "potion": 220,
+      "bread": 280
+     },
+     "namar": {
+      "herb": 700,
+      "seeds": 930,
+      "grain": 820,
+      "wool": 395,
+      "potion": 800,
+      "bread": 840
+     },
+     "calis": {
+      "herb": 100,
+      "essence": 80,
+      "seeds": 790,
+      "grain": 40,
+      "wool": 45,
+      "potion": 750,
+      "bread": 360
+     }
+    }
+   },
+   "shipments": [
+    {
+     "from": "filoni",
+     "to": "calis",
+     "id": "potion",
+     "qty": 1,
+     "due": 81
+    },
+    {
+     "from": "filoni",
+     "to": "vela",
+     "id": "water",
+     "qty": 3,
+     "due": 81
+    },
+    {
+     "from": "filoni",
+     "to": "velaris",
+     "id": "ore",
+     "qty": 1,
+     "due": 81
+    },
+    {
+     "from": "namar",
+     "to": "calis",
+     "id": "grain",
+     "qty": 3,
+     "due": 81
+    },
+    {
+     "from": "vela",
+     "to": "calis",
+     "id": "potion",
+     "qty": 1,
+     "due": 81
+    },
+    {
+     "from": "vela",
+     "to": "filoni",
+     "id": "grain",
+     "qty": 4,
+     "due": 81
+    },
+    {
+     "from": "vela",
+     "to": "namar",
+     "id": "ore",
+     "qty": 1,
+     "due": 81
+    },
+    {
+     "from": "vela",
+     "to": "velaris",
+     "id": "grain",
+     "qty": 3,
+     "due": 81
+    },
+    {
+     "from": "vela",
+     "to": "velaris",
+     "id": "water",
+     "qty": 4,
+     "due": 81
+    },
+    {
+     "from": "velaris",
+     "to": "filoni",
+     "id": "potion",
+     "qty": 3,
+     "due": 81
+    },
+    {
+     "from": "filoni",
+     "to": "vela",
+     "id": "herb",
+     "qty": 1,
+     "due": 82
+    },
+    {
+     "from": "filoni",
+     "to": "vela",
+     "id": "ore",
+     "qty": 1,
+     "due": 82
+    },
+    {
+     "from": "filoni",
+     "to": "vela",
+     "id": "wool",
+     "qty": 1,
+     "due": 82
+    },
+    {
+     "from": "namar",
+     "to": "vela",
+     "id": "bread",
+     "qty": 1,
+     "due": 82
+    },
+    {
+     "from": "vela",
+     "to": "calis",
+     "id": "wool",
+     "qty": 2,
+     "due": 82
+    },
+    {
+     "from": "vela",
+     "to": "namar",
+     "id": "potion",
+     "qty": 2,
+     "due": 82
+    },
+    {
+     "from": "velaris",
+     "to": "vela",
+     "id": "potion",
+     "qty": 1,
+     "due": 82
+    },
+    {
+     "from": "filoni",
+     "to": "calis",
+     "id": "grain",
+     "qty": 2,
+     "due": 83
+    },
+    {
+     "from": "namar",
+     "to": "calis",
+     "id": "water",
+     "qty": 3,
+     "due": 83
+    },
+    {
+     "from": "vela",
+     "to": "calis",
+     "id": "herb",
+     "qty": 2,
+     "due": 83
+    },
+    {
+     "from": "vela",
+     "to": "velaris",
+     "id": "bread",
+     "qty": 1,
+     "due": 83
+    },
+    {
+     "from": "filoni",
+     "to": "velaris",
+     "id": "ore",
+     "qty": 1,
+     "due": 84
+    },
+    {
+     "from": "namar",
+     "to": "calis",
+     "id": "grain",
+     "qty": 3,
+     "due": 84
+    },
+    {
+     "from": "namar",
+     "to": "calis",
+     "id": "potion",
+     "qty": 1,
+     "due": 84
+    },
+    {
+     "from": "namar",
+     "to": "velaris",
+     "id": "herb",
+     "qty": 1,
+     "due": 84
+    },
+    {
+     "from": "filoni",
+     "to": "calis",
+     "id": "bread",
+     "qty": 1,
+     "due": 85
+    }
+   ],
+   "ledger": {
+    "vela": {
+     "herb": {
+      "produced": "169",
+      "used": "86",
+      "eaten": "23",
+      "unmet": "0",
+      "spoiled": "45",
+      "lost": "0",
+      "external": "-16",
+      "imported": "84",
+      "exported": "83"
+     },
+     "ore": {
+      "produced": "0",
+      "used": "0",
+      "eaten": "19",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "43",
+      "exported": "22"
+     },
+     "seeds": {
+      "produced": "43",
+      "used": "0",
+      "eaten": "13",
+      "unmet": "0",
+      "spoiled": "11",
+      "lost": "0",
+      "external": "0",
+      "imported": "8",
+      "exported": "17"
+     },
+     "grain": {
+      "produced": "344",
+      "used": "184",
+      "eaten": "34",
+      "unmet": "0",
+      "spoiled": "13",
+      "lost": "0",
+      "external": "0",
+      "imported": "95",
+      "exported": "206"
+     },
+     "work": {
+      "produced": "30",
+      "used": "0",
+      "eaten": "23",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "9",
+      "exported": "12"
+     },
+     "wool": {
+      "produced": "63",
+      "used": "0",
+      "eaten": "23",
+      "unmet": "0",
+      "spoiled": "2",
+      "lost": "0",
+      "external": "0",
+      "imported": "10",
+      "exported": "46"
+     },
+     "potion": {
+      "produced": "43",
+      "used": "0",
+      "eaten": "19",
+      "unmet": "0",
+      "spoiled": "4",
+      "lost": "0",
+      "external": "0",
+      "imported": "51",
+      "exported": "70"
+     },
+     "bread": {
+      "produced": "184",
+      "used": "0",
+      "eaten": "100",
+      "unmet": "0",
+      "spoiled": "60",
+      "lost": "0",
+      "external": "0",
+      "imported": "31",
+      "exported": "55"
+     },
+     "water": {
+      "produced": "154",
+      "used": "0",
+      "eaten": "133",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "95",
+      "exported": "114"
+     }
+    },
+    "filoni": {
+     "herb": {
+      "produced": "84",
+      "used": "0",
+      "eaten": "19",
+      "unmet": "0",
+      "spoiled": "21",
+      "lost": "0",
+      "external": "0",
+      "imported": "28",
+      "exported": "70"
+     },
+     "ore": {
+      "produced": "102",
+      "used": "0",
+      "eaten": "18",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "5",
+      "exported": "75"
+     },
+     "seeds": {
+      "produced": "12",
+      "used": "0",
+      "eaten": "10",
+      "unmet": "0",
+      "spoiled": "4",
+      "lost": "0",
+      "external": "0",
+      "imported": "8",
+      "exported": "3"
+     },
+     "grain": {
+      "produced": "83",
+      "used": "95",
+      "eaten": "23",
+      "unmet": "0",
+      "spoiled": "5",
+      "lost": "0",
+      "external": "0",
+      "imported": "59",
+      "exported": "19"
+     },
+     "work": {
+      "produced": "38",
+      "used": "0",
+      "eaten": "18",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "3",
+      "exported": "7"
+     },
+     "wool": {
+      "produced": "40",
+      "used": "0",
+      "eaten": "18",
+      "unmet": "0",
+      "spoiled": "6",
+      "lost": "0",
+      "external": "0",
+      "imported": "2",
+      "exported": "9"
+     },
+     "potion": {
+      "produced": "0",
+      "used": "0",
+      "eaten": "13",
+      "unmet": "0",
+      "spoiled": "2",
+      "lost": "0",
+      "external": "0",
+      "imported": "39",
+      "exported": "25"
+     },
+     "bread": {
+      "produced": "95",
+      "used": "0",
+      "eaten": "69",
+      "unmet": "0",
+      "spoiled": "49",
+      "lost": "0",
+      "external": "0",
+      "imported": "31",
+      "exported": "8"
+     },
+     "water": {
+      "produced": "156",
+      "used": "0",
+      "eaten": "107",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "38",
+      "exported": "86"
+     }
+    },
+    "velaris": {
+     "herb": {
+      "produced": "314",
+      "used": "224",
+      "eaten": "35",
+      "unmet": "0",
+      "spoiled": "58",
+      "lost": "0",
+      "external": "0",
+      "imported": "38",
+      "exported": "31"
+     },
+     "ore": {
+      "produced": "0",
+      "used": "0",
+      "eaten": "28",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "30",
+      "exported": "0"
+     },
+     "essence": {
+      "produced": "21",
+      "used": "0",
+      "eaten": "11",
+      "unmet": "0",
+      "spoiled": "1",
+      "lost": "0",
+      "external": "0",
+      "imported": "0",
+      "exported": "0"
+     },
+     "seeds": {
+      "produced": "13",
+      "used": "0",
+      "eaten": "18",
+      "unmet": "0",
+      "spoiled": "5",
+      "lost": "0",
+      "external": "0",
+      "imported": "17",
+      "exported": "3"
+     },
+     "grain": {
+      "produced": "102",
+      "used": "180",
+      "eaten": "25",
+      "unmet": "2",
+      "spoiled": "2",
+      "lost": "0",
+      "external": "0",
+      "imported": "107",
+      "exported": "2"
+     },
+     "work": {
+      "produced": "29",
+      "used": "0",
+      "eaten": "32",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "8",
+      "exported": "1"
+     },
+     "potion": {
+      "produced": "112",
+      "used": "0",
+      "eaten": "35",
+      "unmet": "0",
+      "spoiled": "9",
+      "lost": "0",
+      "external": "0",
+      "imported": "14",
+      "exported": "78"
+     },
+     "bread": {
+      "produced": "180",
+      "used": "0",
+      "eaten": "140",
+      "unmet": "0",
+      "spoiled": "56",
+      "lost": "0",
+      "external": "0",
+      "imported": "16",
+      "exported": "0"
+     },
+     "water": {
+      "produced": "159",
+      "used": "0",
+      "eaten": "185",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "63",
+      "exported": "36"
+     }
+    },
+    "namar": {
+     "herb": {
+      "produced": "83",
+      "used": "0",
+      "eaten": "24",
+      "unmet": "0",
+      "spoiled": "35",
+      "lost": "0",
+      "external": "0",
+      "imported": "28",
+      "exported": "49"
+     },
+     "ore": {
+      "produced": "0",
+      "used": "0",
+      "eaten": "19",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "21",
+      "exported": "0"
+     },
+     "seeds": {
+      "produced": "61",
+      "used": "0",
+      "eaten": "13",
+      "unmet": "0",
+      "spoiled": "13",
+      "lost": "0",
+      "external": "0",
+      "imported": "5",
+      "exported": "31"
+     },
+     "grain": {
+      "produced": "422",
+      "used": "190",
+      "eaten": "33",
+      "unmet": "0",
+      "spoiled": "26",
+      "lost": "0",
+      "external": "0",
+      "imported": "5",
+      "exported": "176"
+     },
+     "work": {
+      "produced": "29",
+      "used": "0",
+      "eaten": "22",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "5",
+      "exported": "5"
+     },
+     "wool": {
+      "produced": "53",
+      "used": "0",
+      "eaten": "22",
+      "unmet": "0",
+      "spoiled": "9",
+      "lost": "0",
+      "external": "0",
+      "imported": "0",
+      "exported": "5"
+     },
+     "potion": {
+      "produced": "0",
+      "used": "0",
+      "eaten": "16",
+      "unmet": "0",
+      "spoiled": "2",
+      "lost": "0",
+      "external": "0",
+      "imported": "37",
+      "exported": "18"
+     },
+     "bread": {
+      "produced": "190",
+      "used": "0",
+      "eaten": "97",
+      "unmet": "0",
+      "spoiled": "57",
+      "lost": "0",
+      "external": "0",
+      "imported": "1",
+      "exported": "37"
+     },
+     "water": {
+      "produced": "162",
+      "used": "0",
+      "eaten": "131",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "36",
+      "exported": "65"
+     }
+    },
+    "calis": {
+     "herb": {
+      "produced": "0",
+      "used": "0",
+      "eaten": "34",
+      "unmet": "0",
+      "spoiled": "15",
+      "lost": "0",
+      "external": "0",
+      "imported": "63",
+      "exported": "12"
+     },
+     "ore": {
+      "produced": "47",
+      "used": "0",
+      "eaten": "36",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "8",
+      "exported": "14"
+     },
+     "essence": {
+      "produced": "20",
+      "used": "0",
+      "eaten": "14",
+      "unmet": "0",
+      "spoiled": "1",
+      "lost": "0",
+      "external": "0",
+      "imported": "0",
+      "exported": "0"
+     },
+     "seeds": {
+      "produced": "13",
+      "used": "0",
+      "eaten": "21",
+      "unmet": "0",
+      "spoiled": "4",
+      "lost": "0",
+      "external": "0",
+      "imported": "16",
+      "exported": "0"
+     },
+     "grain": {
+      "produced": "101",
+      "used": "189",
+      "eaten": "33",
+      "unmet": "0",
+      "spoiled": "5",
+      "lost": "0",
+      "external": "0",
+      "imported": "122",
+      "exported": "0"
+     },
+     "work": {
+      "produced": "47",
+      "used": "0",
+      "eaten": "37",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "3",
+      "exported": "3"
+     },
+     "wool": {
+      "produced": "0",
+      "used": "0",
+      "eaten": "41",
+      "unmet": "0",
+      "spoiled": "2",
+      "lost": "0",
+      "external": "0",
+      "imported": "45",
+      "exported": "0"
+     },
+     "potion": {
+      "produced": "0",
+      "used": "0",
+      "eaten": "36",
+      "unmet": "0",
+      "spoiled": "4",
+      "lost": "0",
+      "external": "0",
+      "imported": "41",
+      "exported": "0"
+     },
+     "bread": {
+      "produced": "189",
+      "used": "0",
+      "eaten": "156",
+      "unmet": "0",
+      "spoiled": "51",
+      "lost": "0",
+      "external": "0",
+      "imported": "18",
+      "exported": "0"
+     },
+     "water": {
+      "produced": "156",
+      "used": "0",
+      "eaten": "215",
+      "unmet": "0",
+      "spoiled": "0",
+      "lost": "0",
+      "external": "0",
+      "imported": "68",
+      "exported": "9"
+     }
+    }
+   }
+  }
+ }
+}

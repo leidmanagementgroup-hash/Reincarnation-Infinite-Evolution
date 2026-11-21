@@ -1,0 +1,80 @@
+{
+ "seed": 19425,
+ "source": "e67bd18",
+ "economy": {
+  "schema": 1,
+  "balance": "1250",
+  "markets": {
+   "vela": {
+    "day": 1,
+    "stock": {
+     "herb": "9",
+     "ore": "4",
+     "seeds": "8",
+     "grain": "6",
+     "work": "6",
+     "wool": "3",
+     "potion": "4",
+     "bread": "5",
+     "water": "6"
+    }
+   },
+   "filoni": {
+    "day": 1,
+    "stock": {
+     "herb": "3",
+     "seeds": "2",
+     "grain": "2",
+     "work": "11",
+     "wool": "8",
+     "potion": "3",
+     "bread": "5",
+     "water": "6"
+    }
+   },
+   "velaris": {
+    "day": 1,
+    "stock": {
+     "herb": "12",
+     "ore": "2",
+     "essence": "5",
+     "seeds": "4",
+     "grain": "2",
+     "work": "3",
+     "potion": "8",
+     "bread": "5",
+     "water": "6"
+    }
+   },
+   "namar": {
+    "day": 1,
+    "stock": {
+     "herb": "7",
+     "ore": "2",
+     "seeds": "11",
+     "grain": "14",
+     "work": "6",
+     "wool": "10",
+     "potion": "3",
+     "bread": "5",
+     "water": "6"
+    }
+   },
+   "calis": {
+    "day": 1,
+    "stock": {
+     "herb": "3",
+     "ore": "7",
+     "essence": "6",
+     "seeds": "3",
+     "grain": "6",
+     "work": "9",
+     "wool": "3",
+     "potion": "5",
+     "bread": "5",
+     "water": "6"
+    }
+   }
+  }
+ }
+}

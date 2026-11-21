@@ -297,9 +297,58 @@
     sync(s);
     return {day:flows.day,markets:MarketFlows.report(flows,profiles,s.economy.markets),transit:MarketFlows.inTransit(flows),
       work:Object.fromEntries(profiles.map(p=>[p.id,MarketFlows.activity(p,s.economy.markets[p.id].stock)])),
+      outlook:Object.fromEntries(profiles.map(p=>[p.id,MarketFlows.outlook(p,s.economy.markets[p.id].stock,flows.wealth[p.id])])),
+      routes:MarketFlows.routesFor(profiles),
       audit:MarketFlows.audit(flows,profiles,s.economy.markets)};
   }
 
-  window.Economy={create,restore,wallet,view,command,tick,sites,use,actors,shortage,supplyVelarisMarket,flowReport,profiles};
+  /* ---- API per sistemi futuri (negozi e attività del giocatore, NPC mercanti): nessuna interfaccia, nessun effetto
+     sul denaro. Tutte le merci che entrano o escono dai mercati passano dal registro dei flussi come flussi esterni. ---- */
+  const goodId=id=>id==='potions'?'potion':id;
+  const capacityFor=(profile,id,flows)=>BigInt(flows&&window.MarketFlows?MarketFlows.capacity(profile,id):(own(profile.goods,id)?profile.goods[id][0]:6)+2);
+  /* Quotazione di una merce in un mercato (anche lontano dal giocatore). `stock` facoltativo: ipotizza una scorta diversa. */
+  function quote(s,marketId,id,stock){
+    const profile=own(marketBook,marketId)?marketBook[marketId]:null,key=goodId(id);
+    const item=profile&&s?.economy&&Inventory.definition(s,key);
+    if(!item||item.quest)return null;
+    const c=clock(s),have=stock===undefined?stockAt(fresh(s,s.economy.markets[profile.id],profile,c.day),item.id):amountOf(stock);
+    if(have===null)return null;
+    const {buy,sell}=price(s,profile,{day:c.day,stock:{[item.id]:String(have)}},item,c);
+    const target=own(profile.goods,item.id)?profile.goods[item.id][0]:6;
+    const flows=s.economy.flows&&window.MarketFlows?s.economy.flows:null;
+    return {market:profile.id,id:item.id,stock:String(have),target,buy,sell,
+      index:flows?MarketFlows.multiplier(flows,profile,item.id,have):1000,listed:own(profile.goods,item.id),
+      capacity:String(capacityFor(profile,item.id,flows))};
+  }
+  /* Un negozio, un mercante o un residente porta merci al mercato. Restituisce la quantità accettata (BigInt),
+     limitata dalla capacità del magazzino: nulla viene creato oltre quanto dichiarato. */
+  function deliver(s,marketId,id,quantity){
+    const profile=own(marketBook,marketId)?marketBook[marketId]:null,key=goodId(id),qty=amountOf(quantity);
+    const item=profile&&s?.economy&&Inventory.definition(s,key);
+    if(!item||item.quest||qty===null||qty===0n)return 0n;
+    const c=clock(s),where=fresh(s,s.economy.markets[profile.id],profile,c.day),stock=stockAt(where,item.id);
+    const room=capacityFor(profile,item.id,s.economy.flows)-stock;
+    if(room<=0n)return 0n;
+    const moved=minBig(qty,room);
+    updateStock(where,item.id,stock+moved);
+    s.economy.markets[profile.id]=where;
+    if(s.economy.flows)MarketFlows.external(s.economy.flows,profile.id,item.id,moved);
+    return moved;
+  }
+  /* Un negozio o un mercante preleva merci dal mercato. Restituisce la quantità effettivamente prelevata (BigInt). */
+  function procure(s,marketId,id,quantity){
+    const profile=own(marketBook,marketId)?marketBook[marketId]:null,key=goodId(id),qty=amountOf(quantity);
+    const item=profile&&s?.economy&&Inventory.definition(s,key);
+    if(!item||item.quest||qty===null||qty===0n)return 0n;
+    const c=clock(s),where=fresh(s,s.economy.markets[profile.id],profile,c.day),stock=stockAt(where,item.id);
+    const moved=minBig(qty,stock);
+    if(moved===0n)return 0n;
+    updateStock(where,item.id,stock-moved);
+    s.economy.markets[profile.id]=where;
+    if(s.economy.flows)MarketFlows.external(s.economy.flows,profile.id,item.id,-moved);
+    return moved;
+  }
+
+  window.Economy={create,restore,wallet,view,command,tick,sites,use,actors,shortage,supplyVelarisMarket,flowReport,profiles,quote,deliver,procure};
 })();
 
