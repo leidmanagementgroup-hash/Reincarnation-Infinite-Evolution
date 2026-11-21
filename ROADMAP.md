@@ -47,6 +47,9 @@
 - [ ] Localizzazione in altre lingue (oggi solo italiano).
 - [ ] Continuare ad aggiornare `LEGGIMI.md` a ogni nuova release.
 
+## Strumenti e plugin valutati (2026-11-21, Claude) — nulla installato
+Ricerca nel catalogo plugin (Anthropic Directory) per JS/Canvas, pixel art, generazione procedurale, IA degli NPC, pathfinding, prestazioni, test nel browser, Unity e Unreal. **Per generazione procedurale di città, IA degli NPC e pathfinding non esiste alcun plugin pertinente nel catalogo**: restano soluzioni interne (`urban-exterior.js`, `urban-life.js`, sonde in `tests/`). Valutati e scartati per ora: Unity (Unity Technologies) e Unreal Engine Skills (Epic Games) — richiedono il rispettivo editor/engine e non portano vantaggi senza migrare; SpriteCook (invia richieste a un servizio esterno, contrasta con la regola degli asset originali e offline); PlayCanvas (motore 3D WebGL); Agent Protocols, Shipwright, bee (flussi generici con hook privilegiati che duplicano e confliggono con `AGENTS.md`); E2E Test Generator (presuppone rotte e form, assenti qui); Bundle Size Sentinel (pensato per bundle npm). Unico candidato utile e opzionale: **Playwright (Microsoft, server MCP)** per test automatici dell'HTML in Chromium/Firefox/WebKit, utile a RISK-008 e RISK-002; da installare solo su approvazione dell'utente. Gli strumenti già disponibili senza installare nulla: browser integrato, `tests/prova-prestazioni.mjs`, `tests/sonda-residenti.cjs`, skill `code-review`, `simplify`, `security-review`.
+
 ## Idee da valutare (non pianificate)
 - Modalità di gioco aggiuntive o sfide legate alla rinascita.
 - Strumenti di sviluppo (pannello debug per salto di regione/tempo).

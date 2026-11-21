@@ -2,6 +2,10 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-21] Valutazione di plugin e skill — Claude
+### Documentazione
+- Registrata in `ROADMAP.md` la ricerca di plugin/skill per il Mega City Overhaul (nulla installato, nessun codice toccato).
+
 ## [2026-11-21] Passo 2 del piano grafico: luce e vegetazione di Velaris — Claude
 Unito a `main` per fast-forward su approvazione dell'utente (ultimo commit del passo: `1f77511`). BUG-011 e UX-001 (affollamento serale) restano documentati in `PROGRESS.md`.
 ### Aggiunto
