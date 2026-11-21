@@ -1,12 +1,12 @@
 # PROGRESS.md — Stato del progetto
 
-> Ultimo aggiornamento 2026-11-21, Claude, integrazione dell'economia dinamica della Fase 3 (due unità) con Velaris rifinita, sul branch `claude/integrazione-economia-fase3` (non unito a `main`).
+> Ultimo aggiornamento 2026-11-21, Claude, economia dinamica della Fase 3 (due unità) unita a `main` per fast-forward (`07e42e9` → `4763426`) su approvazione dell'utente. PERF-001 aperto e prioritario.
 
 ## In corso
-Integrazione dell'**economia dinamica della Fase 3** (branch economico `claude/mega-city-fase3-economia`, `26893c5`) su `main` `07e42e9` (Velaris rifinita): **completata e verificata sul branch `claude/integrazione-economia-fase3`, in attesa dell'approvazione dell'utente per il merge su `main`.** File: `market-flows.js` (nuovo), `trade-economy.js`, `build.py`, `Reincarnation.html`, test e documenti. Nessun file `urban-*.js`, `panels.js`, `interface.js` modificato.
+_Nessuna modifica in corso._
 
 ## Prossimo passo
-0. **Economia dinamica integrata sul branch `claude/integrazione-economia-fase3`**: attende l'approvazione dell'utente per il merge su `main`. Poi, in ordine (da approvare): rendere dinamica la lista dei mercati in `Economy` (oggi cinque, come richiede la validazione del salvataggio); mostrare tendenze, merci in viaggio e ricchezza nel pannello dell'economia (`economy-panel.js`, `panels.js`); collegare i mestieri dei residenti di `urban-life.js` a `MarketFlows.activity`; decidere la profondità dei mercati (scorte obiettivo per dimensione) per il commercio del giocatore. Il Generatore Procedurale Urbano 2.0 può usare `MarketFlows.settlementProfile`. Vedi anche PERF-001 (costo di `path()` già presente su `main`).
+0. **PERF-001 (aperto e prioritario)**: indagare e correggere il costo di `path()` (vedi *Problemi conosciuti*) con un intervento separato, prima del Generatore Procedurale Urbano 2.0 e senza comprometterlo. **L'economia dinamica è unita a `main`** (2026-11-21, `4763426`). Poi, in ordine (da approvare): rendere dinamica la lista dei mercati in `Economy` (oggi cinque, come richiede la validazione del salvataggio); mostrare tendenze, merci in viaggio e ricchezza nel pannello dell'economia (`economy-panel.js`, `panels.js`); collegare i mestieri dei residenti di `urban-life.js` a `MarketFlows.activity`; decidere la profondità dei mercati (scorte obiettivo per dimensione) per il commercio del giocatore. Il Generatore Procedurale Urbano 2.0 può usare `MarketFlows.settlementProfile`. Vedi anche PERF-001 (costo di `path()` già presente su `main`).
 1. La rifinitura orientale chiude UX-002 e UX-003. Il prossimo intervento previsto è il **Generatore Procedurale Urbano 2.0**, da avviare con approvazione. Partire dai lotti orientali, da `settlementTypes` e dalle cache del terreno. Conservare porte, seed e compatibilità dei salvataggi.
 2. I passi grafici 3–5 attendono una nuova conferma. I branch precedenti `velaris-city-expansion` e `velaris-city-verified` restano come copie di lavoro. Ripartire da `main`.
 3. Per la **fase 3** l'economia dinamica (produzione, consumo, rotte, prezzi, registro) è integrata sul branch di integrazione; il banco di Velaris riceve prodotti locali e merci di commissione registrati come flussi esterni. Restano da collegare richieste individuali, eventi e servizi (vedi punto 0).
@@ -27,7 +27,7 @@ La tabella elenca i sistemi disponibili. La sezione seguente indica le verifiche
 | Velaris (cittadina), sei quartieri (quattro storici più Portici del Vetro e Orti dell'Alambicco), otto interni con la Serra delle Talee e servizi interattivi | ✅ | `urban-exterior.js`, `urban-interiors.js`, `urban-world.js`, `urban-services.js`, `urban-life.js` |
 | Piazza e ponte centrale di Velaris con intarsi, riflessi e lanterne governate dal calendario | ✅ | `urban-exterior.js` |
 | Rifornimento del Mercato di Velaris dai mestieri all’alba e dalle commissioni consegnate | ✅ | `urban-life.js`, `trade-economy.js`, `economy-panel.js` |
-| Economia dinamica dei cinque mercati: 9 professioni, consumo, deperimento, 8 rotte commerciali, prezzi da scarsità e ricchezza, registro esatto delle merci; API `quote`/`deliver`/`procure`; profili e rotte per nuove città | ✅ sul branch di integrazione (non su `main`) | `market-flows.js`, `trade-economy.js` |
+| Economia dinamica dei cinque mercati: 9 professioni, consumo, deperimento, 8 rotte commerciali, prezzi da scarsità e ricchezza, registro esatto delle merci; API `quote`/`deliver`/`procure`; profili e rotte per nuove città | ✅ | `market-flows.js`, `trade-economy.js` |
 | 44 stirpi, rami evolutivi, predisposizioni, innate, metamorfosi | ✅ | `engine.js`, `expansion-species.js`, `continental-species.js`, `growth.js` |
 | Arte pixel procedurale (sprite, forme evolute, ritratti, icone) | ✅ | `sprites.js`, `expansion-art.js`, `legendary-land.js` |
 | Combattimento, tecniche, fusioni (K), boss a fasi | ✅ | `engine.js` |
@@ -51,7 +51,7 @@ La tabella elenca i sistemi disponibili. La sezione seguente indica le verifiche
 
 ## Test e verifiche
 
-### Integrazione dell'economia dinamica con Velaris rifinita (Claude, 2026-11-21, branch `claude/integrazione-economia-fase3`)
+### Integrazione dell'economia dinamica con Velaris rifinita (Claude, 2026-11-21, branch `claude/integrazione-economia-fase3`; unita a `main` per fast-forward, `4763426`)
 **Base**: `main` `07e42e9` (Velaris rifinita, Codex) più il merge senza conflitti di `claude/mega-city-fase3-economia` `26893c5` (prima e seconda unità economiche). Unico file toccato da entrambi: `tests/verifica-integrazione.cjs` (sezioni diverse; unione automatica verificata). `urban-exterior.js`, `urban-life.js`, `urban-world.js`, `urban-interiors.js`, `urban-services.js`, `panels.js`, `interface.js`: **identici a `main`** (diff vuoto). Le cartelle di lavoro di Codex e il backup `Downloads/Codex-backup-2026-11-21` non sono stati toccati. Branch economico originale intatto.
 **Ordine dei moduli** (`build.py`): `daily-life.js` → `market-flows.js` → `trade-economy.js` → … → `urban-services.js` → `urban-life.js` → `engine.js`; `MarketFlows` è definito prima di `Economy`, che a sua volta precede `UrbanLife` (che lo usa a runtime). `Reincarnation.html` ricostruito: riproducibile (due build identiche), 1,68 MB, un solo `window.MarketFlows=`; l'HTML di `main` coincideva già con i suoi sorgenti.
 **Verifiche eseguite sul branch (tutte superate)**:
@@ -63,6 +63,13 @@ La tabella elenca i sistemi disponibili. La sezione seguente indica le verifiche
 - Salvataggi: fixture reali `tests/fixtures/economia-senza-flussi.json` (economia di `main`) e `economia-flussi-v1.json` (flussi di `6bf7317`) caricate senza perdite; formato `economy.flows` `schema: 1` invariato.
 - Conservazione: registro esatto per mercato e merce (`scorta = apertura + prodotto − usato − consumato − deperito + flussi esterni + importato − esportato`) in pari in ogni prova; arbitraggio e giri compra-rivendi non creano merce né denaro.
 **Non verificato**: bilanciamento giocando (sensazione e ritmo dei guadagni), frame rate nel browser con la nuova economia (nessuna modifica al disegno; il costo è un passo al giorno di calendario, 0,4 ms con cinque mercati), tocco, interfaccia dell'economia (nessuna nuova).
+
+**Verifiche dopo il merge su `main`** (fast-forward `07e42e9` → `4763426`; `origin/main` non aveva ricevuto nuovi commit; worktree puliti; push eseguito e stato remoto confermato `4763426` = locale):
+- Velaris intatta: `git diff 07e42e9 HEAD` su `urban-exterior.js`, `urban-life.js`, `urban-world.js`, `urban-interiors.js`, `urban-services.js`, `panels.js`, `interface.js`, `engine.js` è vuoto (lanterne, routine, UX-002 e UX-003 invariati).
+- Funzioni economiche presenti: `Economy.quote/deliver/procure/flowReport/profiles`, `MarketFlows` (9 professioni, 8 rotte, 5 mercati, `settlementProfile`, `routesFor`, `audit`, `rebase`), `market-flows.js` prima di `trade-economy.js` in `build.py`.
+- Test rieseguiti su `main` con codice di uscita 0: `verifica-integrazione.cjs`, `economia-flussi.cjs` (158), `economia-flussi-2.cjs`, `economia-integrazione.cjs` (147; 258 unità consegnate dalla città tutte nel registro); `sonda-percorsi.cjs` 0 bloccati su 41 040, tratti 3 350 con 0 illegali (`path()` medio 8,0 ms, massimo 59,7 ms: vedi PERF-001), `sonda-residenti.cjs` 0 sovrapposizioni; browser `prova-browser.cjs` 10/10, `prova-browser-velaris-est.cjs` 12/12, `prova-browser-economia.cjs` (vecchio salvataggio di `07e42e9` caricato con scorte identiche).
+- `Reincarnation.html` ricostruito da `build.py` in un file separato: identico a quello committato.
+- Branch originali, worktree e backup non toccati (`claude/mega-city-fase3-economia` `26893c5`, `claude/integrazione-economia-fase3` `4763426`, cartelle di Codex).
 
 ### Rifinitura dei quartieri orientali
 
@@ -188,7 +195,7 @@ BUG-011 risolto e unito a `main` (vedi sotto). La revisione del 2026-11-21 ha ag
 | ECO-001 | Design | I mercati sono poco profondi (scorte obiettivo da 4 a 16 unità, prezzi interi da 2 a 14 Scintille): il commercio del giocatore rende poche Scintille per unità e le opportunità si esauriscono in poche decine di unità (arbitraggio immediato: 18 trasferimenti, 23 Scintille). Da decidere: scorte obiettivo proporzionali alla dimensione della città. |
 | ECO-002 | Debito | `Economy` ha cinque mercati fissi e il salvataggio ne richiede esattamente cinque. `MarketFlows` accetta qualsiasi numero (provati 35, 100 e 300): per le nuove città serve rendere dinamica la lista in `trade-economy.js`, insieme al Generatore Procedurale Urbano 2.0. |
 | ECO-003 | Interfaccia | Nessuna interfaccia mostra tendenze, merci in viaggio e ricchezza (`Economy.flowReport` le fornisce). I mestieri dei residenti di `urban-life.js` non sono ancora collegati a `MarketFlows.activity`. |
-| PERF-001 | Prestazioni | Già presente su `main` `07e42e9` (non causato dall'economia): `path()` in `urban-exterior.js` ha medio 8,5 ms, p95 28–31 ms e 141–185 chiamate oltre 30 ms su 3 350 tratte (seme 555, 2024, 1, 77, 3, 19425; massimo 62–76 ms); prima della rifinitura orientale (`e67bd18`) erano medio 7,2 ms, p95 23,9 ms, 1 chiamata oltre 30 ms. L'integrazione dà gli stessi valori di `main` (118–143 oltre 30 ms). Da indagare insieme a Sol/Codex (probabile effetto dei nuovi ostacoli orientali). |
+| PERF-001 | Prestazioni | **Aperto e prioritario** (decisione dell'utente, 2026-11-21: intervento separato, da fare prima del Generatore Procedurale Urbano 2.0 e senza compromettere il Generatore; non corretto durante il merge dell'economia). Già presente su `main` `07e42e9` (non causato dall'economia): `path()` in `urban-exterior.js` ha medio 8,5 ms, p95 28–31 ms e 141–185 chiamate oltre 30 ms su 3 350 tratte (seme 555, 2024, 1, 77, 3, 19425; massimo 62–76 ms); prima della rifinitura orientale (`e67bd18`) erano medio 7,2 ms, p95 23,9 ms, 1 chiamata oltre 30 ms. L'integrazione dà gli stessi valori di `main` (118–143 oltre 30 ms). Da indagare insieme a Sol/Codex (probabile effetto dei nuovi ostacoli orientali). |
 
 ### BUG-011 ✅ Residenti fermi nel punto di partenza — risolto e unito a `main` (2026-11-21, approvazione dell'utente, commit `fbdba49`)
 **Diagnosi** (sonda `tests/sonda-percorsi.cjs`, semi 555, 1, 77, 3, minuti ogni 20, tutti i residenti = 27 072 campioni):
