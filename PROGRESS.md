@@ -1,14 +1,14 @@
 # PROGRESS.md — Stato del progetto
 
-> Ultimo aggiornamento 2026-11-21, Claude, passo 2 del piano grafico unito a `main` (fast-forward).
+> Ultimo aggiornamento 2026-11-21, Claude, BUG-011 (percorsi dei residenti) unito a `main`.
 
 ## In corso
 _Nessuna modifica in corso._
 
 ## Prossimo passo
-0. **Piano grafico**: passi 1 e 2 (luce e vegetazione) completati e uniti a `main` (approvazione dell'utente 2026-11-21; prestazioni: vedi *Prestazioni, verifica finale*). **Passi 3-5 non iniziati: attendono una nuova conferma dell'utente.** Problemi aperti: **UX-001** (affollamento serale degli NPC). **BUG-011** corretto sul branch `claude/bug-011-percorsi` (da approvare e unire). Attenzione ai lavori non committati di Codex (sezione dedicata).
+0. **Piano grafico**: passi 1 e 2 (luce e vegetazione) completati e uniti a `main` (approvazione dell'utente 2026-11-21; prestazioni: vedi *Prestazioni, verifica finale*). **Passi 3-5 non iniziati: attendono una nuova conferma dell'utente.** Problemi aperti: **UX-001** (affollamento serale degli NPC). **BUG-011** risolto e unito a `main`. Attenzione ai lavori non committati di Codex (sezione dedicata).
 1. Aprire un branch dalla versione corrente di `main` per la **fase 2** del [piano ufficiale](MEGA_CITY_OVERHAUL.md). Estendere il contrasto visivo tra il Mercato dei Venti e i Giardini delle Lanterne e facilitare l’orientamento con segnaletica e mappa. Partire da `urban-exterior.js`, `urban-world.js` e dal [piano grafico](PIANO_GRAFICO.md).
-2. ~~Sovrapposizione dei residenti~~ risolta (vedi *Test e verifiche → Residenti di Velaris*, unita a `main`). Resta **UX-001** (sotto); BUG-011 è corretto sul branch `claude/bug-011-percorsi`.
+2. ~~Sovrapposizione dei residenti~~ risolta (vedi *Test e verifiche → Residenti di Velaris*, unita a `main`). Resta **UX-001** (sotto); BUG-011 è risolto su `main`.
 3. Per la **fase 3** il banco di Velaris riceve già prodotti locali e merci di commissione. Riutilizzare le scorte persistenti e il mercato condiviso con la Selva. Restano da collegare altre filiere, richieste individuali, eventi e servizi.
 4. La morte dei compagni di gilda (RISK-007) è confermata dall'utente e documentata in `GAME_DESIGN.md` §4.9; resta da verificarne il bilanciamento in partita. La misura grafica comparativa è disponibile in questo registro. Lo script per ripeterla resta da integrare nella suite condivisa.
 
@@ -133,7 +133,7 @@ La revisione ha valutato il [piano grafico](PIANO_GRAFICO.md) prima dell’autor
 File: `C:\Users\elaro\Downloads\Reincarnation\Reincarnation.html` (doppio clic, oppure aprirlo in Edge/Chrome). Se il browser blocca qualcosa con `file://`, servirlo con `python -m http.server 8765 --bind 127.0.0.1` dalla cartella del progetto e aprire `http://127.0.0.1:8765/Reincarnation.html`. Ricostruzione: `python build.py Reincarnation.html`. Il salvataggio vive in `localStorage` per origine: aprire il file da `file://` e da `http://127.0.0.1` produce partite separate (usare export/import JSON per spostarle).
 
 ## Problemi conosciuti
-BUG-011 corretto sul branch `claude/bug-011-percorsi`, in attesa di approvazione (vedi sotto). La revisione del 2026-11-21 ha aggiunto i rilievi RISK-006…RISK-010. Rischi e debiti noti:
+BUG-011 risolto e unito a `main` (vedi sotto). La revisione del 2026-11-21 ha aggiunto i rilievi RISK-006…RISK-010. Rischi e debiti noti:
 
 | ID | Tipo | Descrizione |
 |---|---|---|
@@ -148,7 +148,7 @@ BUG-011 corretto sul branch `claude/bug-011-percorsi`, in attesa di approvazione
 | RISK-009 | Bilanciamento | `Adaptive.encounter` ora anche per i colpi dei compagni: contatore di incontri dei boss leggendari può salire in anticipo. |
 | RISK-010 | Processo | Stesso autore Git per tutti gli agenti: mantenere la riga `Agente:` nei messaggi di commit. |
 
-### BUG-011 ✅ Residenti fermi nel punto di partenza — corretto sul branch `claude/bug-011-percorsi` (2026-11-21, in attesa di approvazione per `main`)
+### BUG-011 ✅ Residenti fermi nel punto di partenza — risolto e unito a `main` (2026-11-21, approvazione dell'utente, commit `fbdba49`)
 **Diagnosi** (sonda `tests/sonda-percorsi.cjs`, semi 555, 1, 77, 3, minuti ogni 20, tutti i residenti = 27 072 campioni):
 - Riprodotti esattamente i 768 campioni (2,84%) sul commit `c487713`; su `main` (`552a66d`, dopo la distribuzione delle soste) sono 709 (2,62%), 82 tratte distinte.
 - Il grafo restituiva sempre un percorso (0 tratte senza percorso): le 82 tratte erano **scartate** da `route()` in `urban-life.js` perché un segmento, controllato a passi di 3 px con raggio 5, entrava nel raggio di un ostacolo. 33 segmenti distinti; il centro del residente non entra mai nell'ostacolo (spazio libero minimo 4,0 px), ma il corpo di raggio 5 lo **sfiorava di 0,03–1,0 px**: è un attraversamento illegale, non un controllo troppo severo.
