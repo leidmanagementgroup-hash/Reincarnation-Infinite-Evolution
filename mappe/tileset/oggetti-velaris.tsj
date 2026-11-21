@@ -1,0 +1,422 @@
+{
+ "columns": 0,
+ "grid": {
+  "height": 1,
+  "orientation": "orthogonal",
+  "width": 1
+ },
+ "margin": 0,
+ "name": "oggetti-velaris",
+ "objectalignment": "bottomleft",
+ "spacing": 0,
+ "tilecount": 14,
+ "tiledversion": "1.11.0",
+ "tileheight": 64,
+ "tilewidth": 64,
+ "type": "tileset",
+ "version": "1.10",
+ "tiles": [
+  {
+   "id": 0,
+   "image": "oggetti/fruitTree.png",
+   "imageheight": 64,
+   "imagewidth": 64,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "fruitTree"
+    },
+    {
+     "name": "ancoraX",
+     "type": "int",
+     "value": 32
+    },
+    {
+     "name": "ancoraY",
+     "type": "int",
+     "value": 8
+    },
+    {
+     "name": "solido",
+     "type": "int",
+     "value": 6
+    }
+   ]
+  },
+  {
+   "id": 1,
+   "image": "oggetti/tree.png",
+   "imageheight": 64,
+   "imagewidth": 64,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "tree"
+    },
+    {
+     "name": "ancoraX",
+     "type": "int",
+     "value": 32
+    },
+    {
+     "name": "ancoraY",
+     "type": "int",
+     "value": 8
+    },
+    {
+     "name": "solido",
+     "type": "int",
+     "value": 6
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "image": "oggetti/lamp.png",
+   "imageheight": 64,
+   "imagewidth": 64,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "lamp"
+    },
+    {
+     "name": "ancoraX",
+     "type": "int",
+     "value": 32
+    },
+    {
+     "name": "ancoraY",
+     "type": "int",
+     "value": 8
+    },
+    {
+     "name": "solido",
+     "type": "int",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "image": "oggetti/prismLamp.png",
+   "imageheight": 64,
+   "imagewidth": 64,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "prismLamp"
+    },
+    {
+     "name": "ancoraX",
+     "type": "int",
+     "value": 32
+    },
+    {
+     "name": "ancoraY",
+     "type": "int",
+     "value": 8
+    },
+    {
+     "name": "solido",
+     "type": "int",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "image": "oggetti/fountain.png",
+   "imageheight": 64,
+   "imagewidth": 64,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "fountain"
+    },
+    {
+     "name": "ancoraX",
+     "type": "int",
+     "value": 32
+    },
+    {
+     "name": "ancoraY",
+     "type": "int",
+     "value": 8
+    },
+    {
+     "name": "solido",
+     "type": "int",
+     "value": 9
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "image": "oggetti/pond.png",
+   "imageheight": 64,
+   "imagewidth": 64,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "pond"
+    },
+    {
+     "name": "ancoraX",
+     "type": "int",
+     "value": 32
+    },
+    {
+     "name": "ancoraY",
+     "type": "int",
+     "value": 8
+    },
+    {
+     "name": "solido",
+     "type": "int",
+     "value": 19
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "image": "oggetti/planter.png",
+   "imageheight": 64,
+   "imagewidth": 64,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "planter"
+    },
+    {
+     "name": "ancoraX",
+     "type": "int",
+     "value": 32
+    },
+    {
+     "name": "ancoraY",
+     "type": "int",
+     "value": 8
+    },
+    {
+     "name": "solido",
+     "type": "int",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "image": "oggetti/crate.png",
+   "imageheight": 64,
+   "imagewidth": 64,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "crate"
+    },
+    {
+     "name": "ancoraX",
+     "type": "int",
+     "value": 32
+    },
+    {
+     "name": "ancoraY",
+     "type": "int",
+     "value": 8
+    },
+    {
+     "name": "solido",
+     "type": "int",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "image": "oggetti/stall.png",
+   "imageheight": 64,
+   "imagewidth": 64,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "stall"
+    },
+    {
+     "name": "ancoraX",
+     "type": "int",
+     "value": 32
+    },
+    {
+     "name": "ancoraY",
+     "type": "int",
+     "value": 8
+    },
+    {
+     "name": "solido",
+     "type": "int",
+     "value": 9
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "image": "oggetti/sign.png",
+   "imageheight": 64,
+   "imagewidth": 64,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "sign"
+    },
+    {
+     "name": "ancoraX",
+     "type": "int",
+     "value": 32
+    },
+    {
+     "name": "ancoraY",
+     "type": "int",
+     "value": 8
+    },
+    {
+     "name": "solido",
+     "type": "int",
+     "value": 0
+    },
+    {
+     "name": "etichetta",
+     "type": "string",
+     "value": "greenhouse"
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "image": "oggetti/banner.png",
+   "imageheight": 64,
+   "imagewidth": 64,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "banner"
+    },
+    {
+     "name": "ancoraX",
+     "type": "int",
+     "value": 32
+    },
+    {
+     "name": "ancoraY",
+     "type": "int",
+     "value": 8
+    },
+    {
+     "name": "solido",
+     "type": "int",
+     "value": 0
+    },
+    {
+     "name": "etichetta",
+     "type": "string",
+     "value": "market"
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "image": "oggetti/anvil.png",
+   "imageheight": 64,
+   "imagewidth": 64,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "anvil"
+    },
+    {
+     "name": "ancoraX",
+     "type": "int",
+     "value": 32
+    },
+    {
+     "name": "ancoraY",
+     "type": "int",
+     "value": 8
+    },
+    {
+     "name": "solido",
+     "type": "int",
+     "value": 7
+    }
+   ]
+  },
+  {
+   "id": 12,
+   "image": "oggetti/crystal.png",
+   "imageheight": 64,
+   "imagewidth": 64,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "crystal"
+    },
+    {
+     "name": "ancoraX",
+     "type": "int",
+     "value": 32
+    },
+    {
+     "name": "ancoraY",
+     "type": "int",
+     "value": 8
+    },
+    {
+     "name": "solido",
+     "type": "int",
+     "value": 0
+    }
+   ]
+  },
+  {
+   "id": 13,
+   "image": "oggetti/lensSpire.png",
+   "imageheight": 64,
+   "imagewidth": 64,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "lensSpire"
+    },
+    {
+     "name": "ancoraX",
+     "type": "int",
+     "value": 32
+    },
+    {
+     "name": "ancoraY",
+     "type": "int",
+     "value": 8
+    },
+    {
+     "name": "solido",
+     "type": "int",
+     "value": 10
+    }
+   ]
+  }
+ ]
+}

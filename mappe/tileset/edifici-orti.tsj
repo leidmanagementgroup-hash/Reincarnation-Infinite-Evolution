@@ -1,0 +1,812 @@
+{
+ "columns": 0,
+ "grid": {
+  "height": 1,
+  "orientation": "orthogonal",
+  "width": 1
+ },
+ "margin": 0,
+ "name": "edifici-orti",
+ "objectalignment": "bottomleft",
+ "spacing": 0,
+ "tilecount": 24,
+ "tiledversion": "1.11.0",
+ "tileheight": 141,
+ "tilewidth": 168,
+ "type": "tileset",
+ "version": "1.10",
+ "tiles": [
+  {
+   "id": 0,
+   "image": "edifici/greenhouse.png",
+   "imagewidth": 168,
+   "imageheight": 141,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "conservatory"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 1
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 1,
+   "image": "edifici/annesso-3-0.png",
+   "imagewidth": 101,
+   "imageheight": 114,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "longhouse"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 2
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "image": "edifici/annesso-3-1.png",
+   "imagewidth": 107,
+   "imageheight": 116,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "herb-loft"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 0
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "image": "edifici/annesso-3-2.png",
+   "imagewidth": 99,
+   "imageheight": 122,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "cottage"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 0
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "image": "edifici/annesso-3-3.png",
+   "imagewidth": 100,
+   "imageheight": 125,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "longhouse"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 1
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "image": "edifici/annesso-3-4.png",
+   "imagewidth": 111,
+   "imageheight": 111,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "herb-loft"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 2
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "image": "edifici/annesso-4-0.png",
+   "imagewidth": 102,
+   "imageheight": 133,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "herb-loft"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 2
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "image": "edifici/annesso-4-1.png",
+   "imagewidth": 107,
+   "imageheight": 107,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "cottage"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 1
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "image": "edifici/annesso-4-2.png",
+   "imagewidth": 112,
+   "imageheight": 108,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "longhouse"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 2
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "image": "edifici/annesso-5-0.png",
+   "imagewidth": 103,
+   "imageheight": 134,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "cottage"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 1
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "image": "edifici/annesso-5-1.png",
+   "imagewidth": 105,
+   "imageheight": 125,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "longhouse"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 0
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "image": "edifici/annesso-5-2.png",
+   "imagewidth": 101,
+   "imageheight": 135,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "herb-loft"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 0
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 12,
+   "image": "edifici/annesso-5-3.png",
+   "imagewidth": 105,
+   "imageheight": 110,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "cottage"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 0
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 13,
+   "image": "edifici/annesso-5-4.png",
+   "imagewidth": 100,
+   "imageheight": 134,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "longhouse"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 0
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 14,
+   "image": "edifici/annesso-5-5.png",
+   "imagewidth": 101,
+   "imageheight": 108,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "herb-loft"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 0
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": false
+    }
+   ]
+  },
+  {
+   "id": 15,
+   "image": "edifici/modello-longhouse-0.png",
+   "imagewidth": 100,
+   "imageheight": 119,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "longhouse"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 0
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": true
+    }
+   ]
+  },
+  {
+   "id": 16,
+   "image": "edifici/modello-longhouse-1.png",
+   "imagewidth": 100,
+   "imageheight": 119,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "longhouse"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 1
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": true
+    }
+   ]
+  },
+  {
+   "id": 17,
+   "image": "edifici/modello-longhouse-2.png",
+   "imagewidth": 100,
+   "imageheight": 119,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "longhouse"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 2
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": true
+    }
+   ]
+  },
+  {
+   "id": 18,
+   "image": "edifici/modello-herb-loft-0.png",
+   "imagewidth": 100,
+   "imageheight": 119,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "herb-loft"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 0
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": true
+    }
+   ]
+  },
+  {
+   "id": 19,
+   "image": "edifici/modello-herb-loft-1.png",
+   "imagewidth": 100,
+   "imageheight": 119,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "herb-loft"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 1
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": true
+    }
+   ]
+  },
+  {
+   "id": 20,
+   "image": "edifici/modello-herb-loft-2.png",
+   "imagewidth": 100,
+   "imageheight": 119,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "herb-loft"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 2
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": true
+    }
+   ]
+  },
+  {
+   "id": 21,
+   "image": "edifici/modello-cottage-0.png",
+   "imagewidth": 100,
+   "imageheight": 119,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "cottage"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 0
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": true
+    }
+   ]
+  },
+  {
+   "id": 22,
+   "image": "edifici/modello-cottage-1.png",
+   "imagewidth": 100,
+   "imageheight": 119,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "cottage"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 1
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": true
+    }
+   ]
+  },
+  {
+   "id": 23,
+   "image": "edifici/modello-cottage-2.png",
+   "imagewidth": 100,
+   "imageheight": 119,
+   "properties": [
+    {
+     "name": "stile",
+     "type": "string",
+     "value": "cottage"
+    },
+    {
+     "name": "colore",
+     "type": "int",
+     "value": 2
+    },
+    {
+     "name": "pad",
+     "type": "int",
+     "value": 14
+    },
+    {
+     "name": "alzata",
+     "type": "int",
+     "value": 55
+    },
+    {
+     "name": "modello",
+     "type": "bool",
+     "value": true
+    }
+   ]
+  }
+ ]
+}

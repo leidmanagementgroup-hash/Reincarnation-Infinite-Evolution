@@ -205,10 +205,11 @@
         cells.get(key).push(box);
       }
     }
-    function addBuilding({name,kind,x,y,w,h,door,district,style,service=null}){
+    function addBuilding({name,kind,x,y,w,h,door,district,style,service=null,key=null}){
       const box={x:Math.round(x-w/2),y:Math.round(y),w,h};
       const color=integer(next,0,2),skin=integer(next,0,0xffff);
-      const entry={id:service||'velaris-building-'+String(buildings.length+1).padStart(3,'0'),
+      // key: identificatore stabile (uguale per ogni seme) usato dalle mappe di Tiled; l'id resta quello di sempre.
+      const entry={id:service||'velaris-building-'+String(buildings.length+1).padStart(3,'0'),key:key||service||null,
         name,kind,style,district,box,door,front:box.y+box.h,color,skin,service};
       buildings.push(entry);
       solid(box);
@@ -267,12 +268,13 @@
       const style=family[(rowIndex+col)%family.length],w=integer(next,style==='bellhouse'?40:65,style==='bellhouse'?60:84);
       const h=integer(next,39,69),x=center+integer(next,-5,5),doorY=street-integer(next,68,103);
       addBuilding({name:names[style]+' '+surnames[(rowIndex*5+col)%surnames.length],kind:['bellhouse','cottage','longhouse','gallery'].includes(style)?'residence':'workshop',
-        x,y:doorY-h-12,w,h,door:{x,y:doorY},district,style});
+        x,y:doorY-h-12,w,h,door:{x,y:doorY},district,style,key:'annesso-'+rowIndex+'-'+col});
     }
+    const propBox=(x,y,r)=>({x:x-r,y:y-r*.7,w:r*2,h:r*1.4});
     const add=(name,x,y,opt={})=>{
-      const prop={name,x,y,...opt};
+      const prop={name,x,y,key:name+'@'+x+','+y,...opt};
       props.push(prop);
-      if(opt.solid){const r=opt.solid;solid({x:x-r,y:y-r*.7,w:r*2,h:r*1.4});}
+      if(opt.solid){prop.solidBox=propBox(x,y,opt.solid);solid(prop.solidBox);}
     };
     for(const sy of streetsY.slice(1,-1)){
       for(const sx of streetsX.slice(1,-1)){
@@ -312,8 +314,87 @@
     for(const b of buildings){
       if(b.service||b.skin%4>1)continue;
       const x=b.door.x+(b.skin&1?1:-1)*Math.min(20,Math.floor(b.box.w/3));
-      const y=b.door.y-5;
-      add(b.district==='kilns'?'crate':'planter',x,y,{district:b.district});
+      const y=b.door.y-5,name=b.district==='kilns'?'crate':'planter';
+      add(name,x,y,{district:b.district,...(b.key?{key:name+'@'+b.key}:{})});
+    }
+    const extraSolids=[];
+    applyMapEdits();
+    // Modifiche fatte con Tiled Map Editor (mappe/*.tmj attive): sostituiscono gli edifici e gli oggetti dell'area della
+    // mappa, lasciano intatto il resto della città. Se l'area modificata non supera i controlli di base, si torna alla
+    // versione procedurale e il motivo finisce in TiledMaps.problems.
+    function applyMapEdits(){
+      const e=window.TiledMaps?.edits?.(id);
+      if(!e)return;
+      const A=e.area,inside=(x,y)=>x>=A.x&&y>=A.y&&x<A.x+A.w&&y<A.y+A.h,errors=[];
+      // copie per tornare indietro: edifici e oggetti vengono modificati sul posto
+      const keepB=buildings.map(b=>({...b,box:{...b.box},door:{...b.door}}));
+      const keepP=props.map(o=>({...o,...(o.solidBox?{solidBox:{...o.solidBox}}:{})}));
+      const byKey=new Map(buildings.filter(b=>b.key&&inside(b.door.x,b.door.y)).map(b=>[b.key,b]));
+      const used=new Set();
+      for(const nb of e.buildings){
+        if(nb.key){
+          const b=byKey.get(nb.key);
+          if(!b){errors.push('Edificio «'+nb.key+'» non presente in quest’area.');continue;}
+          used.add(b);
+          if(b.service){
+            if(nb.box.x!==b.box.x||nb.box.y!==b.box.y||nb.box.w!==b.box.w||nb.box.h!==b.box.h||nb.door.x!==b.door.x||nb.door.y!==b.door.y)
+              errors.push('«'+b.name+'» è bloccato: porta e posizione collegano un interno e non si possono spostare.');
+            continue;
+          }
+          Object.assign(b,{name:nb.name,kind:nb.kind,style:nb.style,color:nb.color,box:{...nb.box},door:{...nb.door},front:nb.box.y+nb.box.h,sprite:undefined});
+        }else{
+          let h=2166136261;for(const ch of String(nb.tiledId))h=Math.imul(h^ch.charCodeAt(0),16777619)>>>0;
+          const b={id:'velaris-building-'+String(buildings.length+1).padStart(3,'0'),key:'tiled-'+nb.tiledId,name:nb.name,kind:nb.kind,style:nb.style,
+            district:districtAt(nb.door.x,nb.door.y).id,box:{...nb.box},door:{...nb.door},front:nb.box.y+nb.box.h,color:nb.color,skin:h&0xffff,service:null};
+          buildings.push(b);used.add(b);
+        }
+      }
+      for(const b of byKey.values())if(!used.has(b)){
+        if(b.service)errors.push('«'+b.name+'» manca nella mappa: gli edifici con un interno non si possono eliminare.');
+        else buildings.splice(buildings.indexOf(b),1);
+      }
+      // Oggetti: stessa chiave = stesso oggetto (spostato); chiave nuova o assente = oggetto nuovo; quelli dell'area non più
+      // presenti nella mappa sono stati cancellati in Tiled.
+      const oldProps=new Map(props.filter(o=>inside(o.x,o.y)).map(o=>[o.key,o]));
+      const keptProps=new Set();
+      for(const np of e.props){
+        const o=np.key&&oldProps.get(np.key);
+        const solidR=window.TiledMaps.PROP_TYPES[np.name]||0;
+        if(o&&!keptProps.has(o)){
+          keptProps.add(o);
+          Object.assign(o,{name:np.name,x:np.x,y:np.y,...(np.label?{label:np.label}:{})});
+          if(solidR){o.solid=solidR;o.solidBox=propBox(np.x,np.y,solidR);}else{delete o.solid;delete o.solidBox;}
+        }else{
+          const o2={name:np.name,x:np.x,y:np.y,key:np.key||'tiled-'+np.tiledId,district:districtAt(np.x,np.y).id,...(np.label?{label:np.label}:{})};
+          if(solidR){o2.solid=solidR;o2.solidBox=propBox(np.x,np.y,solidR);}
+          props.push(o2);keptProps.add(o2);
+        }
+      }
+      for(const o of oldProps.values())if(!keptProps.has(o))props.splice(props.indexOf(o),1);
+      for(const box of e.solids)extraSolids.push({...box});
+      for(const s of e.stops){
+        const v=services.find(q=>q.id===s.id);
+        if(v&&(v.x!==s.x||v.y!==s.y))errors.push('La sosta «'+v.name+'» è la porta di un interno: non si può spostare.');
+      }
+      // Collisioni ricostruite nello stesso ordine della generazione: edifici, oggetti solidi, poi le aggiunte della mappa.
+      cells.clear();
+      for(const b of buildings)solid(b.box);
+      for(const o of props)if(o.solidBox)solid(o.solidBox);
+      for(const box of extraSolids)solid(box);
+      // Controlli di base: confini, sovrapposizioni fra edifici e porte libere.
+      for(const b of buildings){
+        if(!inside(b.door.x,b.door.y))continue;
+        if(b.box.x<30||b.box.y<32||b.box.x+b.box.w>width-28||b.box.y+b.box.h>height-30)errors.push('«'+b.name+'» esce dai confini della città.');
+        for(const o of buildings)if(o!==b&&buildings.indexOf(o)<buildings.indexOf(b)&&touches(o.box,b.box))errors.push('«'+b.name+'» si sovrappone a «'+o.name+'».');
+        if(!canWalk(b.door.x,b.door.y,5))errors.push('La porta di «'+b.name+'» è bloccata da un ostacolo.');
+      }
+      if(errors.length){
+        buildings.length=0;buildings.push(...keepB);props.length=0;props.push(...keepP);extraSolids.length=0;
+        cells.clear();
+        for(const b of buildings)solid(b.box);
+        for(const o of props)if(o.solidBox)solid(o.solidBox);
+        window.TiledMaps.reject(id,e.file,errors);
+      }
     }
 
     function canWalk(x,y,r=6){
@@ -397,7 +478,12 @@
         lineGap2(x1,y0,p,dx,dy,len2),lineGap2(x0,y1,p,dx,dy,len2),lineGap2(x1,y1,p,dx,dy,len2));
     }
 
-    const waypoints=waypointList.filter(w=>canWalk(w.x,w.y)).map(w=>({...w,district:w.district||districtAt(w.x,w.y).id}));
+    // Soste: quelle di una mappa di Tiled attiva spostano le soste con lo stesso id o ne aggiungono di nuove.
+    const mapStops=(window.TiledMaps?.edits?.(id)?.stops)||[];
+    const stopBook=new Map(mapStops.map(s=>[s.id,s]));
+    const waypoints=[...waypointList.map(w=>stopBook.has(w.id)?{...w,x:stopBook.get(w.id).x,y:stopBook.get(w.id).y,name:stopBook.get(w.id).name||w.name}:w),
+      ...mapStops.filter(s=>!waypointList.some(w=>w.id===s.id)).map(s=>({id:s.id,name:s.name,x:s.x,y:s.y}))]
+      .filter(w=>canWalk(w.x,w.y)).map(w=>({...w,district:w.district||districtAt(w.x,w.y).id}));
     const wayBook=new Map(waypoints.map(w=>[w.id,w]));
     const residences=buildings.filter(b=>b.kind==='residence'&&canWalk(b.door.x,b.door.y)).map(b=>(
       {id:b.id,building:b.id,name:b.name,district:b.district,kind:b.kind,region:id,...b.door,point:{...b.door}}
@@ -607,7 +693,7 @@
         c.drawImage(ground,x,y,visibleWidth,ch,x,y,visibleWidth,ch);
       }
       if(x+cw>annexStart){
-        if(!annexGround)annexGround=paintAnnex(seed,buildings,false);
+        if(!annexGround){annexGround=paintAnnex(seed,buildings,false);paintMapTerrain(annexGround,annexStart,1);}
         const left=Math.max(x,annexStart),visibleWidth=x+cw-left;
         c.drawImage(annexGround,left-annexStart,y,visibleWidth,ch,left,y,visibleWidth,ch);
       }
@@ -654,7 +740,7 @@
     }
     function drawMap(c,w,h,p){
       if(!chart){const pair=paintTerrain(seed,buildings);ground=pair.ground;chart=pair.chart;}
-      if(!annexChart)annexChart=paintAnnex(seed,buildings,true);
+      if(!annexChart){annexChart=paintAnnex(seed,buildings,true);paintMapTerrain(annexChart,annexStart,annexChart.width/(width-annexStart));}
       c.save();c.imageSmoothingEnabled=false;
       c.drawImage(chart,0,0,w*oldWidth/width,h);
       c.drawImage(annexChart,w*annexStart/width,0,w*(width-annexStart)/width,h);
@@ -665,7 +751,36 @@
       if(p)diamond(c,'#fff3bb',p.x/width*w,p.y/height*h,3);
       c.restore();
     }
-    return {region,buildings,districts,services,residences,waypoints,plaza,drawGround,drawFront,drawMap,canWalk,path,districtAt};
+    // Piastrelle del terreno di una mappa di Tiled attiva, dipinte una volta sulla tela del suolo già in memoria.
+    function paintMapTerrain(target,offsetX,scale){
+      const e=window.TiledMaps?.edits?.(id);
+      if(e?.terrain)window.TiledMaps.paintTerrain(target,e,offsetX,0,scale);
+    }
+    // Esportazione di un'area per Tiled (strumenti/esporta-mappa-tiled.cjs): elementi con chiavi stabili, sprite originali
+    // degli edifici, immagini degli oggetti disegnate con paintProp a luce di mezzogiorno e immagine del suolo.
+    function exportArea(area){
+      const inside=(x,y)=>x>=area.x&&y>=area.y&&x<area.x+area.w&&y<area.y+area.h;
+      if(!annexGround){annexGround=paintAnnex(seed,buildings,false);paintMapTerrain(annexGround,annexStart,1);}
+      const ground=canvas(area.w,area.h);
+      ground.getContext('2d').drawImage(annexGround,area.x-annexStart,area.y,area.w,area.h,0,0,area.w,area.h);
+      const still={calm:true,known:false,day:1,night:0,twilight:0,sunDx:0,minutes:720,treeShadow:'rgba(36,53,56,.52)'};
+      return {
+        ground,
+        buildings:buildings.filter(b=>inside(b.door.x,b.door.y)).map(b=>({key:b.key,id:b.id,name:b.name,kind:b.kind,style:b.style,color:b.color,
+          service:b.service,box:{...b.box},door:{...b.door},sprite:b.sprite||(b.sprite=makeBuilding(b))})),
+        props:props.filter(o=>inside(o.x,o.y)).map(o=>({key:o.key,name:o.name,x:o.x,y:o.y,label:o.label,solid:o.solid||0})),
+        stops:waypoints.filter(w=>inside(w.x,w.y)).map(w=>({id:w.id,name:w.name,x:w.x,y:w.y})),
+        propImage(name,label){
+          const image=canvas(64,64),keep=scene;scene=still;
+          try{paintProp(image.getContext('2d'),{name,x:32,y:56,label},0);}finally{scene=keep;}
+          return image;
+        },
+        modelSprite(style,color,w,h){
+          return makeAnnexBuilding({box:{x:2400,y:1300,w,h},door:{x:2400+Math.round(w/2),y:1300+h+12},style,color,district:'orchards',skin:1});
+        }
+      };
+    }
+    return {region,buildings,props,districts,services,residences,waypoints,plaza,drawGround,drawFront,drawMap,canWalk,path,districtAt,exportArea};
   }
 
   function paintPlaza(c,rnd){

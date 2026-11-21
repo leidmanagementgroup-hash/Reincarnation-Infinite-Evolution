@@ -1,0 +1,137 @@
+{
+ "columns": 8,
+ "image": "terreno-velaris.png",
+ "imageheight": 16,
+ "imagewidth": 128,
+ "margin": 0,
+ "name": "terreno-velaris",
+ "spacing": 0,
+ "tilecount": 8,
+ "tiledversion": "1.11.0",
+ "tileheight": 16,
+ "tilewidth": 16,
+ "type": "tileset",
+ "version": "1.10",
+ "tiles": [
+  {
+   "id": 0,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "erba"
+    },
+    {
+     "name": "nome",
+     "type": "string",
+     "value": "Erba"
+    }
+   ]
+  },
+  {
+   "id": 1,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "erba-scura"
+    },
+    {
+     "name": "nome",
+     "type": "string",
+     "value": "Erba scura"
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "prato-fiorito"
+    },
+    {
+     "name": "nome",
+     "type": "string",
+     "value": "Prato fiorito"
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "strada"
+    },
+    {
+     "name": "nome",
+     "type": "string",
+     "value": "Strada battuta"
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "bordo-strada"
+    },
+    {
+     "name": "nome",
+     "type": "string",
+     "value": "Bordo della strada"
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "selciato"
+    },
+    {
+     "name": "nome",
+     "type": "string",
+     "value": "Selciato"
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "aiuola"
+    },
+    {
+     "name": "nome",
+     "type": "string",
+     "value": "Aiuola coltivata"
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "properties": [
+    {
+     "name": "tipo",
+     "type": "string",
+     "value": "terra"
+    },
+    {
+     "name": "nome",
+     "type": "string",
+     "value": "Terra smossa"
+    }
+   ]
+  }
+ ]
+}
