@@ -83,11 +83,15 @@ Nota: `World`, `ActorArt` ed `EvolutionContent` sono **estesi da più moduli** s
 
 ### 3.1 Velaris
 
-L’ingresso dalla Selva degli Alambicchi porta a `city-velaris`. I quartieri occupano una mappa di 2144×1496 pixel logici. Il seme determina gli edifici e le varianti del terreno. Piazza, ponti, porte e punti di servizio forniscono riferimenti stabili.
+L’ingresso dalla Selva degli Alambicchi porta a `city-velaris`. La città misura 2864×1496 pixel logici. A est dei quattro quartieri storici sorgono i Portici del Vetro e gli Orti dell’Alambicco. Le vie continuano oltre l’antico limite della città. Semi e coordinate dei vecchi edifici mantengono validi gli ingressi e i salvataggi. I due settori hanno cache del terreno distinte. La minimappa orientale può essere disegnata prima di visitare i nuovi quartieri.
+
+Il ruolo urbanistico è esplicito nella regione. Velaris è una cittadina. `UrbanWorld.settlementTypes` registra le fasce progettuali per borgo (5–15 edifici), villaggio (20–50), cittadina (60–150), grande città (200–500) e capitale (da 500, fino a 1.500 e oltre nel progetto completo).
 
 Nella Piazza delle Quattro Lenti, sul ponte centrale e sulla via del Mercato dei Venti, le superfici in pietra e rame sono incluse nel Canvas del terreno già in cache. Il calendario tinge gli esterni di Velaris prima degli effetti di combattimento e illumina fino a otto lanterne visibili con una maschera riutilizzata. L’opzione effetti ridotti ferma il luccichio delle lanterne e le increspature del canale.
 
-La locanda, la bottega, la fucina, la Gilda del Compasso, l’archivio, l’accademia e la casa del custode sono regioni interne. Usano gli stessi comandi, collisioni e regole di salvataggio. La bottega condivide merci e deposito del mercato di Velaris. La bacheca della gilda assegna e riscuote gli incarichi per la Selva degli Alambicchi.
+La locanda, la bottega, la fucina, la Gilda del Compasso, l’archivio, l’accademia, la casa del custode e la Serra delle Talee sono regioni interne. Usano gli stessi comandi, collisioni e regole di salvataggio. La bottega condivide merci e deposito del mercato di Velaris. La bacheca della gilda assegna e riscuote gli incarichi per la Selva degli Alambicchi.
+
+La serra ha un’aiuola persistente. Il campo facoltativo `cityWorks.seedbedAt` vale −1 per il terreno vuoto, 0 dopo la semina e indica il minuto assoluto di maturazione dopo l’irrigazione. Costa una semente, richiede 80 minuti di calendario e produce due erbe per raccolta. Semina e raccolta usano gli eventi `sow` e `reap` dei mestieri. Le partite v7 anteriori all’espansione ricevono un’aiuola vuota.
 
 Il formato v7 conserva `urban` (routine, scorte, memorie e commissioni) e `cityWorks` (restauro, colazione, esercitazioni e letture). Le mappe si rigenerano dallo stesso seme. I salvataggi precedenti ricevono i nuovi campi al caricamento. La v5 di GitHub può includere equipaggiamento, conflitti, reputazione e Santuario. La migrazione conserva i campi presenti e inizializza quelli mancanti nelle v5 precedenti.
 

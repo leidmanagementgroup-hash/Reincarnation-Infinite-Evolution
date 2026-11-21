@@ -84,10 +84,11 @@ for (const id of ['ancient-valley', 'verdant-canopy', 'city-velaris']) {
   assert.equal(Game.s.region, id);
 }
 const city = UrbanWorld.exterior(Game.s.seed);
-assert.equal(city.districts.length, 4);
-assert(city.buildings.length >= 60);
+assert.equal(city.districts.length, 6);
+const tier = UrbanWorld.settlementTypes[World.regions[city.region.id].settlementType];
+assert(city.buildings.length >= 130 && city.buildings.length <= tier.maxBuildings);
 assert(UrbanLife.view(Game.s).city.population >= 40);
-assert.equal(city.services.length, 7);
+assert.equal(city.services.length, 8);
 const start = World.spawn;
 for (const venue of city.services) {
   assert(city.path(start, venue.point, 6)?.length, 'Percorso per ' + venue.id);
@@ -156,6 +157,35 @@ assert(!Game.command('urban', { op: 'deliver', id: clerk.id }));
 assert(Game.save() && Game.load());
 assert.equal(Game.s.economy.markets.velaris.stock[order.item], String(order.amount));
 assert.equal(Game.s.urban.mission.completed, 1);
+
+// A v7 archive written before the greenhouse has an empty bed on its first visit.
+const oldCity = JSON.parse(Game.exportSave());
+delete oldCity.cityWorks.seedbedAt;
+assert(Game.importSave(JSON.stringify(oldCity)));
+assert.equal(Game.s.cityWorks.seedbedAt, -1);
+position(UrbanWorld.site(Game.s, 'exit').point);
+assert(Game.action('interact'));
+const greenhouse = city.services.find(venue => venue.id === 'greenhouse');
+const cultivate = op => Game.command('city-service', {id:'greenhouse-bed', op});
+assert(!cultivate('sow'));
+position(greenhouse.point);
+assert(Game.action('interact'));
+assert.equal(UrbanWorld.kind(Game.s.region), 'greenhouse');
+position(UrbanWorld.site(Game.s, 'greenhouse-bed').point);
+Inventory.add(Game.s, 'seeds', 1);
+const seeds = Inventory.quantity(Game.s, 'seeds'), herbs = Inventory.quantity(Game.s, 'herb');
+assert(cultivate('sow') && !cultivate('sow'));
+assert.equal(Inventory.quantity(Game.s, 'seeds'), seeds - 1n);
+assert(cultivate('water') && !cultivate('reap'));
+assert(Game.save() && Game.load());
+assert.equal(UrbanWorld.kind(Game.s.region), 'greenhouse');
+Game.s.time += 81 / Calendar.minutesPerSecond;
+assert(cultivate('reap') && !cultivate('reap'));
+assert.equal(Inventory.quantity(Game.s, 'herb'), herbs + 2n);
+position(UrbanWorld.site(Game.s, 'exit').point);
+assert(Game.action('interact'));
+assert.equal(Game.s.region, city.region.id);
+assert.equal(Game.s.player.x, greenhouse.x);
 
 // Uno stato incoerente del Santuario non deve far perdere la partita: avviso, non rifiuto.
 const inconsistent = JSON.parse(Game.exportSave());
@@ -240,4 +270,4 @@ delete scope.matchMedia;
 const crystals = city.buildings.length && UrbanWorld.exterior(Game.s.seed) === city;
 assert(crystals, 'La città resta la stessa istanza deterministica');
 
-console.log('OK: compatibilità v5/v6→v7, inventario, equipaggiamento, soccorso, sette interni, restauro, rifornimenti di Velaris, residenti distribuiti e avviso del Santuario.');
+console.log('OK: migrazioni, equipaggiamento, soccorso, sei quartieri, otto interni, serra, rifornimenti, routine e avviso del Santuario.');

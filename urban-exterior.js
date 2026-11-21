@@ -2,7 +2,7 @@
 (() => {
   'use strict';
 
-  const id='city-velaris',width=2144,height=1496;
+  const id='city-velaris',oldWidth=2144,annexStart=2114,width=2864,height=1496;
   const spawn={x:156,y:726},exit={x:94,y:726};
   const plaza=Object.freeze({id:'plaza',x:914,y:726,name:'Piazza delle Quattro Lenti',radius:35});
   const districts=[
@@ -17,7 +17,15 @@
       roofs:[['#644f4b','#8c6656','#b58b62','#d4ac83'],['#4d5e56','#6c8872','#9a9f7d','#c0b791'],['#514f63','#6b6883','#92839a','#ad98a8']],wall:['#755f56','#bea381','#dbc097']},
     {id:'lamps',name:'Giardini delle Lanterne',x:1888,y:1000,minX:1099,maxX:2120,minY:759,maxY:1472,
       description:'Passeggiate, abitazioni e tre vasche del quartiere sud orientale.',ground:['#4e6250','#576e56','#607158','#64745d'],road:['#a7a489','#828876','#c4b99d'],
-      roofs:[['#465d55','#64836c','#91a283','#b6be9e'],['#3f5d62','#53878a','#79a6a2','#a7c0b0'],['#565768','#75798e','#9295a9','#b4b2bf']],wall:['#6c7264','#abb295','#c0c4a4']}
+      roofs:[['#465d55','#64836c','#91a283','#b6be9e'],['#3f5d62','#53878a','#79a6a2','#a7c0b0'],['#565768','#75798e','#9295a9','#b4b2bf']],wall:['#6c7264','#abb295','#c0c4a4']},
+    {id:'arcades',name:'Portici del Vetro',x:2460,y:489,minX:annexStart,maxX:2838,minY:25,maxY:758,
+      description:'Logge dei soffiatori, lucernari di rame e vetro e corti dei mercanti.',
+      ground:['#656367','#736c70','#7d7574','#696568'],road:['#bdaf9a','#867e74','#d7c7aa'],
+      roofs:[['#435661','#678d90','#93b6ab','#d5c69e'],['#5d596c','#84778b','#ae9b9f','#d6c6a7'],['#4e6463','#758b7b','#adb296','#d9c991']],wall:['#716959','#bea98a','#e1cf9f']},
+    {id:'orchards',name:'Orti dell’Alambicco',x:2516,y:1218,minX:annexStart,maxX:2838,minY:759,maxY:1472,
+      description:'Frutteti, essiccatoi di erbe e colture sotto vetro lungo la vecchia strada rurale.',
+      ground:['#54674d','#5d7455','#6b7d57','#72845e'],road:['#ab9b78','#807957','#c1b28b'],
+      roofs:[['#655443','#9a7854','#b89567','#d7b87d'],['#4e665d','#648d77','#92b19a','#c9c797'],['#514f59','#767578','#989a8a','#c0bc9a']],wall:['#695a47','#ab9170','#d2bc91']}
   ].map(Object.freeze);
 
   const services=[
@@ -27,7 +35,8 @@
     {id:'guild',kind:'guild',name:'Gilda del Compasso',x:752,y:469,district:'lenses',size:[134,54],style:'guild'},
     {id:'archive',kind:'archive',name:'Archivio delle Maree Astrali',x:462,y:221,district:'lenses',size:[105,47],style:'archive'},
     {id:'academy',kind:'academy',name:'Accademia di Velaris',x:488,y:450,district:'lenses',size:[174,101],style:'academy'},
-    {id:'house',kind:'house',name:'Casa del custode del canale',x:1782,y:1360,district:'lamps',size:[95,57],style:'house'}
+    {id:'house',kind:'house',name:'Casa del custode del canale',x:1782,y:1360,district:'lamps',size:[95,57],style:'house'},
+    {id:'greenhouse',kind:'greenhouse',name:'Serra delle Talee',x:2570,y:1112,district:'orchards',size:[140,74],style:'conservatory'}
   ].map(x=>Object.freeze({...x,region:id,point:Object.freeze({x:x.x,y:x.y}),range:24}));
 
   const west=[[61,182],[220,366],[402,581],[616,809],[846,977]];
@@ -48,13 +57,19 @@
   ];
 
   const plazaRect={x:847,y:660,w:135,h:138};
+  const annexStops=[
+    {id:'arcades-court',x:2460,y:489,name:'Corte dei Soffiatori',district:'arcades'},
+    {id:'arcades-work',x:2350,y:475,name:'Banco delle ampolle',district:'arcades'},
+    {id:'orchards-court',x:2516,y:1218,name:'Piazzetta delle Radici',district:'orchards'},
+    {id:'orchards-work',x:2624,y:1160,name:'Orto delle spezie',district:'orchards'}
+  ];
   const landmarkRows=[
     {name:'Porta dei Maestri',x:156,y:726},
     {...plaza},
     {name:'Ponte delle Lenti',x:1042,y:726},
     {name:'Corte delle Fornaci',x:717,y:954},
     {name:'Giardino delle Tre Vasche',x:1888,y:1016},
-    ...services.map(({id,name,x,y})=>({id,name,x,y}))
+    ...services.map(({id,name,x,y})=>({id,name,x,y})),...annexStops
   ];
   const region={id,name:'Accademia di Velaris',description:'La città dei vetrai e degli astronomi, distesa fra corsi d’acqua e giardini.',
     width,height,continent:'continent-3',spawn,points:{gates:[],mobs:[],resources:[],bosses:[]},landmarks:landmarkRows};
@@ -62,10 +77,10 @@
     {id:'entry',name:'Porta dei Maestri',...spawn}, {id:'exit',name:'Ritorno agli Alambicchi',...exit}, {...plaza},
     ...services.map(({id,name,x,y,district})=>({id,name,x,y,district})),
     ...districts.map(({id,name,x,y})=>({id:'district-'+id,name,x,y,district:id})),
-    ...streetsX.slice(1,-1).flatMap((x,col)=>streetsY.slice(1,-1).map((y,row)=>({id:'street-'+col+'-'+row,x,y})))
+    ...streetsX.slice(1,-1).flatMap((x,col)=>streetsY.slice(1,-1).map((y,row)=>({id:'street-'+col+'-'+row,x,y}))),...annexStops
   ].map(Object.freeze);
 
-  const districtAt=(x,y)=>districts[x<canal.left?(y<759?0:1):(y<759?2:3)];
+  const districtAt=(x,y)=>districts[x>=annexStart?(y<759?4:5):x<canal.left?(y<759?0:1):(y<759?2:3)];
   const contains=(box,x,y,margin=0)=>x>=box.x-margin&&x<=box.x+box.w+margin&&y>=box.y-margin&&y<=box.y+box.h+margin;
   const touches=(a,b,pad=0)=>a.x<b.x+b.w+pad&&a.x+a.w+pad>b.x&&a.y<b.y+b.h+pad&&a.y+a.h+pad>b.y;
   function random(seed){
@@ -196,11 +211,12 @@
       solid(box);
       return entry;
     }
-    for(const entry of services){
+    function addVenue(entry){
       const [w,h]=entry.size;
       addBuilding({name:entry.name,kind:entry.kind,x:entry.x,y:entry.y-19-h,w,h,door:entry.point,
         district:entry.district,style:entry.style,service:entry.id});
     }
+    for(const entry of services)if(entry.x<annexStart)addVenue(entry);
     const obstruction=[...buildings.map(b=>({x:b.box.x-9,y:b.box.y-14,w:b.box.w+18,h:b.box.h+41})),
       ...parks,plazaRect];
     const surnames=['Aster','Laguna','Vetro','Brezza','Caligo','Mica','Ambra','Faro','Selce','Argento','Smeraldo','Nube','Tiglio'];
@@ -234,6 +250,22 @@
         }
       }
     }
+    addVenue(services.find(site=>site.id==='greenhouse'));
+    // These plots face the next street to the south. Empty plots reserve courtyards, beds and the glasshouse.
+    const rows=[
+      [256,[2192,2296,2397,2515,2638,2780]], [489,[2208,2324,2495,2614,2768]],
+      [726,[2198,2318,2425,2548,2673,2788]], [964,[2215,2322,2514,2638,2778]],
+      [1218,[2212,2315,2773]], [1422,[2198,2322,2469,2589,2701,2787]]
+    ];
+    const styles={arcades:['loggia','bellhouse','atelier','gallery'],orchards:['longhouse','herb-loft','cottage']};
+    const names={loggia:'Loggia',bellhouse:'Torre',atelier:'Vetreria',gallery:'Galleria',longhouse:'Fattoria','herb-loft':'Essiccatoio',cottage:'Casa'};
+    for(const [rowIndex,[street,plots]] of rows.entries())for(const [col,center] of plots.entries()){
+      const district=street<759?'arcades':'orchards',family=styles[district];
+      const style=family[(rowIndex+col)%family.length],w=integer(next,style==='bellhouse'?40:65,style==='bellhouse'?60:84);
+      const h=integer(next,39,69),x=center+integer(next,-5,5),doorY=street-integer(next,68,103);
+      addBuilding({name:names[style]+' '+surnames[(rowIndex*5+col)%surnames.length],kind:['bellhouse','cottage','longhouse','gallery'].includes(style)?'residence':'workshop',
+        x,y:doorY-h-12,w,h,door:{x,y:doorY},district,style});
+    }
     const add=(name,x,y,opt={})=>{
       const prop={name,x,y,...opt};
       props.push(prop);
@@ -262,6 +294,12 @@
     for(const {x,y} of bridgeLamps)add('prismLamp',x,y);
     // Cristalli luminosi: solo decorazione, senza collisione.
     for(const [x,y] of CRYSTALS)add('crystal',x,y,{district:districtAt(x,y).id});
+    for(const [x,y] of [[2398,454],[2514,454],[2398,534],[2514,534]])add('prismLamp',x,y);
+    for(const [x,y] of [[2332,451],[2535,468],[2535,510]])add('stall',x,y,{solid:9,district:'arcades'});
+    add('lensSpire',2460,458,{solid:10,district:'arcades'});
+    for(const [x,y] of [[2394,1026],[2426,1026],[2394,1071],[2426,1071],[2394,1116],[2426,1116],[2664,1150],[2700,1150]])
+      add('fruitTree',x,y,{solid:6,district:'orchards'});
+    add('fountain',2516,1185,{solid:9,district:'orchards'});
     add('prismLamp',863,675);
     add('prismLamp',965,780);
     for(const entry of services)add('sign',entry.x+12,entry.y-5,{district:entry.district,label:entry.id});
@@ -392,7 +430,7 @@
       return result;
     }
 
-    let ground=null,chart=null;
+    let ground=null,chart=null,annexGround=null,annexChart=null;
     const lights=props.filter(o=>o.name==='lamp'||o.name==='prismLamp'||o.name==='crystal'||o.name==='anvil');
     const budget=8,glows={};
     const kindOf=o=>o.name==='crystal'?'crystal':o.name==='anvil'?'forge':'lamp';
@@ -465,8 +503,8 @@
     // Atmosfere dei quartieri: Mercato dei Venti caldo e polveroso, Giardini delle Lanterne freschi e verdi.
     const wind=districts.find(d=>d.id==='wind'),lampsD=districts.find(d=>d.id==='lamps');
     const moods=[
-      {id:'wind',box:{minX:canal.right+4,maxX:width-25,minY:wind.minY,maxY:wind.maxY},tint:'224,150,70',tintNight:'255,150,70',a:.055,moteColor:'#ecc88c',n:70},
-      {id:'lamps',box:{minX:canal.right+4,maxX:width-25,minY:lampsD.minY,maxY:lampsD.maxY},tint:'70,150,100',tintNight:'40,170,160',a:.065,moteColor:'#faf6c4',n:90}
+      {id:'wind',box:{minX:canal.right+4,maxX:annexStart-4,minY:wind.minY,maxY:wind.maxY},tint:'224,150,70',tintNight:'255,150,70',a:.055,moteColor:'#ecc88c',n:70},
+      {id:'lamps',box:{minX:canal.right+4,maxX:annexStart-4,minY:lampsD.minY,maxY:lampsD.maxY},tint:'70,150,100',tintNight:'40,170,160',a:.065,moteColor:'#faf6c4',n:90}
     ];
     function band(c,cam,d,rgb,a){
       for(let k=0;k<2;k++){
@@ -519,10 +557,19 @@
       c.fill();
     }
     function drawGround(c,cam,time=0){
-      if(!ground){const pair=paintTerrain(seed,buildings);ground=pair.ground;chart=pair.chart;}
       const x=Math.max(0,Math.floor(cam.x)),y=Math.max(0,Math.floor(cam.y));
       const cw=Math.min(width-x,Math.ceil(cam.w)+1),ch=Math.min(height-y,Math.ceil(cam.h)+1);
-      if(cw>0&&ch>0)c.drawImage(ground,x,y,cw,ch,x,y,cw,ch);
+      if(cw<=0||ch<=0)return;
+      if(x<annexStart){
+        if(!ground){const pair=paintTerrain(seed,buildings);ground=pair.ground;chart=pair.chart;}
+        const visibleWidth=Math.min(cw,annexStart-x);
+        c.drawImage(ground,x,y,visibleWidth,ch,x,y,visibleWidth,ch);
+      }
+      if(x+cw>annexStart){
+        if(!annexGround)annexGround=paintAnnex(seed,buildings,false);
+        const left=Math.max(x,annexStart),visibleWidth=x+cw-left;
+        c.drawImage(annexGround,left-annexStart,y,visibleWidth,ch,left,y,visibleWidth,ch);
+      }
       if(x+cw<canal.left||x>canal.right)return;
       const e=readScene(id),u=e.calm?0:Math.floor(time*4);
       const glintA=e.night>.35?'rgba(140,176,235,.30)':e.twilight>.3?'rgba(240,170,120,.30)':'rgba(121,199,185,.28)';
@@ -566,7 +613,10 @@
     }
     function drawMap(c,w,h,p){
       if(!chart){const pair=paintTerrain(seed,buildings);ground=pair.ground;chart=pair.chart;}
-      c.save();c.imageSmoothingEnabled=false;c.drawImage(chart,0,0,w,h);
+      if(!annexChart)annexChart=paintAnnex(seed,buildings,true);
+      c.save();c.imageSmoothingEnabled=false;
+      c.drawImage(chart,0,0,w*oldWidth/width,h);
+      c.drawImage(annexChart,w*annexStart/width,0,w*(width-annexStart)/width,h);
       for(const place of services){
         const x=place.x/width*w,y=place.y/height*h;
         rect(c,'#2f4148',x-2,y-2,5,5);rect(c,'#d6c69e',x-1,y-1,3,3);
@@ -667,9 +717,10 @@
   }
 
   function paintTerrain(seed,buildings){
+    const width=oldWidth;
     const ground=canvas(width,height),c=ground.getContext('2d'),rnd=random(seed^0x476cf112);
     rect(c,'#38434a',0,0,width,height);
-    for(const dto of districts){
+    for(const dto of districts.slice(0,4)){
       const w=dto.maxX-dto.minX,h=dto.maxY-dto.minY;
       rect(c,dto.ground[0],dto.minX,dto.minY,w,h);
       for(let y=dto.minY+1;y<dto.maxY;y+=8){
@@ -681,7 +732,7 @@
         }
       }
     }
-    for(const dto of districts){
+    for(const dto of districts.slice(0,4)){
       const [road,shadow,shine]=dto.road;
       const horizontal=(a,b,y,w)=>{
         if(b<=a)return;
@@ -711,6 +762,7 @@
     }
 
     for(const b of buildings){
+      if(b.door.x>=annexStart)continue;
       const {x,y}=b.door;
       const nextY=streetsY.find(road=>road>y+3);
       if(!nextY||nextY-y>148)continue;
@@ -783,10 +835,65 @@
     const chart=canvas(270,188),map=chart.getContext('2d');
     map.imageSmoothingEnabled=false;map.drawImage(ground,0,0,270,188);
     for(const b of buildings){
+      if(b.door.x>=annexStart)continue;
       const {x,y,w,h}=b.box,d=districts.find(z=>z.id===b.district);
       rect(map,b.service?'#e4d5a9':d.roofs[b.color][1],x/width*270,y/height*188,Math.max(3,w/width*270),Math.max(2,h/height*188));
     }
     return {ground,chart};
+  }
+
+  function paintAnnex(seed,buildings,mapOnly){
+    const span=width-annexStart,scale=mapOnly ? .125 : 1;
+    const image=canvas(Math.ceil(span*scale),Math.ceil(height*scale)),c=image.getContext('2d');
+    c.scale(image.width/span,image.height/height);c.translate(-annexStart,0);
+    const rnd=random(seed^0x8a99177),outer=width-28;
+    rect(c,'#394949',annexStart,0,span,height);
+    for(const d of districts.slice(4)){
+      rect(c,d.ground[0],annexStart,d.minY,outer-annexStart,d.maxY-d.minY+1);
+      if(!mapOnly)for(let y=d.minY+5;y<d.maxY-3;y+=6)for(let x=annexStart+2;x<outer-4;x+=10){
+        const variant=integer(rnd,0,3);
+        rect(c,d.ground[variant],x+integer(rnd,0,4),y,integer(rnd,2,6),d.id==='arcades'?3:1);
+      }
+    }
+    function path(points,w,palette){
+      c.lineJoin='round';c.lineCap='butt';c.beginPath();
+      points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));
+      c.strokeStyle=palette[1];c.lineWidth=w;c.stroke();
+      c.strokeStyle=palette[0];c.lineWidth=w-4;c.stroke();
+    }
+    // Each row has a clear north/south passage through its plots. Their offsets create staggered junctions.
+    const cross=[101,256,489,726,964,1218,1422],spine=[2457,2416,2485,2445,2465,2395];
+    for(let i=0;i<cross.length;i++){
+      const y=cross[i],d=districtAt(2500,y);
+      path([[annexStart,y],[outer,y]],y===726?53:30,d.road);
+      if(i<spine.length)path([[spine[i],y],[spine[i],cross[i+1]]],32,d.road);
+    }
+    path([[2145,33],[2145,1455]],22,districts[5].road);
+    for(const b of buildings){
+      if(b.door.x<annexStart)continue;
+      const d=districtAt(b.door.x,b.door.y),{x,y}=b.door;
+      const street=cross.find(s=>s>y);
+      if(street)path([[x,y-15],[x,street]],b.service?18:12,d.road);
+    }
+    for(const [x,y,d] of [[2460,489,districts[4]],[2516,1218,districts[5]]]){
+      const w=d.id==='arcades'?70:48;
+      poly(c,d.road[1],[[x-w,y-23],[x-w+19,y-48],[x+w-19,y-48],[x+w,y-23],[x+w,y+24],[x+w-21,y+46],[x-w+21,y+46],[x-w,y+24]]);
+      poly(c,d.road[0],[[x-w+3,y-21],[x-w+21,y-44],[x+w-21,y-44],[x+w-4,y-21],[x+w-4,y+23],[x+w-22,y+42],[x-w+22,y+42],[x-w+3,y+23]]);
+      diamond(c,d.road[2],x,y,19);diamond(c,d.id==='arcades'?'#6b9795':'#758660',x,y,14);
+    }
+    for(const [x,y] of [[2380,1012],[2380,1057],[2380,1102],[2600,1124],[2666,1124]]){
+      const w=x<2500?65:56;
+      rect(c,'#827456',x,y,w,29);rect(c,'#64563e',x+3,y+3,w-6,23);
+      if(!mapOnly)for(let col=5;col<w-4;col+=7)for(let row=6;row<26;row+=8){
+        rect(c,'#405e45',x+col-1,y+row,5,3);rect(c,'#93ad64',x+col,y+row-1,3,2);
+        if((row+col)%3===0)rect(c,'#c3a574',x+col+2,y+row-2,2,1);
+      }
+    }
+    if(mapOnly)for(const b of buildings.filter(b=>b.door.x>=annexStart)){
+      const d=districtAt(b.door.x,b.door.y),q=b.box;
+      rect(c,b.service?'#dfd2a0':d.roofs[b.color][1],q.x,q.y,q.w,q.h);
+    }
+    return image;
   }
 
   function emblem(c,kind,x,y,color){
@@ -803,6 +910,7 @@
     }else diamond(c,color,x,y,4);
   }
   function makeBuilding(b){
+    if(b.door.x>=annexStart)return makeAnnexBuilding(b);
     const q=b.box,d=districts.find(w=>w.id===b.district),rnd=random(b.skin);
     const copper=b.service==='inn';
     const colors=copper?['#395450','#587c70','#7c9d86','#a1ac87']:d.roofs[b.color];
@@ -918,13 +1026,115 @@
     return {image,x:q.x-offset,y:q.y-raise,windows};
   }
 
+  function makeAnnexBuilding(b){
+    const q=b.box,d=districtAt(b.door.x,b.door.y),w=q.w,h=q.h;
+    const pad=14,lift=55,image=canvas(w+2*pad,h+lift+12),g=image.getContext('2d');
+    const x=pad,y=lift+h,ridge=lift-8,front=y-(b.style==='bellhouse'?35:25),cx=x+Math.floor(w/2);
+    const [shade,roof,light,trim]=d.roofs[b.color],[frame,wall,chalk]=d.wall;
+    const ink='#374342',sill='#8c7455',sun='#e8cca0';
+    function pane(px,py,pw,ph){
+      rect(g,ink,px,py,pw,ph);rect(g,'#718b8c',px+2,py+1,pw-4,ph-3);
+      rect(g,'#c1c7a4',px+2,py+1,pw-5,2);rect(g,sill,px+pw/2,py+1,1,ph-2);
+      rect(g,chalk,px-1,py+ph,pw+2,2);
+    }
+    function gable(px,top,wide,eave){
+      poly(g,ink,[[px-4,eave+2],[px+wide*.42,top-2],[px+wide+4,eave+2]]);
+      poly(g,light,[[px-2,eave],[px+wide*.42,top],[px+wide+2,eave]]);
+      poly(g,roof,[[px+wide*.42,top],[px+wide+2,eave],[px+wide*.57,eave]]);
+      rect(g,trim,px-3,eave,wide+6,2);
+    }
+    rect(g,'rgba(26,37,38,.37)',x-3,y-8,w+13,15);
+    rect(g,frame,x,front-3,w,y-front+3);rect(g,wall,x+2,front,w-4,y-front-3);
+    rect(g,chalk,x+3,front,2,y-front-4);
+    if(b.style==='conservatory'){
+      const glass='#759e95',shine='#b7cbb1',brace='#4d7168',step=14;
+      const profile=[[x-4,front],[x-2,ridge+22],[x+14,ridge+6],[x+30,ridge],
+        [x+w-30,ridge],[x+w-14,ridge+6],[x+w+2,ridge+22],[x+w+4,front]];
+      poly(g,brace,profile);g.save();g.beginPath();
+      profile.forEach(([px,py],i)=>i?g.lineTo(px,py):g.moveTo(px,py));g.closePath();g.clip();
+      rect(g,glass,x-4,ridge,w+10,front-ridge);
+      for(let i=0;i<w+12;i+=step){
+        rect(g,brace,x+i,ridge,2,front-ridge);rect(g,shine,x+i+2,ridge,1,front-ridge);
+        rect(g,'#98b5a4',x+i+4,ridge+11,6,13);
+        rect(g,'#91b39d',x+i+5,front-17,5,8);
+      }
+      for(let py=ridge+4;py<front;py+=14){rect(g,brace,x-4,py,w+11,2);rect(g,shine,x-4,py+2,w+11);}
+      g.restore();
+      for(let i=8;i<w-9;i+=17)pane(x+i,front+4,13,14);
+      gable(cx-16,front-16,32,front+1);
+    }else if(b.style==='loggia'||b.style==='gallery'){
+      const top=front-19;
+      poly(g,shade,[[x-6,top],[x+8,ridge+3],[x+w-14,ridge-3],[x+w+6,top]]);
+      poly(g,light,[[x-3,top-2],[x+9,ridge+4],[x+w-15,ridge],[x+w-4,top-2]]);
+      rect(g,chalk,x-5,top,w+10,3);rect(g,wall,x,top+3,w,19);
+      for(let i=8;i<w-8;i+=16)pane(x+i,top+6,9,7);
+      rect(g,shade,x-4,front-1,w+8,4);
+      for(let i=2;i<w-13;i+=18){
+        poly(g,ink,[[x+i+2,y-3],[x+i+2,front+10],[x+i+6,front+5],[x+i+12,front+5],[x+i+16,front+10],[x+i+16,y-3]]);
+        rect(g,chalk,x+i,front+8,3,y-front-9);rect(g,trim,x+i-1,y-4,5,3);
+      }
+    }else if(b.style==='bellhouse'){
+      gable(x,ridge+10,w,front);
+      const tw=Math.floor(w*.55),tx=x+5,top=ridge-20;
+      rect(g,frame,tx-1,top,tw+2,front-top+4);rect(g,wall,tx+1,top+2,tw-2,front-top+1);
+      rect(g,chalk,tx+2,top+2,2,front-top);
+      gable(tx-1,top-18,tw+2,top);
+      rect(g,'#d2ac76',tx+tw*.42,top-27,1,10);
+      pane(tx+5,top+7,tw-10,12);diamond(g,'#e0bc7e',tx+tw/2,top+25,4);
+      pane(x+w-15,front+5,9,10);
+    }else if(b.style==='atelier'){
+      const part=Math.floor(w/3);
+      for(let i=0;i<3;i++){
+        const left=x+i*part;
+        poly(g,shade,[[left-2,front],[left+1,ridge-4],[left+part+4,ridge+12],[left+part+4,front]]);
+        poly(g,light,[[left+2,ridge],[left+part+1,ridge+14],[left+part+1,front-4],[left+4,front-10]]);
+        rect(g,'#b3c7ad',left+4,ridge+7,3,front-ridge-17);
+      }
+      rect(g,trim,x-4,front,w+8,3);
+      for(let i=7;i<w-13;i+=21)pane(x+i,front+6,14,12);
+    }else{
+      const tall=b.style==='herb-loft',thatched=b.style==='longhouse';
+      const top=ridge+(tall?-12:8),shoulder=x+w*(thatched?.18:.31);
+      poly(g,ink,[[x-6,front+2],[shoulder-1,top-2],[x+w*.76,top-2],[x+w+7,front+2]]);
+      poly(g,roof,[[x-4,front],[shoulder,top],[x+w*.76,top],[x+w+5,front]]);
+      poly(g,light,[[x-3,front-3],[shoulder,top],[x+w*.74,top],[x+w*.86,front-3]]);
+      for(let py=top+8;py<front-4;py+=6){
+        const t=(front-py)/(front-top);
+        for(let px=x+(shoulder-x)*t+2;px<x+w-w*.25*t-5;px+=8)rect(g,shade,px,py,thatched?2:5,thatched?4:1);
+      }
+      rect(g,trim,x-5,front,w+10,2);
+      if(tall){
+        gable(cx-12,top-5,24,top+16);pane(cx-4,top+8,9,9);
+        for(let i=4;i<w-6;i+=12)rect(g,frame,x+i,front+3,2,19);
+      }else if(!thatched){
+        rect(g,frame,x+w*.77,top-9,8,15);rect(g,chalk,x+w*.77-1,top-10,10,3);
+      }
+      pane(x+8,front+7,10,10);pane(x+w-19,front+7,10,10);
+    }
+    rect(g,ink,cx-7,y-18,14,18);rect(g,'#815f47',cx-5,y-15,10,14);
+    rect(g,'#9f8060',cx-4,y-15,2,13);rect(g,sun,cx+2,y-7,2,1);
+    rect(g,trim,cx-9,y,18,2);rect(g,sill,cx-10,y+2,20,2);
+    return {image,x:q.x-pad,y:q.y-lift};
+  }
+
   function paintProp(c,o,time){
     const {x,y,name}=o,still=scene.calm,glow=still?0:(Math.floor(time*4+x/12)%4);
-    if(name==='tree'){
+    if(name==='lensSpire'){
+      disk(c,'#554e50',x+4,y+2,19,6);disk(c,'#a79e8c',x,y,17,5);disk(c,'#cfbf9d',x,y-3,13,4);
+      rect(c,'#837d68',x-4,y-17,8,13);rect(c,'#c3ad78',x-3,y-18,3,13);
+      disk(c,'#645c52',x,y-29,14,14);disk(c,'#c5a872',x,y-30,13,13);
+      disk(c,'#536e70',x,y-30,10,10);disk(c,'#719b97',x-2,y-32,6,6);
+      poly(c,'#cfb47c',[[x-17,y-22],[x+12,y-43],[x+15,y-41],[x-13,y-21]]);
+      diamond(c,'#d3d0a8',x-3,y-34,2);
+    }else if(name==='tree'||name==='fruitTree'){
       const sway=still?0:Math.sin(time*.8+x*.11),s1=Math.round(sway),s2=Math.round(sway*1.6);
       const reach=scene.known?Math.abs(scene.sunDx):0;
       disk(c,scene.treeShadow||'rgba(36,53,56,.52)',x+scene.sunDx,y+3,14+reach*.6,5);
       c.drawImage(propSprite('tree'+s1+'/'+s2,(g,ax,ay)=>paintTreeBody(g,ax,ay,s1,s2)),(x|0)-24,(y|0)-38);
+      if(name==='fruitTree')for(let i=0;i<8;i++){
+        const px=x-9+(i*7)%20+s1,py=y-27+(i*5)%14;
+        rect(c,'#b97651',px,py,3,3);rect(c,'#d8a568',px,py,2,1);
+      }
       if(!still){
         for(let i=0;i<2;i++){
           const phase=(time*.3+i*.5+x*.013)%1;
