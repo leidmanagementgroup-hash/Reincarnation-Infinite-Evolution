@@ -8,7 +8,14 @@
 - [x] **Controllo automatico dell’integrazione** con `node tests/verifica-integrazione.cjs`.
 - [ ] Ampliare la suite condivisa con casi per i minigiochi e l’intera campagna, e configurarne l’esecuzione automatica.
 
+## Esiti della revisione 2026-11-21 (da decidere)
+- [ ] RISK-006: decidere se un salvataggio con stato del Santuario incoerente debba essere riparato o segnalato invece di essere rifiutato.
+- [ ] RISK-007: confermare la morte permanente dei compagni di gilda e documentarla in `GAME_DESIGN.md`.
+- [ ] Estendere il test Node a `panels.js`/`interface.js` con un DOM minimo, e aggiungere casi per evoluzione, boss adattivi, minigiochi e mercato.
+- [ ] Creare un harness ripetibile di misura prestazioni (percorso fisso, finestra visibile) come baseline per la grafica.
+
 ## Prossima priorità — Grafica
+- Prima dell'approvazione considerare le sette proposte di miglioramento in `PROGRESS.md` → *Revisione tecnica indipendente*.
 
 - [ ] Ottenere l’approvazione del [piano artistico e tecnico](PIANO_GRAFICO.md). La prima prova riguarda la piazza di Velaris e il confronto giorno/notte.
 
