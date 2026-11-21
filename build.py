@@ -10,7 +10,7 @@ MODULES = (
     "urban-exterior.js", "urban-interiors.js", "urban-world.js",
     "calendar.js", "inventory.js", "lantern.js", "growth.js", "world-life.js",
     "construction.js", "society.js", "guild.js", "trades-practice.js", "tradecraft.js",
-    "daily-life.js", "trade-economy.js", "gear.js", "adaptive-combat.js", "legendary.js",
+    "daily-life.js", "market-flows.js", "trade-economy.js", "gear.js", "adaptive-combat.js", "legendary.js",
     "npc-conflicts.js", "reputation.js", "urban-services.js", "urban-life.js", "engine.js", "audio.js",
     "practice-panel.js", "life-panels.js", "economy-panel.js", "gear-panel.js",
     "npc-conflict-panel.js", "panels.js", "interface.js",

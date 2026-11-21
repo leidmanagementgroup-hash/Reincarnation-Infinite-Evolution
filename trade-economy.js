@@ -60,8 +60,14 @@
     const offset=(Math.imul(Number(seed)>>>0,125269)>>>0)%3;
     return {day:1,stock:Object.fromEntries(Object.entries(profile.goods).map(([id,[target]])=>[id,String(Math.max(1,target-2+offset))]))};
   }
+  /* Flussi economici (market-flows.js): produzione, consumo, rotte e ricchezza. Sono facoltativi: senza il modulo
+     o in un salvataggio che non li contiene si ricreano al giorno corrente, senza recuperi retroattivi. */
+  function startFlows(seed,day,markets){
+    return window.MarketFlows?MarketFlows.create(seed,day,profiles,markets):undefined;
+  }
   function create(seed=0){
-    return {schema:1,balance:'0',markets:Object.fromEntries(profiles.map(profile=>[profile.id,initialMarket(profile,seed)]))};
+    const markets=Object.fromEntries(profiles.map(profile=>[profile.id,initialMarket(profile,seed)]));
+    return {schema:1,balance:'0',markets,flows:startFlows(seed,1,markets)};
   }
   function restore(raw,seed,s){
     if(raw===undefined)return create(seed);
@@ -79,7 +85,10 @@
       }
       markets[profile.id]={day:where.day,stock};
     }
-    return {schema:1,balance:raw.balance,markets};
+    const day=s?clock(s).day:1;
+    let flows=window.MarketFlows?(MarketFlows.restore(raw.flows,seed,day,profiles,markets)||startFlows(seed,day,markets)):undefined;
+    if(flows&&MarketFlows.audit(flows,profiles,markets).length)MarketFlows.rebase(flows,profiles,markets);
+    return {schema:1,balance:raw.balance,markets,flows};
   }
   function restocked(market,profile,day){
     if(day<=market.day)return market;
@@ -91,9 +100,23 @@
     }
     return {day,stock};
   }
+  /* Con i flussi attivi le scorte cambiano solo per produzione, consumo, rotte e scambi: il vecchio
+     riassortimento verso l'obiettivo fisso non si applica più. */
+  function sync(s,day=clock(s).day){
+    const flows=s.economy?.flows;
+    if(!flows||!window.MarketFlows||day<=flows.day)return;
+    MarketFlows.advance(flows,profiles,s.economy.markets,day);
+    for(const profile of profiles)s.economy.markets[profile.id].day=Math.max(s.economy.markets[profile.id].day,day);
+  }
+  function fresh(s,market,profile,day){
+    if(!s.economy.flows)return restocked(market,profile,day);
+    sync(s,day);
+    return s.economy.markets[profile.id];
+  }
   function tick(s){
     if(!s?.economy)return;
     const day=clock(s).day;
+    if(s.economy.flows){sync(s,day);return;}
     for(const profile of profiles){
       const old=s.economy.markets[profile.id];
       if(day>old.day)s.economy.markets[profile.id]=restocked(old,profile,day);
@@ -114,7 +137,7 @@
   function shortage(s,marketId,id){
     const profile=marketBook[marketId],goal=profile?.goods[id]?.[0],market=s.economy?.markets[marketId];
     if(!goal||!market)return 0;
-    const supplied=stockAt(restocked(market,profile,clock(s).day),id);
+    const supplied=stockAt(fresh(s,market,profile,clock(s).day),id);
     return supplied<BigInt(goal)?1-Number(supplied)/goal:0;
   }
   function updateStock(where,id,qty){
@@ -124,12 +147,13 @@
   function supplyVelarisMarket(s,id,quantity){
     const profile=marketBook.velaris,market=s.economy?.markets[profile.id];
     if(!market||quantity<=0n||!own(profile.goods,id))return 0n;
-    const where=restocked(market,profile,clock(s).day),stock=stockAt(where,id);
+    const where=fresh(s,market,profile,clock(s).day),stock=stockAt(where,id);
     const capacity=BigInt(profile.goods[id][0]+2);
     if(stock>=capacity)return 0n;
     const delivered=minBig(quantity,capacity-stock);
     updateStock(where,id,stock+delivered);
     s.economy.markets[profile.id]=where;
+    if(s.economy.flows)MarketFlows.external(s.economy.flows,profile.id,id,delivered);
     return delivered;
   }
   function tradeAllowed(s,item){
@@ -140,15 +164,18 @@
     const prices={weapons:20,armor:18,materials:6,food:7,ingredients:4,tools:14,magic:11,quests:0};
     const [target,native]=profile.goods[item.id]||[6,prices[item.category]||5];
     const stock=stockAt(where,item.id);
-    const scarcity=stock<=BigInt(Math.floor(target/3))?1:stock>=BigInt(target)?-1:0;
+    const flows=s.economy?.flows&&window.MarketFlows?s.economy.flows:null;
+    // Con i flussi attivi la scarsità e la ricchezza del mercato scalano il prezzo di base; altrimenti vale la fascia di ±1.
+    const scaled=flows?Math.max(1,Math.round(native*MarketFlows.multiplier(flows,profile,item.id,stock)/1000)):native;
+    const scarcity=flows?0:stock<=BigInt(Math.floor(target/3))?1:stock>=BigInt(target)?-1:0;
     const quality=item.quality===null?0:typeof item.quality==='number'?Math.max(0,Math.min(6,item.quality|0)):
       /eccellente|pregiat|magistr|legend/i.test(item.quality||'')?2:0;
     const winter=c.seasonId==='winter'||c.seasonIndex===3;
     const season=winter&&['food','ingredients','materials'].includes(item.category)?1:0;
     const favor=window.Reputation?.discount(s,profile.region)||0;
     const mourning=window.Conflicts?.faction(s,profile.region).mourning?1:0;
-    const buy=Math.max(2,native+scarcity+quality+season-favor+mourning);
-    return {buy,sell:Math.max(1,Math.min(buy-1,Math.floor((native+quality+season)*.72)+scarcity))};
+    const buy=Math.max(2,scaled+scarcity+quality+season-favor+mourning);
+    return {buy,sell:Math.max(1,Math.min(buy-1,Math.floor((scaled+quality+season)*.72)+scarcity))};
   }
   function listings(s,profile,c,where){
     const ids=new Set([...Object.keys(profile.goods),...Object.keys(where.stock),
@@ -168,7 +195,7 @@
   function view(s){
     if(!s?.economy)return null;
     const c=clock(s),profile=actualMarket(s),here=info(s,profile,c);
-    const where=restocked(s.economy.markets[profile.id],profile,c.day);
+    const where=fresh(s,s.economy.markets[profile.id],profile,c.day);
     const money=wallet(s.economy.balance);
     return {
       wallet:wallet(s.player.gold),
@@ -214,7 +241,7 @@
     const quantity=amountOf(data.amount??1),item=Inventory.definition(s,id),carried=amountOf(s.player.gold);
     if(!item||item.quest)return fail('Oggetto non commerciabile.');
     if(quantity===null||quantity===0n||carried===null)return fail('Inserisci una quantità intera positiva.');
-    const where=restocked(s.economy.markets[profile.id],profile,c.day),stock=stockAt(where,id);
+    const where=fresh(s,s.economy.markets[profile.id],profile,c.day),stock=stockAt(where,id);
     const {buy,sell}=price(s,profile,where,item,c);
     const buying=data.op==='buy',priceTotal=BigInt(buying?buy:sell)*quantity;
     if(buying){
@@ -231,6 +258,7 @@
       updateStock(where,id,stock+quantity);
     }
     s.economy.markets[profile.id]=where;
+    if(s.economy.flows)MarketFlows.external(s.economy.flows,profile.id,id,buying?-quantity:quantity);
     return done(item.name+' ×'+format.format(quantity)+' · '+(buying?'Pagato ':'Ricevuto ')+wallet(priceTotal).label,
       {event:{id:'trade',amount:1,meta:{market:profile.id,item:id,direction:data.op}}});
   }
@@ -262,6 +290,65 @@
     }}));
   }
 
-  window.Economy={create,restore,wallet,view,command,tick,sites,use,actors,shortage,supplyVelarisMarket};
+  /* Rapporto di sola lettura sui flussi: prezzi, ricchezza, merci in viaggio e lavoratori per mercato. */
+  function flowReport(s){
+    const flows=s?.economy?.flows;
+    if(!flows||!window.MarketFlows)return null;
+    sync(s);
+    return {day:flows.day,markets:MarketFlows.report(flows,profiles,s.economy.markets),transit:MarketFlows.inTransit(flows),
+      work:Object.fromEntries(profiles.map(p=>[p.id,MarketFlows.activity(p,s.economy.markets[p.id].stock)])),
+      outlook:Object.fromEntries(profiles.map(p=>[p.id,MarketFlows.outlook(p,s.economy.markets[p.id].stock,flows.wealth[p.id])])),
+      routes:MarketFlows.routesFor(profiles),
+      audit:MarketFlows.audit(flows,profiles,s.economy.markets)};
+  }
+
+  /* ---- API per sistemi futuri (negozi e attività del giocatore, NPC mercanti): nessuna interfaccia, nessun effetto
+     sul denaro. Tutte le merci che entrano o escono dai mercati passano dal registro dei flussi come flussi esterni. ---- */
+  const goodId=id=>id==='potions'?'potion':id;
+  const capacityFor=(profile,id,flows)=>BigInt(flows&&window.MarketFlows?MarketFlows.capacity(profile,id):(own(profile.goods,id)?profile.goods[id][0]:6)+2);
+  /* Quotazione di una merce in un mercato (anche lontano dal giocatore). `stock` facoltativo: ipotizza una scorta diversa. */
+  function quote(s,marketId,id,stock){
+    const profile=own(marketBook,marketId)?marketBook[marketId]:null,key=goodId(id);
+    const item=profile&&s?.economy&&Inventory.definition(s,key);
+    if(!item||item.quest)return null;
+    const c=clock(s),have=stock===undefined?stockAt(fresh(s,s.economy.markets[profile.id],profile,c.day),item.id):amountOf(stock);
+    if(have===null)return null;
+    const {buy,sell}=price(s,profile,{day:c.day,stock:{[item.id]:String(have)}},item,c);
+    const target=own(profile.goods,item.id)?profile.goods[item.id][0]:6;
+    const flows=s.economy.flows&&window.MarketFlows?s.economy.flows:null;
+    return {market:profile.id,id:item.id,stock:String(have),target,buy,sell,
+      index:flows?MarketFlows.multiplier(flows,profile,item.id,have):1000,listed:own(profile.goods,item.id),
+      capacity:String(capacityFor(profile,item.id,flows))};
+  }
+  /* Un negozio, un mercante o un residente porta merci al mercato. Restituisce la quantità accettata (BigInt),
+     limitata dalla capacità del magazzino: nulla viene creato oltre quanto dichiarato. */
+  function deliver(s,marketId,id,quantity){
+    const profile=own(marketBook,marketId)?marketBook[marketId]:null,key=goodId(id),qty=amountOf(quantity);
+    const item=profile&&s?.economy&&Inventory.definition(s,key);
+    if(!item||item.quest||qty===null||qty===0n)return 0n;
+    const c=clock(s),where=fresh(s,s.economy.markets[profile.id],profile,c.day),stock=stockAt(where,item.id);
+    const room=capacityFor(profile,item.id,s.economy.flows)-stock;
+    if(room<=0n)return 0n;
+    const moved=minBig(qty,room);
+    updateStock(where,item.id,stock+moved);
+    s.economy.markets[profile.id]=where;
+    if(s.economy.flows)MarketFlows.external(s.economy.flows,profile.id,item.id,moved);
+    return moved;
+  }
+  /* Un negozio o un mercante preleva merci dal mercato. Restituisce la quantità effettivamente prelevata (BigInt). */
+  function procure(s,marketId,id,quantity){
+    const profile=own(marketBook,marketId)?marketBook[marketId]:null,key=goodId(id),qty=amountOf(quantity);
+    const item=profile&&s?.economy&&Inventory.definition(s,key);
+    if(!item||item.quest||qty===null||qty===0n)return 0n;
+    const c=clock(s),where=fresh(s,s.economy.markets[profile.id],profile,c.day),stock=stockAt(where,item.id);
+    const moved=minBig(qty,stock);
+    if(moved===0n)return 0n;
+    updateStock(where,item.id,stock-moved);
+    s.economy.markets[profile.id]=where;
+    if(s.economy.flows)MarketFlows.external(s.economy.flows,profile.id,item.id,-moved);
+    return moved;
+  }
+
+  window.Economy={create,restore,wallet,view,command,tick,sites,use,actors,shortage,supplyVelarisMarket,flowReport,profiles,quote,deliver,procure};
 })();
 
