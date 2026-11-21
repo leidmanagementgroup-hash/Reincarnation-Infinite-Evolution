@@ -1,14 +1,14 @@
 # PROGRESS.md — Stato del progetto
 
-> Ultimo aggiornamento 2026-11-21, Claude, passo 2 del piano grafico (luce e vegetazione), branch `claude/passo2-luce-vegetazione`.
+> Ultimo aggiornamento 2026-11-21, Claude, passo 2 del piano grafico unito a `main` (fast-forward).
 
 ## In corso
 _Nessuna modifica in corso._
 
 ## Prossimo passo
-0. **Piano grafico**: passo 1 fatto; passo 2 (luce e vegetazione) realizzato sul branch `claude/passo2-luce-vegetazione`, da rivedere (prestazioni: vedi *Prestazioni, verifica finale*: obiettivo del 10% rispettato nello scenario sotto stress) e unire a `main`. I passi 3-5 attendono una nuova conferma dell'utente.
+0. **Piano grafico**: passi 1 e 2 (luce e vegetazione) completati e uniti a `main` (approvazione dell'utente 2026-11-21; prestazioni: vedi *Prestazioni, verifica finale*). **Passi 3-5 non iniziati: attendono una nuova conferma dell'utente.** Problemi aperti da tenere presenti: **BUG-011** (percorsi scartati, residenti fermi nel punto di partenza) e **UX-001** (affollamento serale degli NPC).
 1. Aprire un branch dalla versione corrente di `main` per la **fase 2** del [piano ufficiale](MEGA_CITY_OVERHAUL.md). Estendere il contrasto visivo tra il Mercato dei Venti e i Giardini delle Lanterne e facilitare l’orientamento con segnaletica e mappa. Partire da `urban-exterior.js`, `urban-world.js` e dal [piano grafico](PIANO_GRAFICO.md).
-2. ~~Affollamento nei punti di sosta~~ Risolto sul branch `claude/fix-residenti-sovrapposti` (vedi *Test e verifiche → Residenti di Velaris*). Resta BUG-011. **Prossimo intervento approvato: passo 2 del piano grafico (luce e vegetazione).**
+2. ~~Sovrapposizione dei residenti~~ risolta (vedi *Test e verifiche → Residenti di Velaris*, unita a `main`). Restano **BUG-011** e **UX-001** (sotto), da decidere prima di ampliare la popolazione.
 3. Per la **fase 3** il banco di Velaris riceve già prodotti locali e merci di commissione. Riutilizzare le scorte persistenti e il mercato condiviso con la Selva. Restano da collegare altre filiere, richieste individuali, eventi e servizi.
 4. La morte dei compagni di gilda (RISK-007) è confermata dall'utente e documentata in `GAME_DESIGN.md` §4.9; resta da verificarne il bilanciamento in partita. La misura grafica comparativa è disponibile in questo registro. Lo script per ripeterla resta da integrare nella suite condivisa.
 
@@ -62,7 +62,7 @@ La tabella elenca i sistemi disponibili. La sezione seguente indica le verifiche
 - **Come ripetere la misura**: `node tests/prova-prestazioni.mjs bench <file.html>` (Edge a finestra visibile; `SECS` durata per scena, `K=16` per lo stress, `profile <file.html> <scena>` per il profilatore, `shot` per gli screenshot, `gpuinfo` per lo stato della GPU). Per il confronto costruire `main` con `git worktree` e alternare le due build; non lanciare due esecuzioni insieme (si falsano a vicenda) né usare lo stesso profilo Edge. Dopo ogni prova controllare che non restino processi Edge di test (profilo `prova-prestazioni`/`cdpprof-`): il driver chiude solo il processo principale e le istanze rimaste possono falsare le misure successive; nella verifica finale erano state ripulite prima delle 18 esecuzioni, ma non è escluso che istanze create durante la serie abbiano aggiunto rumore.
 - **Verifica funzionale** (build reale in browser, branch ottimizzato): ingresso in Velaris, movimento, dialogo con un residente, interno (bottega), salvataggio/ricarica dentro l'interno e dopo l'uscita, disegno notturno con `Game.drawFX` dopo lo strato di luce; 2400 passi in valle con attacchi continui e disegno periodico senza errori e console pulita. **Non verificato**: combattimento contro un boss adattivo, tocco, tutte le ore e il meteo, interfaccia in partita completa.
 - **Osservazione visiva aperta**: la sera la piazza è molto affollata di residenti (soste distribuite a 15 px, sprite di circa 16 px), soprattutto attorno al ponte; è effetto del passo sui residenti, non della luce. Da valutare se aumentare la distanza o ripartire gli orari di sera.
-- **Non verificato**: prova a 30 s in finestra visibile, touch, aspetto in partita con interfaccia, interni illuminati dal vivo, tutte le ore e il meteo. Nota estetica: le lanterne oltre le otto luci mostrano solo il filamento; di sera la piazza è molto affollata di residenti (effetto del passo precedente: 15 px di distanza).
+- **Non verificato**: touch, aspetto in partita con interfaccia completa, interni illuminati dal vivo, tutte le ore e il meteo, combattimento contro un boss adattivo. Nota estetica: le lanterne oltre le otto luci mostrano solo il filamento. Per l'affollamento serale vedi UX-001.
 
 ### Residenti di Velaris: soste distribuite (Claude, 2026-11-21)
 - **Causa**: `sidestep()` offre solo 8 scostamenti fissi e tutti i residenti con lo stesso ancoraggio (mercato, piazza, case) finivano sugli stessi punti; con >40 residenti per punto la piazza era una macchia. Misurato prima della correzione su 5 semi × 3 orari (tutti i nodi stradali): oltre 100 coppie di residenti fermi a meno di 10 px.
@@ -149,6 +149,9 @@ BUG-011 aperto (vedi sotto). La revisione del 2026-11-21 ha aggiunto i rilievi R
 
 ### BUG-011 🐞 Residenti fermi nel punto di partenza (preesistente, scoperto 2026-11-21)
 Circa il 2,7% delle tratte (768 su 27 072 campioni su 4 semi, già prima della correzione) non produce un percorso: `route()` in `urban-life.js` scarta la tratta perché un segmento di circa 122 px del grafo `ext.path` non supera il controllo a passi di 3 px con raggio 5 (es. da `house` a `plaza`, da `velaris-building-101` a `forge`). Il residente resta fermo nel punto di partenza e non raggiunge mai la destinazione; occasionalmente si sovrappone a un altro. Non corretto perché richiede di rilassare la validazione o il grafo stradale (`urban-exterior.js`), cioè collisioni/mappe: serve decisione. Passi: `node tests/sonda-residenti.cjs 2024 10` mostra le coppie rimaste.
+
+### UX-001 🟡 Affollamento serale degli NPC a Velaris (aperto, scoperto 2026-11-21)
+La sera (circa 19:00–23:00) molti residenti convergono su piazza delle Quattro Lenti e ponte (passeggiata serale/commissioni verso `plaza`), fino a 70+ visibili contemporaneamente in un'area di pochi metri. Le soste sono ora distribuite (≥15 px fra residenti fermi, nessuna sovrapposizione sotto i 10 px), ma gli sprite sono circa 16 px: il gruppo resta fitto e copre il ponte. Non è un errore di rendering né di luce; deriva da `dailyPlan()`/`spread()` in `urban-life.js` e dalla scelta di soste condivise (`plaza` per la passeggiata serale). Possibili vie, da decidere con l'utente (modifica di design, non fatta): aumentare la distanza minima, ripartire la passeggiata serale su più punti (mercato, giardini, ponte, locanda), sfasare gli orari. Riproduzione: `node tests/prova-prestazioni.mjs shot Reincarnation.html` (scena ponte 21:00) oppure aprire Velaris alle 21:00.
 
 Per ogni nuovo bug: aggiungi `BUG-NNN` con passi per riprodurlo, file sospetti e stato.
 

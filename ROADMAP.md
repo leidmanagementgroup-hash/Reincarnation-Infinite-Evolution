@@ -12,6 +12,7 @@
 
 - [x] RISK-006: lo stato incoerente del Santuario ora produce un avviso invece del rifiuto del salvataggio (2026-11-21).
 - [x] RISK-007: morte permanente dei compagni di gilda confermata e documentata in `GAME_DESIGN.md` §4.9 (2026-11-21).
+- [ ] UX-001: decidere come ridurre l'affollamento serale degli NPC nella piazza di Velaris (distanza, punti di sosta, orari). BUG-011: percorsi scartati, serve decisione sul grafo stradale.
 - [ ] Verificare in partita il bilanciamento dei danni ai compagni (quanto spesso scendono in stato critico).
 - [ ] Estendere il test Node a `panels.js`/`interface.js` con un DOM minimo, e aggiungere casi per evoluzione, boss adattivi e minigiochi. Il mercato di Velaris è già coperto.
 - [x] Prova di prestazioni a finestra visibile condivisa: `tests/prova-prestazioni.mjs` (2026-11-21). Resta da integrarla in un'esecuzione automatica.
@@ -21,7 +22,7 @@
 - [Piano ufficiale Mega City Overhaul](MEGA_CITY_OVERHAUL.md), con requisiti, fasi, criteri di verifica e passaggio di consegne fra modelli.
 - [x] **Fase 0.** Verificare l’integrazione v5/v6 e la base urbana di Velaris.
 - [x] Residenti sovrapposti nella piazza di Velaris: soste distribuite (branch `claude/fix-residenti-sovrapposti`). Resta BUG-011 (percorsi scartati).
-- [x] **Passo 2 del piano grafico** (luce e vegetazione): realizzato sul branch `claude/passo2-luce-vegetazione`, in attesa di revisione e unione a `main`. I passi 3-5 restano da approvare.
+- [x] **Passo 2 del piano grafico** (luce e vegetazione): completato e unito a `main` (2026-11-21). I passi 3-5 restano da approvare.
 - [x] **Fase 1.** Prima porzione grafica di Velaris fra piazza, ponte e mercato, secondo il [piano artistico e tecnico](PIANO_GRAFICO.md).
 - [ ] **Fase 2.** Estendere l’identità dei quartieri, vegetazione, orientamento e varietà degli interni.
 - [ ] **Fase 3.** Estendere routine, produzione ed economia urbana. Il primo flusso di merci collega mestieri e commissioni al mercato di Velaris.
