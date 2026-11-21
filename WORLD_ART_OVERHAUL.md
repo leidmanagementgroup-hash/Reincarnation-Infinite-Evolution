@@ -46,7 +46,7 @@ Nel codice, il terreno della Valle (`world.js`) combina grana e rumore interpola
 ### Stato (2026-11-22)
 
 - **1 · Selva**: pilota di Codex (`codex/world-art-myrathen` `4d8b060`), recuperato senza modifiche nel branch `claude/world-art-overhaul`.
-- **2 e 3 · tutte le altre regioni continentali**: realizzati da Claude nello stesso branch con un metodo comune (`groundArt`, `flora`, `masonry` in `continents.js`): terreno a 2 px per bioma, sentieri e piazze, vegetazione, rocce, edifici, banchi, pozzi, lampioni e rovine per continente come sprite in cache. In più la luce del mondo aperto (`world-light.js`: tinte di crepuscolo e notte per continente, finestre, aloni, particelle per bioma, ombre di nuvole) e la Cripta delle Soglie. Verifiche e misure in `PROGRESS.md`.
+- **2 e 3 · tutte le altre regioni continentali**: realizzati da Claude nello stesso branch, unito a `main` il 2026-11-22 (`ad6daa4`), con un metodo comune (`groundArt`, `flora`, `masonry` in `continents.js`): terreno a 2 px per bioma, sentieri e piazze, vegetazione, rocce, edifici, banchi, pozzi, lampioni e rovine per continente come sprite in cache. In più la luce del mondo aperto (`world-light.js`: tinte di crepuscolo e notte per continente, finestre, aloni, particelle per bioma, ombre di nuvole) e la Cripta delle Soglie. Verifiche e misure in `PROGRESS.md`.
 - **Restano**: Cava e Fenditura (lavoro non committato di Codex), Santuario della Marea Muta, varchi e pilastri dei monumenti, incremento 4 (Generatore Procedurale Urbano 2.0). Velaris non è stata toccata.
 - Strumenti di verifica ripetibili: `tests/scatti-mondo.cjs` (scatti e prestazioni), `tests/confronto-mondo.cjs` (geometria e collisioni), `tests/prova-browser-mondo.cjs` (salvataggi e camminata).
 
