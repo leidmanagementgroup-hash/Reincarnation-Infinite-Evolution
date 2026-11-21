@@ -1,6 +1,6 @@
 # PROGRESS.md — Stato del progetto
 
-> Ultimo aggiornamento 2026-11-21, Codex, prima fase del Mega City Overhaul.
+> Ultimo aggiornamento 2026-11-21, Claude, correzione dei residenti sovrapposti a Velaris.
 
 ## In corso
 _Nessuna modifica in corso._
@@ -8,7 +8,7 @@ _Nessuna modifica in corso._
 ## Prossimo passo
 0. **Piano grafico**: l'utente ha approvato il 2026-11-21 il passo 1 (fatto) e il passo 2, luce e vegetazione, con le condizioni scritte in `PIANO_GRAFICO.md` (sezione *Stato di approvazione*). I passi 3-5 attendono una nuova conferma.
 1. Aprire un branch dalla versione corrente di `main` per la **fase 2** del [piano ufficiale](MEGA_CITY_OVERHAUL.md). Estendere il contrasto visivo tra il Mercato dei Venti e i Giardini delle Lanterne e facilitare l’orientamento con segnaletica e mappa. Partire da `urban-exterior.js`, `urban-world.js` e dal [piano grafico](PIANO_GRAFICO.md).
-2. Verificare l’affollamento nei punti di sosta. A mezzogiorno alcuni residenti si sovrappongono nella piazza. Distribuire le soste su punti percorribili in `urban-life.js` e verificare accesso agli abitanti, orari e commissioni prima di ampliare la popolazione.
+2. ~~Affollamento nei punti di sosta~~ Risolto sul branch `claude/fix-residenti-sovrapposti` (vedi *Test e verifiche → Residenti di Velaris*). Resta BUG-011. **Prossimo intervento approvato: passo 2 del piano grafico (luce e vegetazione).**
 3. Per la **fase 3** il banco di Velaris riceve già prodotti locali e merci di commissione. Riutilizzare le scorte persistenti e il mercato condiviso con la Selva. Restano da collegare altre filiere, richieste individuali, eventi e servizi.
 4. La morte dei compagni di gilda (RISK-007) è confermata dall'utente e documentata in `GAME_DESIGN.md` §4.9; resta da verificarne il bilanciamento in partita. La misura grafica comparativa è disponibile in questo registro. Lo script per ripeterla resta da integrare nella suite condivisa.
 
@@ -49,6 +49,14 @@ La tabella elenca i sistemi disponibili. La sezione seguente indica le verifiche
 | Build a file singolo | ✅ | `build.py` |
 
 ## Test e verifiche
+### Residenti di Velaris: soste distribuite (Claude, 2026-11-21)
+- **Causa**: `sidestep()` offre solo 8 scostamenti fissi e tutti i residenti con lo stesso ancoraggio (mercato, piazza, case) finivano sugli stessi punti; con >40 residenti per punto la piazza era una macchia. Misurato prima della correzione su 5 semi × 3 orari (tutti i nodi stradali): oltre 100 coppie di residenti fermi a meno di 10 px.
+- **Correzione** (`urban-life.js`): `spread()` costruisce una volta al giorno il piano di tutti i residenti. Per ogni sosta cerca il primo posto libero (anelli di 15…88 px, controllo di percorribilità e di raggiungibilità; poi nodi stradali vicini; infine il punto più lontano dagli altri), tenendo almeno 15 px dai residenti presenti nello stesso intervallo. Deterministico (ordine dei profili), nessun movimento casuale, nessuna modifica a mappe, collisioni, salvataggi, orari, case o mestieri.
+- **Esito misurato**: Node, 5 semi × 3 orari × tutti i nodi: 0 coppie ferme sotto i 10 px. Browser (build reale), 10 semi × mezzogiorno/sera/notte: 0 coppie salvo il seme 555 di sera (2) e il 2024 di sera (2 coppie distinte), dovute a BUG-011. Dialogo con un residente in piazza (`UrbanLife.sites`/`use`) funzionante; console senza errori.
+- **Costo**: calcolo del piano una volta al giorno (~50 ms alla prima chiamata in browser, già incluso nel primo accesso alla città); le chiamate successive non cambiano rispetto a prima. Non misurato con la finestra visibile.
+- **Test**: `node tests/verifica-integrazione.cjs` ora controlla mezzogiorno, sera e notte (fallisce senza la correzione). Sonda a parte: `node tests/sonda-residenti.cjs [semi] [soglia]` (codice di uscita 1 se trova sovrapposizioni).
+- **Non verificato**: aspetto visivo in finestra (solo misure numeriche), comportamento con una popolazione più grande.
+
 ### Mega City Overhaul, fase 1
 
 - ✅ `node tests/verifica-integrazione.cjs`. Il test include ora quantità e prezzi dopo il rifornimento all’alba, acquisto, consegna, mancata duplicazione, riserva cittadina e ricaricamento delle scorte.
@@ -109,7 +117,7 @@ La revisione ha valutato il [piano grafico](PIANO_GRAFICO.md) prima dell’autor
 File: `C:\Users\elaro\Downloads\Reincarnation\Reincarnation.html` (doppio clic, oppure aprirlo in Edge/Chrome). Se il browser blocca qualcosa con `file://`, servirlo con `python -m http.server 8765 --bind 127.0.0.1` dalla cartella del progetto e aprire `http://127.0.0.1:8765/Reincarnation.html`. Ricostruzione: `python build.py Reincarnation.html`. Il salvataggio vive in `localStorage` per origine: aprire il file da `file://` e da `http://127.0.0.1` produce partite separate (usare export/import JSON per spostarle).
 
 ## Problemi conosciuti
-_Nessun bug confermato aperto._ La revisione del 2026-11-21 ha aggiunto i rilievi RISK-006…RISK-010. Rischi e debiti noti:
+BUG-011 aperto (vedi sotto). La revisione del 2026-11-21 ha aggiunto i rilievi RISK-006…RISK-010. Rischi e debiti noti:
 
 | ID | Tipo | Descrizione |
 |---|---|---|
@@ -123,6 +131,9 @@ _Nessun bug confermato aperto._ La revisione del 2026-11-21 ha aggiunto i riliev
 | RISK-008 | Debito | Rimosse le guardie `window.X&&`; il test Node non copre `panels.js`/`interface.js`/DOM. |
 | RISK-009 | Bilanciamento | `Adaptive.encounter` ora anche per i colpi dei compagni: contatore di incontri dei boss leggendari può salire in anticipo. |
 | RISK-010 | Processo | Stesso autore Git per tutti gli agenti: mantenere la riga `Agente:` nei messaggi di commit. |
+
+### BUG-011 🐞 Residenti fermi nel punto di partenza (preesistente, scoperto 2026-11-21)
+Circa il 2,7% delle tratte (768 su 27 072 campioni su 4 semi, già prima della correzione) non produce un percorso: `route()` in `urban-life.js` scarta la tratta perché un segmento di circa 122 px del grafo `ext.path` non supera il controllo a passi di 3 px con raggio 5 (es. da `house` a `plaza`, da `velaris-building-101` a `forge`). Il residente resta fermo nel punto di partenza e non raggiunge mai la destinazione; occasionalmente si sovrappone a un altro. Non corretto perché richiede di rilassare la validazione o il grafo stradale (`urban-exterior.js`), cioè collisioni/mappe: serve decisione. Passi: `node tests/sonda-residenti.cjs 2024 10` mostra le coppie rimaste.
 
 Per ogni nuovo bug: aggiungi `BUG-NNN` con passi per riprodurlo, file sospetti e stato.
 

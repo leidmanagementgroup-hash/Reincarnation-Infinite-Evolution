@@ -167,4 +167,26 @@ const incomplete = JSON.parse(Game.exportSave());
 delete incomplete.urban;
 assert.equal(Game.importSave(JSON.stringify(incomplete)), false);
 
-console.log('OK: compatibilità v5/v6→v7, inventario, equipaggiamento, soccorso, sette interni, restauro, rifornimenti di Velaris e avviso del Santuario.');
+// Residenti: a mezzogiorno, di sera e di notte nessuno resta sovrapposto a un altro mentre è fermo.
+Game.s.region = city.region.id;
+const waypoints = Object.values(city.waypoints);
+for (const hour of [12, 19.5, 23]) {
+  const now = ((Calendar.timestamp(Game.s.calendar, Game.s.time) % 1440) + 1440) % 1440;
+  Game.s.time += ((hour * 60 - now + 1440) % 1440) / Calendar.minutesPerSecond;
+  for (const spot of waypoints.filter((_, i) => i % 6 === 0)) {
+    position(spot);
+    const crowd = UrbanLife.actors(Game.s, 0);
+    assert(crowd.length < 140, 'Numero di residenti visibili plausibile');
+    crowd.forEach(actor => {
+      scope.ActorArt.draw = (_c, _k, _x, _y, o) => { actor.moving = !!o.moving; };
+      actor.draw(null);
+    });
+    for (let i = 0; i < crowd.length; i++) for (let j = i + 1; j < crowd.length; j++) {
+      if (crowd[i].moving || crowd[j].moving) continue;
+      assert(Math.hypot(crowd[i].x - crowd[j].x, crowd[i].y - crowd[j].y) >= 10,
+        'Residenti fermi sovrapposti alle ' + hour + ' presso ' + spot.id);
+    }
+  }
+}
+
+console.log('OK: compatibilità v5/v6→v7, inventario, equipaggiamento, soccorso, sette interni, restauro, rifornimenti di Velaris, residenti distribuiti e avviso del Santuario.');

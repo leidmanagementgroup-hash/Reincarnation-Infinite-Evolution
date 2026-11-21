@@ -60,7 +60,7 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 | 27 | `npc-conflicts.js` | `Conflicts` | Pattuglie, ferite, soccorsi, morte permanente NPC, memoriali, rito della rinascita |
 | 28 | `reputation.js` | `Reputation` | Reputazione con insediamenti, regni, gilde, fazioni; titoli |
 | 29 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
-| 30 | `urban-life.js` | `UrbanLife` | Residenti, routine, memorie, commissioni e scorte urbane |
+| 30 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
 | 31 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
 | 32 | `audio.js` | `Score` | Musica e suoni |
 | 33 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |

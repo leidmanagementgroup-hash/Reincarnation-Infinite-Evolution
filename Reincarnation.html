@@ -9703,7 +9703,7 @@ window.Lantern = (() => {
     return runtime.places;
   }
 
-  function dailyPlan(s,p,runtime){
+  function basePlan(s,p,runtime){
     const {homes,squares,anchors}=allPlaces(runtime);
     const standard=p.timetable,d=day(s),market=anchors.market;
     const homeBase=homes[p.homeKey%homes.length];
@@ -9727,6 +9727,60 @@ window.Lantern = (() => {
       {at:night,point:home,label:'Rientro a casa',inside:'house'}
     ].sort((a,b)=>a.at-b.at);
     return {home,work,schedule};
+  }
+  // Distanza minima desiderata fra due residenti fermi nello stesso momento.
+  const gap=15;
+  function ring(bias){
+    const out=[{x:0,y:0}];
+    for(const [r,n] of [[15,8],[26,12],[38,16],[50,20],[62,24],[75,28],[88,32]])
+      for(let i=0;i<n;i++){const a=((i+bias%n)%n)/n*Math.PI*2;out.push({x:Math.round(Math.cos(a)*r),y:Math.round(Math.sin(a)*r*.8)});}
+    return out;
+  }
+  // Piano giornaliero di tutti i residenti, con le soste distribuite: in uno stesso intervallo
+  // nessuno occupa il posto di un altro. Deterministico (ordine dei profili), calcolato una volta al giorno.
+  function spread(s,runtime){
+    const d=day(s);
+    if(runtime.plans&&runtime.plansDay===d)return runtime.plans;
+    const plans=new Map(),placed=[];
+    for(const p of profiles(s.seed).list){
+      const plan=basePlan(s,p,runtime),list=plan.schedule;
+      const schedule=list.map((entry,i)=>{
+        const from=entry.at,to=i+1<list.length?list[i+1].at:1440,base=entry.point;
+        const busy=placed.filter(o=>o.from<to&&from<o.to&&distance(o.point,base)<gap+95);
+        let pick=base;
+        if(busy.some(o=>distance(o.point,base)<gap)){
+          // Primo posto libero a distanza ≥ gap; se la zona è satura, il più lontano dagli altri.
+          let best=-1;pick=base;
+          for(const o of ring(p.planBias)){
+            const q={...base,x:base.x+o.x,y:base.y+o.y};
+            const room=busy.reduce((m,b)=>Math.min(m,distance(b.point,q)),1e9);
+            if(room<=best)continue;
+            if(o.x||o.y){if(!checkPathPoint(runtime,q)||!straight(runtime,base,q))continue;}
+            best=room;pick=q;
+            if(room>=gap)break;
+          }
+          if(best<gap){
+            // Zona stretta o satura: prova i nodi stradali vicini, raggiungibili dal percorso.
+            for(const w of Object.values(runtime.ext.waypoints||{})){
+              const q=rawPoint(w);
+              if(!q||distance(q,base)>130||!checkPathPoint(runtime,q))continue;
+              const room=busy.reduce((m,b)=>Math.min(m,distance(b.point,q)),1e9);
+              if(room<=best||!route(runtime,base,q))continue;
+              best=room;pick={...base,x:q.x,y:q.y};
+              if(room>=gap)break;
+            }
+          }
+        }
+        placed.push({from,to,point:pick});
+        return pick===base?entry:{...entry,point:pick};
+      });
+      plans.set(p.id,{home:schedule[0].point,work:plan.work,schedule});
+    }
+    runtime.plans=plans;runtime.plansDay=d;
+    return plans;
+  }
+  function dailyPlan(s,p,runtime){
+    return spread(s,runtime).get(p.id)||basePlan(s,p,runtime);
   }
   function samplePlan(plan,now){
     const list=plan.schedule;

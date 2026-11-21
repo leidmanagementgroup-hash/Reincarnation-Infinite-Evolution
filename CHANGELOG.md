@@ -2,6 +2,14 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-21] Residenti di Velaris: soste distribuite — Claude
+### Corretto
+- I residenti non si sovrappongono più nelle soste: `spread()` assegna a ogni sosta del giorno un posto libero (≥15 px dagli altri presenti nello stesso intervallo), in modo deterministico e senza toccare orari, case, mestieri, mappe, collisioni o salvataggi (file: `urban-life.js`).
+### Aggiunto
+- Test di regressione a mezzogiorno, sera e notte in `tests/verifica-integrazione.cjs` e sonda multi-seme `tests/sonda-residenti.cjs`.
+### Modificato
+- `Reincarnation.html` ricostruito. Prima: oltre 100 coppie ferme <10 px su 5 semi; dopo: 0 (Node) e 0 salvo BUG-011 (browser, 10 semi). Documentato BUG-011 in `PROGRESS.md`. Branch `claude/fix-residenti-sovrapposti`.
+
 ## [2026-11-21] Approvazione del piano grafico, passi 1-2 — Claude
 ### Documentazione
 - Registrata l'approvazione dell'utente per i passi 1 e 2 del piano grafico, con le condizioni della revisione. Verificato il passo 1: test Node OK, build identica, confronto visivo giorno/notte della piazza di Velaris in browser. Nessun codice modificato.
