@@ -53,23 +53,24 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 | 20 | `trades-practice.js` | `GamePractice` | Minigiochi di mestiere (puri, senza DOM/Canvas) |
 | 21 | `tradecraft.js` | `Tradecraft` | Attività, raccolti, allevamento, ricette |
 | 22 | `daily-life.js` | `Daily` | Bisogni, incarichi facoltativi quotidiani |
-| 23 | `trade-economy.js` | `Economy` | Mercati regionali, valute, banca |
-| 24 | `gear.js` | `Gear` | Equipaggiamento: rarità, durabilità, riparazioni, maestria, tempra, ascensione, incantamento |
-| 25 | `adaptive-combat.js` | `Adaptive` | Boss che riconoscono lo stile ripetuto (melee/projectile/field) e rispondono |
-| 26 | `legendary.js` | `Legendary` | Scoperta, bottino unico, successione del Santuario; Nadir, Arma Divina, Eco della Rinascita |
-| 27 | `npc-conflicts.js` | `Conflicts` | Pattuglie, ferite, soccorsi, morte permanente NPC, memoriali, rito della rinascita |
-| 28 | `reputation.js` | `Reputation` | Reputazione con insediamenti, regni, gilde, fazioni; titoli |
-| 29 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
-| 30 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
-| 31 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
-| 32 | `audio.js` | `Score` | Musica e suoni |
-| 33 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
-| 34 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
-| 35 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
-| 36 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
-| 37 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
-| 38 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
-| 39 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
+| 23 | `market-flows.js` | `MarketFlows` | Economia dinamica: produzione, consumo, rotte, prezzi, registro delle merci, profili per nuove città |
+| 24 | `trade-economy.js` | `Economy` | Mercati regionali, valute, banca |
+| 25 | `gear.js` | `Gear` | Equipaggiamento: rarità, durabilità, riparazioni, maestria, tempra, ascensione, incantamento |
+| 26 | `adaptive-combat.js` | `Adaptive` | Boss che riconoscono lo stile ripetuto (melee/projectile/field) e rispondono |
+| 27 | `legendary.js` | `Legendary` | Scoperta, bottino unico, successione del Santuario; Nadir, Arma Divina, Eco della Rinascita |
+| 28 | `npc-conflicts.js` | `Conflicts` | Pattuglie, ferite, soccorsi, morte permanente NPC, memoriali, rito della rinascita |
+| 29 | `reputation.js` | `Reputation` | Reputazione con insediamenti, regni, gilde, fazioni; titoli |
+| 30 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
+| 31 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
+| 32 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
+| 33 | `audio.js` | `Score` | Musica e suoni |
+| 34 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
+| 35 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
+| 36 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
+| 37 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
+| 38 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
+| 39 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
+| 40 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
 
 Nota: `World`, `ActorArt` ed `EvolutionContent` sono **estesi da più moduli** successivi (ciascuno incapsula e riassegna il globale precedente): l'ordine in `build.py` è vincolante.
 
@@ -97,7 +98,7 @@ La serra ha un’aiuola persistente. Il campo facoltativo `cityWorks.seedbedAt` 
 
 Routine per quartiere: ogni residente abita nel quartiere del proprio lavoro (`homesByDistrict` in `urban-life.js`) e la sera passeggia verso la piazza del suo quartiere invece che tutti verso la Piazza delle Quattro Lenti; le soste restano distribuite da `spread()` e i percorsi verificati in modo esatto (BUG-011). Gli edifici dell’annesso registrano i vetri come quelli storici, quindi di notte si accendono con lo stesso strato precalcolato del passo 2; le atmosfere locali del passo 2 restano limitate ai quartieri storici a est del canale.
 
-Il formato v7 conserva `urban` (routine, scorte, memorie e commissioni) e `cityWorks` (restauro, colazione, esercitazioni e letture). Le mappe si rigenerano dallo stesso seme. I salvataggi precedenti ricevono i nuovi campi al caricamento. La v5 di GitHub può includere equipaggiamento, conflitti, reputazione e Santuario. La migrazione conserva i campi presenti e inizializza quelli mancanti nelle v5 precedenti.
+Il formato v7 conserva `urban` (routine, scorte, memorie e commissioni), `cityWorks` (restauro, colazione, esercitazioni e letture) ed `economy.flows` (campo facoltativo, `schema: 1`: giorno, ricchezza, spedizioni in viaggio, riporti frazionari e registro delle merci; assente nei salvataggi precedenti, che lo ricevono al giorno corrente senza recuperi retroattivi, e ricreato se non valido). Le mappe si rigenerano dallo stesso seme. I salvataggi precedenti ricevono i nuovi campi al caricamento. La v5 di GitHub può includere equipaggiamento, conflitti, reputazione e Santuario. La migrazione conserva i campi presenti e inizializza quelli mancanti nelle v5 precedenti.
 
 ## 4. Meccaniche
 
@@ -117,6 +118,10 @@ Pesca, forgia, agricoltura, allevamento, cucina con minigiochi (tocco vs tenuto 
 Valute: **Scintille, Lunari, Solari, Astrali** (rapporto 100:1). Mercato per continente (07:00–20:00), prezzi e scorte regionali influenzati dagli scambi. Banca con deposito (cinque sportelli).
 
 Velaris trasferisce legno, minerale, erbe e grano dalla riserva urbana al mercato condiviso fra la bottega e il banco della Selva. All’alba i mestieri producono nuove unità. Le merci delle commissioni alimentano la stessa riserva e possono rifornire il banco appena consegnate. Ogni trasferimento conserva le unità e lascia la scorta minima in città. Il limite dell’approvvigionamento urbano è due unità sopra la scorta di riferimento del mercato, per merce. Le scorte e i prezzi usano le regole di commercio esistenti. I dati continuano a usare i campi `urban` ed `economy` del salvataggio v7.
+
+**Economia dinamica (`market-flows.js`, `MarketFlows`).** I cinque mercati non si riassortiscono più verso un obiettivo fisso: le scorte cambiano ogni giorno di calendario per produzione, consumo, deperimento e rotte. Nove professioni producono (contadini, erbaiuoli, minatori, falegnami, pastori, cercatori di essenza, pozzaioli) o trasformano (fornai: un grano per un pane; alchimisti: due erbe per una pozione); i lavoratori accelerano fino al +70% quando manca la merce e si fermano quando la scorta raggiunge il doppio dell'obiettivo. Gli abitanti consumano acqua, pane, grano, erbe, pozioni, minerale, legno, sementi, lana ed essenza; la domanda cala con la scarsità. Otto rotte (Vela al centro) spostano una merce solo se la partenza conserva una riserva, la destinazione ha un deficit previsto e il prezzo all'arrivo copre prezzo di partenza, deperimento e trasporto; mai in senso opposto sulla stessa rotta. Il prezzo di base di ogni merce è scalato da scarsità (×0,4–×1,6) e ricchezza del mercato (piena sul lusso, dimezzata sulla necessità); qualità, stagione, favore e lutto restano come prima. Un registro esatto per mercato e merce (BigInt) garantisce che nessuna merce nasca o sparisca: gli scambi del giocatore e le forniture di Velaris sono flussi esterni dichiarati. Non c'è simulazione individuale: tutto è aggregato e deterministico (seme e giorno).
+
+API per sistemi futuri: `Economy.quote(s, mercato, merce[, scorta])`, `Economy.deliver` / `Economy.procure` (un negozio, un mercante o un residente porta o preleva merce; limiti di magazzino e di scorta), `Economy.flowReport(s)` (prezzi, ricchezza, merci in viaggio, previsione di domanda e produzione, rotte, verifica del registro). `MarketFlows.settlementProfile({id, size, focus, seed, world})` genera il profilo economico di un nuovo insediamento (abitanti, mestieri, obiettivi di scorta, prezzi, specialità) senza condizioni speciali, e `MarketFlows.routesFor(profili)` ne ricava le rotte (connesse, deterministiche). Limiti: il gioco usa cinque mercati (ECO-002); i mercati sono poco profondi (ECO-001); nessuna interfaccia mostra ancora tendenze e merci in viaggio (ECO-003).
 
 ### 4.6 Società e costruzione
 Abitanti con memorie, accordi commerciali, crescita e famiglia; insediamenti con scorte e maestri. Costruzione su lotti designati (casa, fattoria, laboratorio…) con materiali (legno, minerale, oro); villaggi e città assemblabili ai limiti dei lotti, con entrate dagli scambi.

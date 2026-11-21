@@ -15,6 +15,9 @@
 - [x] UX-001: affollamento serale ridotto dalle routine per quartiere di Codex (unite a `main` il 2026-11-21).
 - [x] Integrazione del lavoro di Codex (quartieri orientali, Serra delle Talee, tipi di insediamento) unita a `main` (2026-11-21, `769d231`).
 - [x] **Rifinitura di Velaris.** UX-002 (lanterne e atmosfere dei quartieri orientali) e UX-003 (soste e turni distribuiti nei Portici).
+- [x] **Economia urbana, Fase 3 (due unità)**: flussi di produzione, consumo, rotte e prezzi, registro delle merci, API per negozi futuri, profili per nuove città. Integrata e verificata sul branch `claude/integrazione-economia-fase3` (in attesa del merge su `main`).
+- [ ] Economia, passi successivi (da approvare): lista dinamica dei mercati in `Economy` (ECO-002), interfaccia di tendenze e merci in viaggio (ECO-003), mestieri dei residenti collegati a `MarketFlows.activity`, profondità dei mercati per dimensione (ECO-001), eventi e leggi come modificatori di `traits`/`routes` (Fase 4).
+- [ ] PERF-001: indagare il costo di `path()` salito su `main` `07e42e9` (p95 da 24 a 28–31 ms).
 - [ ] **Fase successiva —** Generatore Procedurale Urbano 2.0: generalizzare lotti, vie, confini e oggetti dell'annesso (oggi a coordinate fisse) partendo da `settlementTypes`, cache per settori e routine per quartiere.
 - [x] BUG-011: risolto e unito a `main` (2026-11-21).
 - [ ] Verificare in partita il bilanciamento dei danni ai compagni (quanto spesso scendono in stato critico).

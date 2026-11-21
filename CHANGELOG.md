@@ -2,6 +2,19 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-21] Integrazione dell'economia dinamica (Fase 3, due unità) con Velaris rifinita — Claude
+Branch `claude/integrazione-economia-fase3` (non unito a `main`), da `main` `07e42e9`; merge senza conflitti di `claude/mega-city-fase3-economia` (`26893c5`, intatto). Rapporto dettagliato: `ECONOMIA_FASE3_RAPPORTO.md`.
+### Aggiunto
+- **`market-flows.js`** (`MarketFlows`): economia aggregata e deterministica a passi di un giorno di calendario. Nove professioni (con pane e pozioni come trasformazioni), consumo e deperimento, otto rotte commerciali con riserva alla partenza, deficit previsto all'arrivo (abitanti e trasformatori) e margine sostenibile, prezzi da scarsità e ricchezza, registro esatto delle merci (BigInt), profili e rotte automatiche per nuove città (`settlementProfile`, `routesFor`).
+- `Economy.quote`, `Economy.deliver`, `Economy.procure`, `Economy.flowReport` (con previsione e rotte), `Economy.profiles` (file: `trade-economy.js`). Salvataggio: campo facoltativo `economy.flows` (`schema: 1`); i salvataggi precedenti lo ricevono al giorno corrente, senza recuperi retroattivi.
+- Test: `tests/economia-flussi.cjs` (158), `tests/economia-flussi-2.cjs`, `tests/economia-integrazione.cjs`, `tests/analisi-economia.cjs` (diagnosi), `tests/prova-browser-economia.cjs`, fixture in `tests/fixtures/`.
+### Modificato
+- `trade-economy.js`: con i flussi attivi il vecchio riassortimento fisso (+2 al giorno) non si applica più; il prezzo di base è scalato da scarsità e ricchezza; acquisti, vendite e forniture di Velaris sono flussi esterni del registro. `build.py`: `market-flows.js` prima di `trade-economy.js`. `tests/verifica-integrazione.cjs`: tre asserzioni che codificavano il vecchio +2 fisso ora verificano lo stesso intento. `Reincarnation.html` ricostruito.
+### Corretto
+- Carenze croniche di grano a Velaris e Calis, eccessi di legno e lana, spedizioni troncate al tetto di 300 con perdita di merce (latente con più di 5 mercati) e previsioni di domanda che ignoravano i trasformatori: vedi `ECONOMIA_FASE3_RAPPORTO.md` §7.1.
+### Verifica
+- Tutte le prove superate (dettagli in `PROGRESS.md`). Nessun file `urban-*.js`, `panels.js`, `interface.js` modificato. Problemi aperti: ECO-001, ECO-002, ECO-003, PERF-001.
+
 ## [2026-11-21] Rifinitura dei quartieri orientali di Velaris — Codex
 
 Commit della rifinitura `b0d570b`.

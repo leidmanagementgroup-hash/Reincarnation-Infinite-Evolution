@@ -84,7 +84,7 @@ Dalla cartella dei sorgenti esegui `python build.py Reincarnation.html`. Lo scri
 | `guild.js` | Registri pubblici, incarichi, rango, compagni e gilda personale |
 | `inventory.js`, `calendar.js` | Pile a quantità esatte, deposito e calendario persistente |
 | `tradecraft.js`, `trades-practice.js` | Attività di mestiere, minigiochi, raccolti, allevamento e ricette |
-| `daily-life.js`, `trade-economy.js` | Bisogni, incarichi facoltativi, mercati, valute e deposito |
+| `daily-life.js`, `market-flows.js`, `trade-economy.js` | Bisogni, incarichi facoltativi, mercati, economia dinamica (produzione, consumo, rotte, prezzi), valute e deposito |
 | `life-panels.js`, `practice-panel.js`, `economy-panel.js` | Interfacce di inventario, mestieri, minigiochi e commercio |
 | `legendary-land.js`, `legendary.js` | Santuario della Marea Muta (dungeon raro), Nadir, successione di Nerav, Arma Divina ed Eco della Rinascita |
 | `adaptive-combat.js` | Boss che riconoscono lo stile ripetuto del giocatore e rispondono |
