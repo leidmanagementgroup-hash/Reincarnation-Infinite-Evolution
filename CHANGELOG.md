@@ -13,7 +13,7 @@ Branch `claude/passo2-luce-vegetazione` (non unito a `main`).
 - Movimento ridotto: tutte le animazioni nuove si fermano con l'opzione effetti spenta **oppure** con `prefers-reduced-motion`, mantenendo luci e contrasto; anche il fuoco degli interni (file: `urban-exterior.js`, `urban-interiors.js`).
 - Test: disegno diurno e notturno con e senza movimento ridotto, tetto di otto luci (file: `tests/verifica-integrazione.cjs`).
 ### Verifica
-- Prestazioni misurate su Edge (headless, 3 giri alternati): +0,4…+1,0 ms per fotogramma, p95 +35–80% rispetto a `main`; obiettivo del 10% del piano non raggiunto (dettagli in `PROGRESS.md`).
+- Prestazioni su Edge (headless, 3 giri alternati): prima dell'ottimizzazione p95 +35…+80% rispetto a `main`; dopo (finestre precalcolate, meno fasce e particelle, niente alone dei cristalli di giorno) circa +5…+25%, +0,2…+0,4 ms assoluti. Obiettivo del 10% ancora superato in tre scene su quattro (dettagli in `PROGRESS.md`).
 ### Non modificato
 - BUG-011, collisioni, mappe, salvataggi, meccaniche e disegno degli avvisi di combattimento (`Game.drawFX` resta dopo lo strato di luce della città).
 

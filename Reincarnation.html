@@ -3656,7 +3656,8 @@ window.ActorArt = (() => {
           if(kind==='lamp'&&strength>.1){c.globalAlpha=Math.min(1,strength);rect(c,'#ffdf94',o.x-1,o.y-(o.name==='prismLamp'?21:19),2,3);}
           continue;
         }
-        const base=kind==='lamp'?strength*(o.name==='prismLamp'?1:.72):.3+.7*strength;
+        // Di giorno cristalli e fucine non disegnano l'alone (solo scintille nel sprite): niente costo extra a luce piena.
+        const base=kind==='lamp'?strength*(o.name==='prismLamp'?1:.72):strength>.08?.3+.7*strength:0;
         if(base<.025)continue;
         const pulse=e.calm?1:kind==='crystal'?.82+.18*Math.sin(time*1.7+o.x*.37):kind==='forge'?.88+.12*Math.sin(time*5+o.x):.97+.03*Math.sin(time*2+o.x);
         const alpha=Math.min(1,base*pulse);
@@ -3672,12 +3673,18 @@ window.ActorArt = (() => {
         for(const b of buildings){
           const q=b.box;
           if(q.x>cam.x+cam.w+30||q.x+q.w<cam.x-30||q.y>cam.y+cam.h+30||q.y+q.h<cam.y-70||!b.sprite?.windows)continue;
-          b.sprite.windows.forEach((w,i)=>{
-            if(((b.skin*31+i*17)%100)/100>=fraction)return;
-            const wx=b.sprite.x+w.x,wy=b.sprite.y+w.y;
-            c.globalAlpha=wStrength*.1;rect(c,'#ffaa55',wx-2,wy-2,w.w+4,w.h+5);
-            c.globalAlpha=wStrength*.6;rect(c,'#ffd882',wx+1,wy+1,w.w-2,w.h-1);
-          });
+          // Un solo disegno per edificio: lo strato delle finestre accese è precalcolato per fascia oraria.
+          const lit=b.sprite.lit||(b.sprite.lit={});
+          if(!lit[fraction]){
+            const layer=canvas(b.sprite.image.width,b.sprite.image.height),g=layer.getContext('2d');
+            b.sprite.windows.forEach((w,i)=>{
+              if(((b.skin*31+i*17)%100)/100>=fraction)return;
+              g.globalAlpha=.1;rect(g,'#ffaa55',w.x-2,w.y-2,w.w+4,w.h+5);
+              g.globalAlpha=.6;rect(g,'#ffd882',w.x+1,w.y+1,w.w-2,w.h-1);
+            });
+            lit[fraction]=layer;
+          }
+          c.globalAlpha=wStrength;c.drawImage(lit[fraction],b.sprite.x,b.sprite.y);
         }
       }
       c.restore();
@@ -3699,14 +3706,14 @@ window.ActorArt = (() => {
     // Atmosfere dei quartieri: Mercato dei Venti caldo e polveroso, Giardini delle Lanterne freschi e verdi.
     const wind=districts.find(d=>d.id==='wind'),lampsD=districts.find(d=>d.id==='lamps');
     const moods=[
-      {id:'wind',box:{minX:canal.right+4,maxX:width-25,minY:wind.minY,maxY:wind.maxY},tint:'224,150,70',tintNight:'255,150,70',a:.055,moteColor:'#ecc88c',n:150},
-      {id:'lamps',box:{minX:canal.right+4,maxX:width-25,minY:lampsD.minY,maxY:lampsD.maxY},tint:'70,150,100',tintNight:'40,170,160',a:.065,moteColor:'#faf6c4',n:220}
+      {id:'wind',box:{minX:canal.right+4,maxX:width-25,minY:wind.minY,maxY:wind.maxY},tint:'224,150,70',tintNight:'255,150,70',a:.055,moteColor:'#ecc88c',n:70},
+      {id:'lamps',box:{minX:canal.right+4,maxX:width-25,minY:lampsD.minY,maxY:lampsD.maxY},tint:'70,150,100',tintNight:'40,170,160',a:.065,moteColor:'#faf6c4',n:90}
     ];
     function band(c,cam,d,rgb,a){
-      for(let k=0;k<4;k++){
-        const x0=Math.max(cam.x,d.minX+k*10),y0=Math.max(cam.y,d.minY+k*10);
-        const x1=Math.min(cam.x+cam.w,d.maxX-k*10),y1=Math.min(cam.y+cam.h,d.maxY-k*10);
-        if(x1>x0&&y1>y0)rect(c,`rgba(${rgb},${a/4})`,x0,y0,x1-x0,y1-y0);
+      for(let k=0;k<2;k++){
+        const x0=Math.max(cam.x,d.minX+k*20),y0=Math.max(cam.y,d.minY+k*20);
+        const x1=Math.min(cam.x+cam.w,d.maxX-k*20),y1=Math.min(cam.y+cam.h,d.maxY-k*20);
+        if(x1>x0&&y1>y0)rect(c,`rgba(${rgb},${a/2})`,x0,y0,x1-x0,y1-y0);
       }
     }
     function drawMood(c,cam,e){
@@ -3777,6 +3784,7 @@ window.ActorArt = (() => {
     function drawFront(c,cam,t,actors=[]){
       const visible=(x,y,rx=64,ry=76)=>x>=cam.x-rx&&x<=cam.x+cam.w+rx&&y>=cam.y-20&&y<=cam.y+cam.h+ry;
       const e=readScene(id),p=actors[0],entries=[];
+      e.treeShadow=`rgba(36,53,56,${e.known?(.2+.32*e.day).toFixed(2):.52})`;
       drawShadows(c,cam,e);
       for(const b of buildings){
         const q=b.box,anchor=q.x+q.w/2;
@@ -4156,7 +4164,7 @@ window.ActorArt = (() => {
     if(name==='tree'){
       const sway=still?0:Math.sin(time*.8+x*.11),s1=Math.round(sway),s2=Math.round(sway*1.6);
       const reach=scene.known?Math.abs(scene.sunDx):0;
-      disk(c,`rgba(36,53,56,${scene.known?(.2+.32*scene.day).toFixed(2):.52})`,x+scene.sunDx,y+3,14+reach*.6,5);
+      disk(c,scene.treeShadow||'rgba(36,53,56,.52)',x+scene.sunDx,y+3,14+reach*.6,5);
       rect(c,'#62564a',x-2,y-19,4,19);rect(c,'#927759',x-1,y-16,1,16);
       disk(c,'#3c574f',x+s1,y-19,14,13);disk(c,'#59745b',x-3+s1,y-22,12,11);
       disk(c,'#738962',x-4+s2,y-26,9,6);disk(c,'#939b6d',x-5+s2,y-29,5,3);
