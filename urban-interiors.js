@@ -500,7 +500,8 @@
   function glow(c,o,t){
     if(!lightTypes.has(o.type))return;
     const ember=o.type!=='window'&&o.type!=='rune';
-    const f=ember?.83+Math.sin(t*3+o.x)*.10:.74;
+    const still=window.UI?.effects===false||!!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    const f=ember?.83+(still?0:Math.sin(t*3+o.x)*.10):.74;
     c.save();c.globalAlpha=f;
     disc(c,ember?'#ffce8220':'#bfe2d619',o.x,o.y+5,36,22);
     disc(c,ember?'#f3cc8220':'#cbe8de1a',o.x,o.y+5,26,16);

@@ -1,12 +1,12 @@
 # PROGRESS.md — Stato del progetto
 
-> Ultimo aggiornamento 2026-11-21, Claude, correzione dei residenti sovrapposti a Velaris.
+> Ultimo aggiornamento 2026-11-21, Claude, passo 2 del piano grafico (luce e vegetazione), branch `claude/passo2-luce-vegetazione`.
 
 ## In corso
 _Nessuna modifica in corso._
 
 ## Prossimo passo
-0. **Piano grafico**: l'utente ha approvato il 2026-11-21 il passo 1 (fatto) e il passo 2, luce e vegetazione, con le condizioni scritte in `PIANO_GRAFICO.md` (sezione *Stato di approvazione*). I passi 3-5 attendono una nuova conferma.
+0. **Piano grafico**: passo 1 fatto; passo 2 (luce e vegetazione) realizzato sul branch `claude/passo2-luce-vegetazione`, da rivedere (soprattutto la misura su Edge) e unire a `main`. I passi 3-5 attendono una nuova conferma dell'utente.
 1. Aprire un branch dalla versione corrente di `main` per la **fase 2** del [piano ufficiale](MEGA_CITY_OVERHAUL.md). Estendere il contrasto visivo tra il Mercato dei Venti e i Giardini delle Lanterne e facilitare l’orientamento con segnaletica e mappa. Partire da `urban-exterior.js`, `urban-world.js` e dal [piano grafico](PIANO_GRAFICO.md).
 2. ~~Affollamento nei punti di sosta~~ Risolto sul branch `claude/fix-residenti-sovrapposti` (vedi *Test e verifiche → Residenti di Velaris*). Resta BUG-011. **Prossimo intervento approvato: passo 2 del piano grafico (luce e vegetazione).**
 3. Per la **fase 3** il banco di Velaris riceve già prodotti locali e merci di commissione. Riutilizzare le scorte persistenti e il mercato condiviso con la Selva. Restano da collegare altre filiere, richieste individuali, eventi e servizi.
@@ -49,6 +49,12 @@ La tabella elenca i sistemi disponibili. La sezione seguente indica le verifiche
 | Build a file singolo | ✅ | `build.py` |
 
 ## Test e verifiche
+### Passo 2 grafico: luce e vegetazione (Claude, 2026-11-21, branch `claude/passo2-luce-vegetazione`)
+- **Realizzato** in `urban-exterior.js` (più un ritocco in `urban-interiors.js`): vedi `CHANGELOG.md`. Condizioni di `PIANO_GRAFICO.md`: ≤8 luci attive ✅ (test), sprite precalcolati ✅ (tre sprite, nessun gradiente per fotogramma; i gradienti di sfondo restano solo nel primo uso), luce propria degli interni ✅ (già presente, ora rispetta il movimento ridotto; `atmosphere()` non agisce negli interni), `prefers-reduced-motion` ✅, avvisi di combattimento 🟡 (non toccati; `Game.drawFX` si disegna dopo lo strato di luce, ma renderli distinguibili per forma è il passo 4).
+- **Verificato davvero**: `node tests/verifica-integrazione.cjs` OK (nuovo caso: giorno/notte, effetti off, matchMedia ridotto, ≤8 luci); sonda residenti ancora a 0. In browser (build reale, stesso seme, ora e camera): confronto prima/dopo di ponte di notte, giardini e mercato di sera; con `prefers-reduced-motion` simulato due fotogrammi a tempi diversi hanno 0 pixel diversi (ponte, giardini, mercato; 12:00 e 22:00).
+- **Prestazioni** (browser, pannello non in primo piano; ground+front con 480×270, 360 fotogrammi, 2 giri; non è la prova a 30 s su Edge del piano): mediana/p95 ms prima → dopo. Piazza 12:00 8,0/10,4–11,0 → 8,7–9,8/10,8–12,6; piazza 21:00 7,9/9,9–10,6 → 8,2–9,7/10,8–12,4; mercato 21:00 6,5/7,6–7,7 → 6,6–7,7/8,0–10,8; giardini 21:00 6,7/8,2–8,4 → 7,1–8,3/9,7–11,0. Costo stimato +0,3…+1,5 ms; il secondo giro era rumoroso in tutta la serie. Il p95 della piazza supera di circa 2–15% il riferimento: **al limite dell'obiettivo del 10%, non dimostrato entro**. Da ripetere su Edge a finestra visibile.
+- **Non verificato**: prova a 30 s in finestra visibile, touch, aspetto in partita con interfaccia, interni illuminati dal vivo, tutte le ore e il meteo. Nota estetica: le lanterne oltre le otto luci mostrano solo il filamento; di sera la piazza è molto affollata di residenti (effetto del passo precedente: 15 px di distanza).
+
 ### Residenti di Velaris: soste distribuite (Claude, 2026-11-21)
 - **Causa**: `sidestep()` offre solo 8 scostamenti fissi e tutti i residenti con lo stesso ancoraggio (mercato, piazza, case) finivano sugli stessi punti; con >40 residenti per punto la piazza era una macchia. Misurato prima della correzione su 5 semi × 3 orari (tutti i nodi stradali): oltre 100 coppie di residenti fermi a meno di 10 px.
 - **Correzione** (`urban-life.js`): `spread()` costruisce una volta al giorno il piano di tutti i residenti. Per ogni sosta cerca il primo posto libero (anelli di 15…88 px, controllo di percorribilità e di raggiungibilità; poi nodi stradali vicini; infine il punto più lontano dagli altri), tenendo almeno 15 px dai residenti presenti nello stesso intervallo. Deterministico (ordine dei profili), nessun movimento casuale, nessuna modifica a mappe, collisioni, salvataggi, orari, case o mestieri.

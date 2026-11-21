@@ -189,4 +189,35 @@ for (const hour of [12, 19.5, 23]) {
   }
 }
 
+// Luce e vegetazione di Velaris: disegno di giorno e di notte, con e senza movimento ridotto, al massimo otto luci.
+const drawn = { glows: 0, calls: 0 };
+const counting = new Proxy({
+  drawImage(image) { drawn.calls++; if (image && image.width === 88 && image.height === 62) drawn.glows++; },
+  createLinearGradient() { return { addColorStop() {} }; },
+  createRadialGradient() { return { addColorStop() {} }; },
+}, { get(target, key) { return key in target ? target[key] : () => undefined; }, set() { return true; } });
+function paintCity(hour, spot) {
+  const now = ((Calendar.timestamp(Game.s.calendar, Game.s.time) % 1440) + 1440) % 1440;
+  Game.s.time += ((hour * 60 - now + 1440) % 1440) / Calendar.minutesPerSecond;
+  const cam = { x: spot.x - 240, y: spot.y - 135, w: 480, h: 270 };
+  drawn.glows = 0; drawn.calls = 0;
+  city.drawGround(counting, cam, 3.3);
+  city.drawFront(counting, cam, 3.3, [{ x: spot.x, y: spot.y, draw() {} }]);
+  return { ...drawn };
+}
+for (const spot of [city.plaza, { x: 1040, y: 726 }, { x: 1860, y: 1070 }, { x: 1540, y: 820 }]) {
+  const night = paintCity(22, spot);
+  assert(night.glows <= 8, 'Al massimo otto luci attive: ' + night.glows);
+  paintCity(12, spot);
+}
+assert(paintCity(22, { x: 1040, y: 726 }).glows >= 4, 'Di notte le lanterne e i cristalli del ponte sono accesi');
+scope.UI = { effects: false };
+paintCity(22, { x: 1040, y: 726 });
+delete scope.UI;
+scope.matchMedia = () => ({ matches: true });
+paintCity(22, { x: 1860, y: 1070 });
+delete scope.matchMedia;
+const crystals = city.buildings.length && UrbanWorld.exterior(Game.s.seed) === city;
+assert(crystals, 'La città resta la stessa istanza deterministica');
+
 console.log('OK: compatibilità v5/v6→v7, inventario, equipaggiamento, soccorso, sette interni, restauro, rifornimenti di Velaris, residenti distribuiti e avviso del Santuario.');

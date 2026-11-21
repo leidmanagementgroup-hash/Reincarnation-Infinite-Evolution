@@ -2,6 +2,19 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-21] Passo 2 del piano grafico: luce e vegetazione di Velaris — Claude
+Branch `claude/passo2-luce-vegetazione` (non unito a `main`).
+### Aggiunto
+- Luce dal calendario: ombre a terra di edifici e alberi con direzione e lunghezza legate all'ora; lanterne, cristalli e fucine come sorgenti con sprite precalcolati (tre toni), **al massimo otto luci attive**; finestre accese di sera con quota che cala a notte fonda (decalcomanie senza gradienti).
+- Cristalli luminosi (9, solo decorazione, senza collisione) con bagliori turchesi e scintille.
+- Riflessi dei lumi sul canale e riflessi d'acqua che passano da verde-azzurro a rosa al tramonto e blu di notte.
+- Alberi con chiome oscillanti e foglie che cadono; stendardi che sventolano.
+- Atmosfere: Mercato dei Venti caldo e polveroso, Giardini delle Lanterne freschi e verdi con lucciole di sera (file: `urban-exterior.js`).
+- Movimento ridotto: tutte le animazioni nuove si fermano con l'opzione effetti spenta **oppure** con `prefers-reduced-motion`, mantenendo luci e contrasto; anche il fuoco degli interni (file: `urban-exterior.js`, `urban-interiors.js`).
+- Test: disegno diurno e notturno con e senza movimento ridotto, tetto di otto luci (file: `tests/verifica-integrazione.cjs`).
+### Non modificato
+- BUG-011, collisioni, mappe, salvataggi, meccaniche e disegno degli avvisi di combattimento (`Game.drawFX` resta dopo lo strato di luce della città).
+
 ## [2026-11-21] Residenti di Velaris: soste distribuite — Claude
 ### Corretto
 - I residenti non si sovrappongono più nelle soste: `spread()` assegna a ogni sosta del giorno un posto libero (≥15 px dagli altri presenti nello stesso intervallo), in modo deterministico e senza toccare orari, case, mestieri, mappe, collisioni o salvataggi (file: `urban-life.js`).

@@ -21,7 +21,7 @@
 - [Piano ufficiale Mega City Overhaul](MEGA_CITY_OVERHAUL.md), con requisiti, fasi, criteri di verifica e passaggio di consegne fra modelli.
 - [x] **Fase 0.** Verificare l’integrazione v5/v6 e la base urbana di Velaris.
 - [x] Residenti sovrapposti nella piazza di Velaris: soste distribuite (branch `claude/fix-residenti-sovrapposti`). Resta BUG-011 (percorsi scartati).
-- [ ] **Passo 2 del piano grafico** (luce e vegetazione), approvato dall'utente il 2026-11-21 con le condizioni elencate in `PIANO_GRAFICO.md`. I passi 3-5 restano da approvare.
+- [x] **Passo 2 del piano grafico** (luce e vegetazione): realizzato sul branch `claude/passo2-luce-vegetazione`, in attesa di revisione e unione a `main`. I passi 3-5 restano da approvare.
 - [x] **Fase 1.** Prima porzione grafica di Velaris fra piazza, ponte e mercato, secondo il [piano artistico e tecnico](PIANO_GRAFICO.md).
 - [ ] **Fase 2.** Estendere l’identità dei quartieri, vegetazione, orientamento e varietà degli interni.
 - [ ] **Fase 3.** Estendere routine, produzione ed economia urbana. Il primo flusso di merci collega mestieri e commissioni al mercato di Velaris.
