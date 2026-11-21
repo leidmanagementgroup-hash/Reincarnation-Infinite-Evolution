@@ -1,6 +1,7 @@
 // Prova di prestazioni di Velaris con Edge a finestra visibile (GPU attiva se disponibile), rAF reale, senza letture di pixel.
 // Uso (PowerShell/Bash): node tests/prova-prestazioni.mjs <gpuinfo|bench|profile|shot> <file.html> [scena]
-//   variabili: SECS (durata per scena, default 30), K (disegni per fotogramma; 16 = stress), OUT (cartella di lavoro), OFF (non usato).
+//   variabili: SECS (durata per scena, default 30), K (disegni per fotogramma; 16 = stress), OUT (cartella di lavoro),
+//   SCENES (elenco, es. piazza12,portici21,orti@tramonto; luoghi: piazza ponte mercato giardini portici orti serra).
 // Per confrontare due build alternale: costruisci main in un'altra cartella (git worktree) e passa i due HTML.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -47,7 +48,7 @@ try {
     await ev(BENCH); if (process.env.OFF) await ev(`window.__off='${process.env.OFF}'`);
     if (mode === 'bench') {
       const out = [];
-      for (const sc of ['piazza12', 'ponte21', 'mercato21', 'giardini21']) out.push(await ev(`__bench('${sc}',${seconds},${Number(process.env.K||1)})`));
+      for (const sc of (process.env.SCENES || 'piazza12,ponte21,mercato21,giardini21').split(',')) out.push(await ev(`__bench('${sc}',${seconds},${Number(process.env.K||1)})`));
       console.log(JSON.stringify({ build, out }));
     } else if (mode === 'profile') {
       const sc = process.argv[4] || 'ponte21';
@@ -65,7 +66,7 @@ try {
       const top = [...self.entries()].sort((a, b) => b[1] - a[1]).slice(0, 28).map(([k, v]) => [k, +(v / 1000).toFixed(0), +(100 * v / total).toFixed(1)]);
       console.log(JSON.stringify({ build, scene: sc, totalMs: +(total / 1000).toFixed(0), inclusive, top }));
     } else if (mode === 'shot') {
-      for (const sc of ['piazza12', 'ponte21', 'mercato21', 'giardini21']) {
+      for (const sc of (process.env.SCENES || 'piazza12,ponte21,mercato21,giardini21').split(',')) {
         await ev(`__still('${sc}')`); await sleep(400);
         const shot = await tab.send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: 960, height: 540, scale: 1 } });
         fs.writeFileSync(path.join(S, 'shots', path.basename(build, '.html') + '-' + sc + '.png'), Buffer.from(shot.result.data, 'base64'));

@@ -1,7 +1,17 @@
 // Iniettato da prova-prestazioni.mjs nella pagina del gioco. Espone __bench(scena, secondi, K) e __still(scena).
+// Scene: "<luogo><ora>" (es. piazza12, portici21) oppure "<luogo>@tramonto" (ora del tramonto del calendario).
+window.__places = { piazza: { x: 940, y: 726 }, ponte: { x: 1040, y: 726 }, mercato: { x: 1540, y: 820 }, giardini: { x: 1860, y: 1070 },
+  portici: { x: 2460, y: 520 }, orti: { x: 2516, y: 1150 }, serra: { x: 2570, y: 1135 } };
+window.__scene = label => {
+  const m = /^([a-z]+)(?:@(tramonto)|(\d+(?:\.\d+)?))$/.exec(label);
+  if (!m || !__places[m[1]]) throw new Error('scena sconosciuta ' + label);
+  let hour = Number(m[3]);
+  if (m[2]) { const r0 = Math.random; let n = 0; Math.random = () => n++ === 0 ? 19425 / 4294967296 : .24; Game.newGame(); Math.random = r0;
+    hour = Calendar.view(Game.s.calendar, Game.s.time, 'city-velaris').sunsetMinutes / 60; }
+  return [hour, __places[m[1]]];
+};
 window.__bench = (label, seconds, K = 1) => new Promise(resolve => {
-  const SC = { piazza12: [12, { x: 940, y: 726 }], ponte21: [21, { x: 1040, y: 726 }], mercato21: [21, { x: 1540, y: 820 }], giardini21: [21, { x: 1860, y: 1070 }] };
-  const [hour, spot] = SC[label];
+  const [hour, spot] = __scene(label);
   const r0 = Math.random; let n = 0; Math.random = () => n++ === 0 ? 19425 / 4294967296 : .24; Game.newGame(); Math.random = r0;
   const s = Game.s; s.region = 'city-velaris';
   const ext = UrbanWorld.exterior(s.seed);
@@ -37,8 +47,7 @@ window.__bench = (label, seconds, K = 1) => new Promise(resolve => {
   requestAnimationFrame(frame);
 });
 window.__still = (label, t = 3.3) => {
-  const SC = { piazza12: [12, { x: 940, y: 726 }], ponte21: [21, { x: 1040, y: 726 }], mercato21: [21, { x: 1540, y: 820 }], giardini21: [21, { x: 1860, y: 1070 }] };
-  const [hour, spot] = SC[label];
+  const [hour, spot] = __scene(label);
   const r0 = Math.random; let n = 0; Math.random = () => n++ === 0 ? 19425 / 4294967296 : .24; Game.newGame(); Math.random = r0;
   const s = Game.s; s.region = 'city-velaris'; const ext = UrbanWorld.exterior(s.seed);
   const cur = ((Calendar.timestamp(s.calendar, s.time) % 1440) + 1440) % 1440;

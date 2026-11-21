@@ -4347,7 +4347,10 @@ window.ActorArt = (() => {
     const x=pad,y=lift+h,ridge=lift-8,front=y-(b.style==='bellhouse'?35:25),cx=x+Math.floor(w/2);
     const [shade,roof,light,trim]=d.roofs[b.color],[frame,wall,chalk]=d.wall;
     const ink='#374342',sill='#8c7455',sun='#e8cca0';
+    // Registra i vetri come le finestre dei quartieri storici: di notte si accendono con lo strato già precalcolato.
+    const windows=[];
     function pane(px,py,pw,ph){
+      windows.push({x:px+1,y:py,w:pw-2,h:ph-2});
       rect(g,ink,px,py,pw,ph);rect(g,'#718b8c',px+2,py+1,pw-4,ph-3);
       rect(g,'#c1c7a4',px+2,py+1,pw-5,2);rect(g,sill,px+pw/2,py+1,1,ph-2);
       rect(g,chalk,px-1,py+ph,pw+2,2);
@@ -4429,7 +4432,7 @@ window.ActorArt = (() => {
     rect(g,ink,cx-7,y-18,14,18);rect(g,'#815f47',cx-5,y-15,10,14);
     rect(g,'#9f8060',cx-4,y-15,2,13);rect(g,sun,cx+2,y-7,2,1);
     rect(g,trim,cx-9,y,18,2);rect(g,sill,cx-10,y+2,20,2);
-    return {image,x:q.x-pad,y:q.y-lift};
+    return {image,x:q.x-pad,y:q.y-lift,windows};
   }
 
   function paintProp(c,o,time){
