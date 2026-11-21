@@ -3,9 +3,9 @@
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
 ## [2026-11-21] Integrazione del lavoro di Codex: quartieri orientali, Serra delle Talee, tipi di insediamento — Claude
-Branch `claude/integrazione-codex-velaris` (non unito a `main`). Fonte: `velaris-city-verified` di Codex (backup in `Downloads/Codex-backup-2026-11-21`).
+Unito a `main` per fast-forward su approvazione dell'utente (`16b6129` → `769d231`, branch `claude/integrazione-codex-velaris`). Dopo l'unione: test di integrazione, sonde dei percorsi e dei residenti (0 bloccati, 0 tratte illegali, 0 sovrapposizioni), prove nel browser 10/10 e 12/12, build identica ai sorgenti; cartelle di Codex e backup intatti. Fonte: `velaris-city-verified` di Codex (backup in `Downloads/Codex-backup-2026-11-21`).
 ### Aggiunto (lavoro di Codex)
-- Mappa di Velaris 2144 → 2864 px con **Portici del Vetro** e **Orti dell'Alambicco** (134 edifici in totale), strade, piazzette, oggetti e cache del terreno separata; minimappa estesa (file: `urban-exterior.js`).
+- Mappa di Velaris 2144 → 2864 px con **Portici del Vetro** e **Orti dell'Alambicco** (130–135 edifici secondo il seme, 32 nei quartieri nuovi), strade, piazzette, oggetti e cache del terreno separata; minimappa estesa (file: `urban-exterior.js`).
 - **Serra delle Talee**, ottavo interno: semina, irrigazione, 80 minuti, raccolta di due erbe; campo di salvataggio facoltativo `cityWorks.seedbedAt` (v7 invariata) (file: `urban-interiors.js`, `urban-services.js`, `urban-world.js`, `panels.js`).
 - `UrbanWorld.settlementTypes` (borgo, villaggio, cittadina, grande città, capitale); Velaris è una cittadina (file: `urban-world.js`, `panels.js`).
 - Routine per quartiere: case nel quartiere del lavoro, passeggiata serale verso la piazza del proprio quartiere (UX-001 in gran parte risolto) (file: `urban-life.js`).
@@ -15,7 +15,7 @@ Branch `claude/integrazione-codex-velaris` (non unito a `main`). Fonte: `velaris
 ### Aggiunto (prove)
 - `tests/prova-browser-velaris-est.cjs` (camminata nei nuovi quartieri, serra completa, vecchio salvataggio, errori JS); test di integrazione di Codex per serra e sei quartieri.
 ### Verifica
-- Tutte le prove superate; prestazioni invariate nei quartieri storici e uguali o inferiori nei nuovi (dettagli in `PROGRESS.md`). Restano UX-002 e la Corte dei Soffiatori affollata.
+- Tutte le prove superate; prestazioni invariate nei quartieri storici e uguali o inferiori nei nuovi (dettagli in `PROGRESS.md`). Restano UX-002 (notte dei quartieri orientali) e UX-003 (Corte dei Soffiatori affollata), da affrontare nella rifinitura di Velaris.
 
 ## [2026-11-21] BUG-011: percorsi dei residenti di Velaris senza sfioramenti — Claude
 Unito a `main` per fast-forward su approvazione dell'utente (commit `fbdba49`). Dopo l'unione: test di integrazione, sonde dei percorsi e dei residenti (0 e 0), prova nel browser 10/10, build identica.

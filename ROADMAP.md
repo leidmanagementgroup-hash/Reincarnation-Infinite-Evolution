@@ -12,9 +12,10 @@
 
 - [x] RISK-006: lo stato incoerente del Santuario ora produce un avviso invece del rifiuto del salvataggio (2026-11-21).
 - [x] RISK-007: morte permanente dei compagni di gilda confermata e documentata in `GAME_DESIGN.md` §4.9 (2026-11-21).
-- [x] UX-001: affollamento serale ridotto dalle routine per quartiere di Codex (branch `claude/integrazione-codex-velaris`); resta da alleggerire la Corte dei Soffiatori.
-- [ ] UX-002: lanterne agli incroci e atmosfere locali per Portici del Vetro e Orti dell'Alambicco (intervento grafico piccolo, da approvare).
-- [ ] Generatore Procedurale Urbano 2.0: generalizzare lotti, vie, confini e oggetti dell'annesso (oggi a coordinate fisse) partendo da `settlementTypes`, cache per settori e routine per quartiere.
+- [x] UX-001: affollamento serale ridotto dalle routine per quartiere di Codex (unite a `main` il 2026-11-21); la parte restante è UX-003.
+- [x] Integrazione del lavoro di Codex (quartieri orientali, Serra delle Talee, tipi di insediamento) unita a `main` (2026-11-21, `769d231`).
+- [ ] **Prossima fase — rifinitura di Velaris** (da approvare): UX-002 lanterne agli incroci e atmosfere locali per Portici del Vetro e Orti dell'Alambicco; UX-003 alleggerire la Corte dei Soffiatori.
+- [ ] **Fase successiva —** Generatore Procedurale Urbano 2.0: generalizzare lotti, vie, confini e oggetti dell'annesso (oggi a coordinate fisse) partendo da `settlementTypes`, cache per settori e routine per quartiere.
 - [x] BUG-011: risolto e unito a `main` (2026-11-21).
 - [ ] Verificare in partita il bilanciamento dei danni ai compagni (quanto spesso scendono in stato critico).
 - [x] Prima prova nel browser con Playwright: `tests/prova-browser.cjs` (menu principali, Atlante, Segna Velaris, salvataggi). Da estendere a combattimento, minigiochi e interni.
