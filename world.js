@@ -467,6 +467,22 @@
       }
     }
   }
+  // Sorgenti di luce della Valle di Vela per WorldLight: lanterne, albero delle lanterne, forgia e finestre delle case.
+  function lightSources(){
+    const lights=[],windows=[];
+    for(const o of arrays.objects){
+      if(o.kind==='lamp')lights.push({x:o.x+6,y:o.y,kind:'lamp',lift:29,core:[o.x+4,o.y-17,4,4]});
+      else if(o.kind==='lanternTree')lights.push({x:o.x,y:o.y,kind:'lamp',lift:40});
+      else if(o.kind==='smith')lights.push({x:o.x+36,y:o.y,kind:'fire',lift:22});
+      if(!roofPalette[o.kind])continue;
+      const w=o.kind==='guild'?87:o.kind==='smith'?62:59,h=o.kind==='guild'?35:29,x=-Math.floor(w/2);
+      const list=[[x+8,-21,7,9],[x+w-19,-21,7,9],[o.kind==='guild'?-17:-4,-h-12,5,4]];
+      if(o.kind==='guild')list.push([18,-h-13,5,4]);
+      list.forEach(([dx,dy,ww,wh],i)=>windows.push({x:o.x+dx,y:o.y+dy,w:ww,h:wh,seed:Math.floor(hash(o.x+i*7,o.y,13)*100)}));
+    }
+    return {lights,windows};
+  }
+  window.WorldLight?.provide(r=>r==='valley',lightSources,()=>'valley');
   function makeChart(){const c=canvas(400,270),g=c.getContext('2d');g.drawImage(ground,0,0,400,270);g.scale(.25,.25);for(const o of arrays.objects)renderObject(g,o,0);return c;}
   function drawMap(c,w,h,p){
     if(!chart)init();c.save();c.imageSmoothingEnabled=false;c.drawImage(chart,0,0,w,h);

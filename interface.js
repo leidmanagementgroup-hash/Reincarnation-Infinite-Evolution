@@ -311,8 +311,11 @@
     const daylight=sunsetMinutes-sunriseMinutes;
     const light=day?Math.sin((minutes-sunriseMinutes)*Math.PI/daylight):-Math.sin(((minutes-sunsetMinutes+1440)%1440)*Math.PI/(1440-daylight));
     const dusk=Math.max(0,1-Math.abs(light)*3.5),night=Math.max(0,-light);
-    if(dusk>.01){ctx.fillStyle='rgba(223,127,74,'+(.13*dusk)+')';ctx.fillRect(0,0,cam.w,cam.h);}
-    if(night>.01){ctx.fillStyle='rgba(19,27,81,'+(.34*night)+')';ctx.fillRect(0,0,cam.w,cam.h);}
+    // Tinte per continente e luci locali (World Art Overhaul); i sotterranei hanno una penombra costante.
+    const sky=WorldLight.sky(v.region),under=!!sky.under;
+    if(!under&&dusk>.01){ctx.fillStyle='rgba('+sky.dusk+','+(.13*dusk)+')';ctx.fillRect(0,0,cam.w,cam.h);}
+    if(under||night>.01){ctx.fillStyle='rgba('+sky.night+','+(sky.depth*(under?1:night))+')';ctx.fillRect(0,0,cam.w,cam.h);}
+    WorldLight.draw(ctx,{x:Math.round(cam.x),y:Math.round(cam.y),w:cam.w,h:cam.h},t,v.region,{night:under?1:night,dusk:under?0:dusk,minutes,calm:!renderEffects});
     if(!renderEffects)return;
     if(v.region==='quarry'||v.region==='rift'){
       const quarry=v.region==='quarry';

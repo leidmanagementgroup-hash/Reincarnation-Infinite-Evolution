@@ -373,17 +373,35 @@
   }
   function makeCrypt(r,seed){
     const image=makeCanvas(w,h),c=image.getContext('2d'),objects=[],palette=formats.star;
-    tile(c,'#142329',0,0,w,h);
-    for(const [x,y,rw,rh] of r.rooms){tile(c,'#333c43',x-4,y-7,rw+8,rh+13);tile(c,'#575f62',x,y,rw,rh);}
+    // Roccia scura intorno alle sale, bordi e pareti in mattoni con profondità; le sale non cambiano forma.
+    tile(c,'#10181e',0,0,w,h);
+    const rock=random(seed^0x6c8e9cf5);
+    for(let i=0;i<6000;i++){const x=Math.floor(rock()*w),y=Math.floor(rock()*h),q=rock();tile(c,q<.5?'#18232a':'#0b1216',x,y,1+Math.floor(q*3),1);}
+    for(const [x,y,rw,rh] of r.rooms){tile(c,'#1c2429',x-6,y-11,rw+12,rh+18);tile(c,'#2d373d',x-4,y-9,rw+8,rh+14);}
+    for(const [x,y,rw,rh] of r.rooms)tile(c,'#575f62',x,y,rw,rh);
+    const floor=(x,y)=>insideCrypt(r,x,y,0);
+    for(const [x,y,rw,rh] of r.rooms){
+      for(let yy=y-9;yy<y;yy++)for(let xx=x-4;xx<x+rw+4;xx++){
+        if(floor(xx,yy))continue;
+        const row=yy-(y-9),brick=Math.floor((xx+(Math.floor(row/3)%2)*4)/8);
+        const col=row===0?'#6f787b':row%3===2||(xx+(Math.floor(row/3)%2)*4)%8===0?'#262e33':hash(brick,Math.floor(row/3)+y,seed)<.5?'#4a5358':'#535c61';
+        tile(c,col,xx,yy);
+      }
+      for(let xx=x;xx<x+rw;xx++)if(floor(xx,y+1)&&!floor(xx,y-1)){tile(c,'#1d242833',xx,y,1,4);tile(c,'#1d242822',xx,y+4,1,2);}
+    }
     for(let y=104;y<638;y+=12)for(let x=84;x<1192;x+=16){
       if(!insideCrypt(r,x+8,y+6,8))continue;
-      const q=hash(x,y,seed);
+      const q=hash(x,y,seed),q2=hash(y,x,seed+3);
       tile(c,q<.13?'#606963':q<.56?'#6c7470':'#758079',x,y,15,11);
-      tile(c,'#8a8e7e77',x+1,y,7+q*7,1);
+      tile(c,'#8a8e7e77',x+1,y,7+q*7,1);tile(c,'#4b535633',x,y+10,15,1);tile(c,'#4b535622',x+14,y,1,11);
       if(q>.96)tile(c,'#b0a98b',x+4,y+4,2,2);
+      if(q2>.95){const cx=x+3+Math.floor(q*8),dir=q>.5?1:-1;tile(c,'#454d4f',cx,y+2,1,3);tile(c,'#454d4f',cx+dir,y+5,1,2);tile(c,'#454d4f',cx+dir*2,y+7,2,1);if(q2>.98)tile(c,'#454d4f',cx-dir*2,y+3,2,1);}
+      if(!insideCrypt(r,x+8,y+6,22)&&q2<.22){tile(c,'#4f6b5a',x+2+Math.floor(q*9),y+3,3,1);tile(c,'#6f8f6a',x+3+Math.floor(q*9),y+2,1,1);}
     }
     for(const pt of r.marks){
-      disc(c,'#515d5c',pt.x,pt.y,29,21);disc(c,'#798780',pt.x,pt.y,25,18);
+      disc(c,'#3e4848',pt.x,pt.y,30,22);disc(c,'#515d5c',pt.x,pt.y,29,21);disc(c,'#798780',pt.x,pt.y,25,18);
+      disc(c,'#5f6d69',pt.x,pt.y,19,13);disc(c,'#798780',pt.x,pt.y,17,12);
+      for(let k=0;k<12;k++){const a=k*Math.PI/6;tile(c,k%3?'#5fa59c':'#9fe0d4',pt.x+Math.cos(a)*22-1,pt.y+Math.sin(a)*15-1,2,2);}
       for(const angle of [0,Math.PI/2,Math.PI,Math.PI*1.5]){
         tile(c,'#bfaa7b',pt.x+Math.cos(angle)*16-2,pt.y+Math.sin(angle)*11-2,4,4);
       }
@@ -781,10 +799,11 @@
     if(rnd()<.6)k.box(tones[3],-4,-3,1,1);
   }
   // Edifici per continente: stessa pianta (base su y=0, mezza larghezza 20 o 25) e stessa porta al centro.
-  function drawBuilding(g,pal,type,v){
+  function drawBuilding(g,pal,type,v,wins=[]){
     const M=masonry[pal],k=spriteKit(g,40,78),rnd=random(7717+v*53+type.length*11+pal.length*97),W=M.wall,R=M.roof;
     const hall=type==='hall',hw=hall?25:20,H=hall?25:21,ink='#1d232a';
     const windowAt=(x,y,ww=5,wh=6,round=false)=>{
+      wins.push({x,y,w:ww,h:wh});
       k.box(ink,x-1,y-1,ww+2,wh+2);k.box(M.glass,x,y,ww,wh);k.box('#ffffff55',x,y,ww,1);k.box(M.timber,x+Math.floor(ww/2),y,1,wh);
       if(round){k.box(ink,x,y-2,ww,1);k.box(M.glass,x+1,y-1,ww-2,1);}
       k.box(W[0],x-1,y+wh+1,ww+2,1);
@@ -987,6 +1006,35 @@
     if(flora[pal].moss&&pal!=='canyon'&&pal!=='shore'){k.box(flora[pal].moss,-5,-8,4,2);k.box(flora[pal].moss,2,-tall+2,2,3);}
     if(pal==='snow')k.box(flora.snow.snow[2],-6,-tall-3,12,2);
   }
+  // Posizione della fiamma rispetto alla base del lampione: [dx, dy, larghezza, altezza].
+  function lampFlame(pal){
+    if(pal==='grass'||pal==='root')return [-1,-27,3,4];
+    if(pal==='star'||pal==='fae')return [-1,-22,3,3];
+    if(pal==='ruin')return [-1,-19,3,3];
+    return [4,-18,3,3];
+  }
+  // Vetri degli edifici del pilota della Selva (sprite di Codex), per le finestre accese di notte.
+  const selvaWindows=type=>type==='hall'?[{x:-18,y:-19,w:8,h:11},{x:10,y:-19,w:8,h:11}]:[{x:-15,y:-17,w:6,h:8},{x:8,y:-17,w:7,h:8}];
+  function lightSources(){
+    const a=current,lights=[],windows=[];
+    if(!a)return null;
+    if(a.r.rooms){
+      for(const o of a.objects)if(o.type==='lamp')lights.push({x:o.x,y:o.y,kind:'fire',lift:25,core:[o.x-1,o.y-11,3,3,'#ffd890']});
+      return {lights,windows};
+    }
+    const pal=a.r.palette,glowKind=pal==='star'||pal==='fae'?'crystal':pal==='grass'||pal==='root'?'fire':'lamp',[dx,dy,fw,fh]=lampFlame(pal);
+    for(const o of a.objects){
+      if(o.type==='lamp')lights.push({x:o.x+dx+1,y:o.y,kind:glowKind,lift:14-dy,core:[o.x+dx,o.y+dy,fw,fh,glowKind==='crystal'?'#d8fbff':'#ffdf94']});
+      else if(o.type==='crystal')lights.push({x:o.x,y:o.y,kind:'crystal',lift:24,p:2});
+      else if(o.type==='monument')lights.push({x:o.x,y:o.y,kind:'spirit',lift:44,p:1});
+      else if(o.type==='house'||o.type==='hall'){
+        const list=a.selvaSprites?selvaWindows(o.type):a.sprites.get(o.type+'/'+o.variant)?.windows||[];
+        list.forEach((q,i)=>windows.push({x:o.x+q.x,y:o.y+q.y,w:q.w,h:q.h,seed:Math.floor(hash(o.x+i*7,o.y,13)*100)}));
+      }
+    }
+    return {lights,windows};
+  }
+  window.WorldLight?.provide(rid=>!!advanced[rid]&&current?.r.id===rid,lightSources,rid=>advanced[rid]?.rooms?'under':advanced[rid]?.palette);
   function paintBiomeSprite(c,a,o,t){
     const pal=a.r.palette,type=o.type;
     let key=null,draw=null;
@@ -995,20 +1043,18 @@
       const kind=type==='shrub'||type==='stone'?type:pal==='star'&&type==='leaf'?'tree':'tree';
       key=type+'/'+v+'/'+size;draw=g=>drawTree(g,pal,kind,v,size);
     }else if(type==='crystal'){key='crystal/'+o.variant%4;draw=g=>drawCrystal(g,pal,o.variant%4);}
-    else if(type==='house'||type==='hall'||type==='stall'||type==='well'){key=type+'/'+o.variant;draw=g=>drawBuilding(g,pal,type,o.variant);}
+    else if(type==='house'||type==='hall'||type==='stall'||type==='well'){key=type+'/'+o.variant;draw=(g,wins)=>drawBuilding(g,pal,type,o.variant,wins);}
     else if(type==='lamp'){key='lamp';draw=g=>drawLampSprite(g,pal);}
     else if(type==='ruin'){key='ruin/'+o.variant;draw=g=>drawRuinSprite(g,pal,o.variant);}
     else return false;
     let image=a.sprites.get(key);
-    if(!image){image=makeCanvas(80,88);draw(image.getContext('2d'));a.sprites.set(key,image);}
+    if(!image){image=makeCanvas(80,88);image.windows=[];draw(image.getContext('2d'),image.windows);a.sprites.set(key,image);}
     c.drawImage(image,o.x-40,o.y-78);
     if(type==='lamp'){
       // Fiammella animata sopra lo sprite (ferma con effetti ridotti: t costante).
-      const lit=Math.sin(t*4+o.x)>-.6;
-      const fx=pal==='grass'||pal==='root'?o.x:pal==='star'||pal==='fae'||pal==='ruin'?o.x:o.x+5;
-      const fy=pal==='grass'||pal==='root'?o.y-27:pal==='star'||pal==='fae'?o.y-22:pal==='ruin'?o.y-19:o.y-18;
+      const lit=Math.sin(t*4+o.x)>-.6,[dx,dy,fw,fh]=lampFlame(pal);
       const col=pal==='star'||pal==='fae'?['#9ff0ff','#e6ffff']:['#f2a046','#ffe3a0'];
-      tile(c,col[0],fx-1,fy,3,pal==='grass'||pal==='root'?4:3);if(lit)tile(c,col[1],fx,fy+(pal==='grass'||pal==='root'?1:0),1,2);
+      tile(c,col[0],o.x+dx,o.y+dy,fw,fh);if(lit)tile(c,col[1],o.x+dx+1,o.y+dy+(fh>3?1:0),1,2);
     }else if(type==='crystal'&&Math.sin(t*2+o.x)>.93){tile(c,'#ededd5',o.x+6,o.y-18,3,1);tile(c,'#ededd5',o.x+7,o.y-19,1,3);}
     return true;
   }

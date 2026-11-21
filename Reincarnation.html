@@ -131,7 +131,106 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
   <div id="toast" role="status"></div>
   <input type="file" accept=".json,application/json" id="saveFile" hidden>
 </main>
-<script>/* Valle di Vela. All artwork is drawn to a logical-pixel canvas at runtime. */
+<script>/* Luce del mondo aperto (World Art Overhaul): tinte di crepuscolo e notte per continente, finestre accese e aloni di
+   lanterne, fuochi e cristalli fuori da Velaris. I moduli del mondo registrano le sorgenti visibili della propria
+   regione; interface.js chiama WorldLight.draw dopo la tinta notturna. Velaris e gli interni hanno la propria luce. */
+(() => {
+  'use strict';
+  const providers=[];
+  const budget=8;
+  // Tinte per tavolozza o regione: crepuscolo, notte e profondità della notte (alfa massimo del velo).
+  const skies={
+    // Regioni senza fornitore (Cava, Fenditura, Santuario): stessi valori di prima del World Art Overhaul.
+    base:{dusk:'223,127,74',night:'19,27,81',depth:.34},
+    valley:{dusk:'223,127,74',night:'20,30,80',depth:.48},
+    ruin:{dusk:'223,127,74',night:'20,30,80',depth:.48},
+    pine:{dusk:'214,136,96',night:'14,32,68',depth:.5},
+    snow:{dusk:'222,150,124',night:'24,44,92',depth:.42},
+    fae:{dusk:'210,134,98',night:'12,40,62',depth:.5},
+    star:{dusk:'206,122,152',night:'34,22,82',depth:.5},
+    grass:{dusk:'238,138,72',night:'34,26,66',depth:.48},
+    root:{dusk:'204,140,88',night:'8,34,42',depth:.52},
+    shore:{dusk:'232,150,100',night:'18,36,74',depth:.46},
+    canyon:{dusk:'238,128,72',night:'42,24,62',depth:.48},
+    under:{dusk:'0,0,0',night:'12,16,34',depth:.34,under:true}
+  };
+  const tones={
+    lamp:{pool:['rgba(255,182,86,.40)','rgba(248,160,69,.22)','rgba(212,101,43,0)'],core:['rgba(255,200,104,.5)','rgba(255,166,73,.2)','rgba(255,138,53,0)']},
+    fire:{pool:['rgba(255,150,70,.42)','rgba(236,104,48,.22)','rgba(190,60,30,0)'],core:['rgba(255,190,110,.52)','rgba(245,130,60,.2)','rgba(220,90,40,0)']},
+    crystal:{pool:['rgba(126,238,226,.32)','rgba(96,206,214,.16)','rgba(70,160,205,0)'],core:['rgba(190,255,245,.5)','rgba(120,230,230,.2)','rgba(90,190,230,0)']},
+    spirit:{pool:['rgba(196,170,255,.30)','rgba(150,130,240,.15)','rgba(110,90,210,0)'],core:['rgba(230,210,255,.45)','rgba(180,160,255,.18)','rgba(140,120,230,0)']}
+  };
+  const sprites={};
+  let motion;
+  function canvas(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c;}
+  function glow(kind){
+    if(sprites[kind])return sprites[kind];
+    const tone=tones[kind]||tones.lamp,image=canvas(88,62),g=image.getContext('2d');
+    g.save();g.translate(44,33);g.scale(1,.49);
+    const pool=g.createRadialGradient(0,0,0,0,0,43);
+    pool.addColorStop(0,tone.pool[0]);pool.addColorStop(.36,tone.pool[1]);pool.addColorStop(1,tone.pool[2]);
+    g.fillStyle=pool;g.fillRect(-44,-44,88,88);g.restore();
+    const core=g.createRadialGradient(44,14,0,44,14,14);
+    core.addColorStop(0,tone.core[0]);core.addColorStop(.3,tone.core[1]);core.addColorStop(1,tone.core[2]);
+    g.fillStyle=core;g.fillRect(30,0,28,28);
+    return sprites[kind]=image;
+  }
+  function reduced(){
+    try{if(motion===undefined)motion=window.matchMedia?.('(prefers-reduced-motion: reduce)')||null;}catch{motion=null;}
+    return !!motion?.matches;
+  }
+  // match(regionId) → vero se il fornitore descrive la regione; sources(cam) → {lights:[{x,y,kind,core}], windows:[{x,y,w,h,seed}]}.
+  function provide(match,sources,sky){providers.push({match,sources,sky});}
+  function find(region){return providers.find(p=>p.match(region));}
+  function sky(region){
+    const p=find(region),key=p?.sky?.(region);
+    return skies[key]||(p&&skies[region])||skies.base;
+  }
+  // e: {night, dusk, minutes, calm}. Il contesto non è traslato: la camera arriva in coordinate del mondo.
+  function draw(c,cam,t,region,e){
+    const p=find(region);
+    if(!p)return 0;
+    const strength=Math.min(1,e.night*1.8+e.dusk*.3),wStrength=Math.min(1,e.night*2+e.dusk*.7);
+    if(strength<.03&&wStrength<.05)return 0;
+    const calm=e.calm||reduced();
+    const {lights=[],windows=[]}=p.sources(cam)||{};
+    c.save();c.translate(-cam.x,-cam.y);
+    if(wStrength>.05){
+      // Finestre accese: più numerose la sera, poche nel cuore della notte; decise dalla posizione, non dal caso.
+      const m=e.minutes??1200,share=m>=1000&&m<1400?.85:(m>=1400||m<300)?.35:.6;
+      for(const w of windows){
+        if(((w.seed*37)%100)/100>=share)continue;
+        c.globalAlpha=.16*wStrength;c.fillStyle='#ffaa55';c.fillRect(w.x-2,w.y-2,w.w+4,w.h+5);
+        c.globalAlpha=.78*wStrength;c.fillStyle='#ffd882';c.fillRect(w.x,w.y,w.w,w.h);
+        c.globalAlpha=.5*wStrength;c.fillStyle='#fff1c4';c.fillRect(w.x,w.y,w.w,1);
+      }
+    }
+    const cx=cam.x+cam.w/2,cy=cam.y+cam.h/2;
+    // Prima lanterne e fuochi (priorità 0), poi monumenti e cristalli; a pari priorità i più vicini al centro.
+    const near=lights.filter(o=>o.x+44>=cam.x&&o.x-44<=cam.x+cam.w&&o.y+30>=cam.y&&o.y-40<=cam.y+cam.h)
+      .sort((a,b)=>(a.p||0)-(b.p||0)||(a.x-cx)**2+(a.y-cy)**2-((b.x-cx)**2+(b.y-cy)**2));
+    let used=0;
+    c.globalCompositeOperation='screen';
+    for(const o of near){
+      const kind=o.kind||'lamp';
+      const base=kind==='crystal'||kind==='spirit'?(strength>.06?.25+.6*strength:0):strength;
+      if(base<.03)continue;
+      if(used<budget){
+        const pulse=calm?1:kind==='fire'?.86+.14*Math.sin(t*5+o.x):kind==='crystal'||kind==='spirit'?.84+.16*Math.sin(t*1.6+o.x*.37):.96+.04*Math.sin(t*2+o.x);
+        c.globalAlpha=Math.min(1,base*pulse);
+        c.drawImage(glow(kind),Math.round(o.x-44),Math.round(o.y-(o.lift??14)));
+        used++;
+      }
+      if(o.core){c.globalAlpha=Math.min(1,base);c.fillStyle=o.core[4]||'#ffdf94';c.fillRect(o.core[0],o.core[1],o.core[2],o.core[3]);}
+    }
+    c.restore();
+    return used;
+  }
+  window.WorldLight={provide,sky,draw,budget,skies};
+})();
+
+
+/* Valle di Vela. All artwork is drawn to a logical-pixel canvas at runtime. */
 (() => {
   'use strict';
   const width=1600, height=1080;
@@ -600,6 +699,22 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
       }
     }
   }
+  // Sorgenti di luce della Valle di Vela per WorldLight: lanterne, albero delle lanterne, forgia e finestre delle case.
+  function lightSources(){
+    const lights=[],windows=[];
+    for(const o of arrays.objects){
+      if(o.kind==='lamp')lights.push({x:o.x+6,y:o.y,kind:'lamp',lift:29,core:[o.x+4,o.y-17,4,4]});
+      else if(o.kind==='lanternTree')lights.push({x:o.x,y:o.y,kind:'lamp',lift:40});
+      else if(o.kind==='smith')lights.push({x:o.x+36,y:o.y,kind:'fire',lift:22});
+      if(!roofPalette[o.kind])continue;
+      const w=o.kind==='guild'?87:o.kind==='smith'?62:59,h=o.kind==='guild'?35:29,x=-Math.floor(w/2);
+      const list=[[x+8,-21,7,9],[x+w-19,-21,7,9],[o.kind==='guild'?-17:-4,-h-12,5,4]];
+      if(o.kind==='guild')list.push([18,-h-13,5,4]);
+      list.forEach(([dx,dy,ww,wh],i)=>windows.push({x:o.x+dx,y:o.y+dy,w:ww,h:wh,seed:Math.floor(hash(o.x+i*7,o.y,13)*100)}));
+    }
+    return {lights,windows};
+  }
+  window.WorldLight?.provide(r=>r==='valley',lightSources,()=>'valley');
   function makeChart(){const c=canvas(400,270),g=c.getContext('2d');g.drawImage(ground,0,0,400,270);g.scale(.25,.25);for(const o of arrays.objects)renderObject(g,o,0);return c;}
   function drawMap(c,w,h,p){
     if(!chart)init();c.save();c.imageSmoothingEnabled=false;c.drawImage(chart,0,0,w,h);
@@ -1721,17 +1836,35 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
   }
   function makeCrypt(r,seed){
     const image=makeCanvas(w,h),c=image.getContext('2d'),objects=[],palette=formats.star;
-    tile(c,'#142329',0,0,w,h);
-    for(const [x,y,rw,rh] of r.rooms){tile(c,'#333c43',x-4,y-7,rw+8,rh+13);tile(c,'#575f62',x,y,rw,rh);}
+    // Roccia scura intorno alle sale, bordi e pareti in mattoni con profondità; le sale non cambiano forma.
+    tile(c,'#10181e',0,0,w,h);
+    const rock=random(seed^0x6c8e9cf5);
+    for(let i=0;i<6000;i++){const x=Math.floor(rock()*w),y=Math.floor(rock()*h),q=rock();tile(c,q<.5?'#18232a':'#0b1216',x,y,1+Math.floor(q*3),1);}
+    for(const [x,y,rw,rh] of r.rooms){tile(c,'#1c2429',x-6,y-11,rw+12,rh+18);tile(c,'#2d373d',x-4,y-9,rw+8,rh+14);}
+    for(const [x,y,rw,rh] of r.rooms)tile(c,'#575f62',x,y,rw,rh);
+    const floor=(x,y)=>insideCrypt(r,x,y,0);
+    for(const [x,y,rw,rh] of r.rooms){
+      for(let yy=y-9;yy<y;yy++)for(let xx=x-4;xx<x+rw+4;xx++){
+        if(floor(xx,yy))continue;
+        const row=yy-(y-9),brick=Math.floor((xx+(Math.floor(row/3)%2)*4)/8);
+        const col=row===0?'#6f787b':row%3===2||(xx+(Math.floor(row/3)%2)*4)%8===0?'#262e33':hash(brick,Math.floor(row/3)+y,seed)<.5?'#4a5358':'#535c61';
+        tile(c,col,xx,yy);
+      }
+      for(let xx=x;xx<x+rw;xx++)if(floor(xx,y+1)&&!floor(xx,y-1)){tile(c,'#1d242833',xx,y,1,4);tile(c,'#1d242822',xx,y+4,1,2);}
+    }
     for(let y=104;y<638;y+=12)for(let x=84;x<1192;x+=16){
       if(!insideCrypt(r,x+8,y+6,8))continue;
-      const q=hash(x,y,seed);
+      const q=hash(x,y,seed),q2=hash(y,x,seed+3);
       tile(c,q<.13?'#606963':q<.56?'#6c7470':'#758079',x,y,15,11);
-      tile(c,'#8a8e7e77',x+1,y,7+q*7,1);
+      tile(c,'#8a8e7e77',x+1,y,7+q*7,1);tile(c,'#4b535633',x,y+10,15,1);tile(c,'#4b535622',x+14,y,1,11);
       if(q>.96)tile(c,'#b0a98b',x+4,y+4,2,2);
+      if(q2>.95){const cx=x+3+Math.floor(q*8),dir=q>.5?1:-1;tile(c,'#454d4f',cx,y+2,1,3);tile(c,'#454d4f',cx+dir,y+5,1,2);tile(c,'#454d4f',cx+dir*2,y+7,2,1);if(q2>.98)tile(c,'#454d4f',cx-dir*2,y+3,2,1);}
+      if(!insideCrypt(r,x+8,y+6,22)&&q2<.22){tile(c,'#4f6b5a',x+2+Math.floor(q*9),y+3,3,1);tile(c,'#6f8f6a',x+3+Math.floor(q*9),y+2,1,1);}
     }
     for(const pt of r.marks){
-      disc(c,'#515d5c',pt.x,pt.y,29,21);disc(c,'#798780',pt.x,pt.y,25,18);
+      disc(c,'#3e4848',pt.x,pt.y,30,22);disc(c,'#515d5c',pt.x,pt.y,29,21);disc(c,'#798780',pt.x,pt.y,25,18);
+      disc(c,'#5f6d69',pt.x,pt.y,19,13);disc(c,'#798780',pt.x,pt.y,17,12);
+      for(let k=0;k<12;k++){const a=k*Math.PI/6;tile(c,k%3?'#5fa59c':'#9fe0d4',pt.x+Math.cos(a)*22-1,pt.y+Math.sin(a)*15-1,2,2);}
       for(const angle of [0,Math.PI/2,Math.PI,Math.PI*1.5]){
         tile(c,'#bfaa7b',pt.x+Math.cos(angle)*16-2,pt.y+Math.sin(angle)*11-2,4,4);
       }
@@ -2129,10 +2262,11 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
     if(rnd()<.6)k.box(tones[3],-4,-3,1,1);
   }
   // Edifici per continente: stessa pianta (base su y=0, mezza larghezza 20 o 25) e stessa porta al centro.
-  function drawBuilding(g,pal,type,v){
+  function drawBuilding(g,pal,type,v,wins=[]){
     const M=masonry[pal],k=spriteKit(g,40,78),rnd=random(7717+v*53+type.length*11+pal.length*97),W=M.wall,R=M.roof;
     const hall=type==='hall',hw=hall?25:20,H=hall?25:21,ink='#1d232a';
     const windowAt=(x,y,ww=5,wh=6,round=false)=>{
+      wins.push({x,y,w:ww,h:wh});
       k.box(ink,x-1,y-1,ww+2,wh+2);k.box(M.glass,x,y,ww,wh);k.box('#ffffff55',x,y,ww,1);k.box(M.timber,x+Math.floor(ww/2),y,1,wh);
       if(round){k.box(ink,x,y-2,ww,1);k.box(M.glass,x+1,y-1,ww-2,1);}
       k.box(W[0],x-1,y+wh+1,ww+2,1);
@@ -2335,6 +2469,35 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
     if(flora[pal].moss&&pal!=='canyon'&&pal!=='shore'){k.box(flora[pal].moss,-5,-8,4,2);k.box(flora[pal].moss,2,-tall+2,2,3);}
     if(pal==='snow')k.box(flora.snow.snow[2],-6,-tall-3,12,2);
   }
+  // Posizione della fiamma rispetto alla base del lampione: [dx, dy, larghezza, altezza].
+  function lampFlame(pal){
+    if(pal==='grass'||pal==='root')return [-1,-27,3,4];
+    if(pal==='star'||pal==='fae')return [-1,-22,3,3];
+    if(pal==='ruin')return [-1,-19,3,3];
+    return [4,-18,3,3];
+  }
+  // Vetri degli edifici del pilota della Selva (sprite di Codex), per le finestre accese di notte.
+  const selvaWindows=type=>type==='hall'?[{x:-18,y:-19,w:8,h:11},{x:10,y:-19,w:8,h:11}]:[{x:-15,y:-17,w:6,h:8},{x:8,y:-17,w:7,h:8}];
+  function lightSources(){
+    const a=current,lights=[],windows=[];
+    if(!a)return null;
+    if(a.r.rooms){
+      for(const o of a.objects)if(o.type==='lamp')lights.push({x:o.x,y:o.y,kind:'fire',lift:25,core:[o.x-1,o.y-11,3,3,'#ffd890']});
+      return {lights,windows};
+    }
+    const pal=a.r.palette,glowKind=pal==='star'||pal==='fae'?'crystal':pal==='grass'||pal==='root'?'fire':'lamp',[dx,dy,fw,fh]=lampFlame(pal);
+    for(const o of a.objects){
+      if(o.type==='lamp')lights.push({x:o.x+dx+1,y:o.y,kind:glowKind,lift:14-dy,core:[o.x+dx,o.y+dy,fw,fh,glowKind==='crystal'?'#d8fbff':'#ffdf94']});
+      else if(o.type==='crystal')lights.push({x:o.x,y:o.y,kind:'crystal',lift:24,p:2});
+      else if(o.type==='monument')lights.push({x:o.x,y:o.y,kind:'spirit',lift:44,p:1});
+      else if(o.type==='house'||o.type==='hall'){
+        const list=a.selvaSprites?selvaWindows(o.type):a.sprites.get(o.type+'/'+o.variant)?.windows||[];
+        list.forEach((q,i)=>windows.push({x:o.x+q.x,y:o.y+q.y,w:q.w,h:q.h,seed:Math.floor(hash(o.x+i*7,o.y,13)*100)}));
+      }
+    }
+    return {lights,windows};
+  }
+  window.WorldLight?.provide(rid=>!!advanced[rid]&&current?.r.id===rid,lightSources,rid=>advanced[rid]?.rooms?'under':advanced[rid]?.palette);
   function paintBiomeSprite(c,a,o,t){
     const pal=a.r.palette,type=o.type;
     let key=null,draw=null;
@@ -2343,20 +2506,18 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
       const kind=type==='shrub'||type==='stone'?type:pal==='star'&&type==='leaf'?'tree':'tree';
       key=type+'/'+v+'/'+size;draw=g=>drawTree(g,pal,kind,v,size);
     }else if(type==='crystal'){key='crystal/'+o.variant%4;draw=g=>drawCrystal(g,pal,o.variant%4);}
-    else if(type==='house'||type==='hall'||type==='stall'||type==='well'){key=type+'/'+o.variant;draw=g=>drawBuilding(g,pal,type,o.variant);}
+    else if(type==='house'||type==='hall'||type==='stall'||type==='well'){key=type+'/'+o.variant;draw=(g,wins)=>drawBuilding(g,pal,type,o.variant,wins);}
     else if(type==='lamp'){key='lamp';draw=g=>drawLampSprite(g,pal);}
     else if(type==='ruin'){key='ruin/'+o.variant;draw=g=>drawRuinSprite(g,pal,o.variant);}
     else return false;
     let image=a.sprites.get(key);
-    if(!image){image=makeCanvas(80,88);draw(image.getContext('2d'));a.sprites.set(key,image);}
+    if(!image){image=makeCanvas(80,88);image.windows=[];draw(image.getContext('2d'),image.windows);a.sprites.set(key,image);}
     c.drawImage(image,o.x-40,o.y-78);
     if(type==='lamp'){
       // Fiammella animata sopra lo sprite (ferma con effetti ridotti: t costante).
-      const lit=Math.sin(t*4+o.x)>-.6;
-      const fx=pal==='grass'||pal==='root'?o.x:pal==='star'||pal==='fae'||pal==='ruin'?o.x:o.x+5;
-      const fy=pal==='grass'||pal==='root'?o.y-27:pal==='star'||pal==='fae'?o.y-22:pal==='ruin'?o.y-19:o.y-18;
+      const lit=Math.sin(t*4+o.x)>-.6,[dx,dy,fw,fh]=lampFlame(pal);
       const col=pal==='star'||pal==='fae'?['#9ff0ff','#e6ffff']:['#f2a046','#ffe3a0'];
-      tile(c,col[0],fx-1,fy,3,pal==='grass'||pal==='root'?4:3);if(lit)tile(c,col[1],fx,fy+(pal==='grass'||pal==='root'?1:0),1,2);
+      tile(c,col[0],o.x+dx,o.y+dy,fw,fh);if(lit)tile(c,col[1],o.x+dx+1,o.y+dy+(fh>3?1:0),1,2);
     }else if(type==='crystal'&&Math.sin(t*2+o.x)>.93){tile(c,'#ededd5',o.x+6,o.y-18,3,1);tile(c,'#ededd5',o.x+7,o.y-19,1,3);}
     return true;
   }
@@ -15139,8 +15300,11 @@ window.Lantern = (() => {
     const daylight=sunsetMinutes-sunriseMinutes;
     const light=day?Math.sin((minutes-sunriseMinutes)*Math.PI/daylight):-Math.sin(((minutes-sunsetMinutes+1440)%1440)*Math.PI/(1440-daylight));
     const dusk=Math.max(0,1-Math.abs(light)*3.5),night=Math.max(0,-light);
-    if(dusk>.01){ctx.fillStyle='rgba(223,127,74,'+(.13*dusk)+')';ctx.fillRect(0,0,cam.w,cam.h);}
-    if(night>.01){ctx.fillStyle='rgba(19,27,81,'+(.34*night)+')';ctx.fillRect(0,0,cam.w,cam.h);}
+    // Tinte per continente e luci locali (World Art Overhaul); i sotterranei hanno una penombra costante.
+    const sky=WorldLight.sky(v.region),under=!!sky.under;
+    if(!under&&dusk>.01){ctx.fillStyle='rgba('+sky.dusk+','+(.13*dusk)+')';ctx.fillRect(0,0,cam.w,cam.h);}
+    if(under||night>.01){ctx.fillStyle='rgba('+sky.night+','+(sky.depth*(under?1:night))+')';ctx.fillRect(0,0,cam.w,cam.h);}
+    WorldLight.draw(ctx,{x:Math.round(cam.x),y:Math.round(cam.y),w:cam.w,h:cam.h},t,v.region,{night:under?1:night,dusk:under?0:dusk,minutes,calm:!renderEffects});
     if(!renderEffects)return;
     if(v.region==='quarry'||v.region==='rift'){
       const quarry=v.region==='quarry';
