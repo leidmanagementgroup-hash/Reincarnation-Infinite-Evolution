@@ -2,6 +2,13 @@
 
 Direzione artistica e tecnica per [l’Aggiornamento 5](MEGA_CITY_OVERHAUL.md). La prima prova riguarda la Piazza delle Quattro Lenti a Velaris, il ponte sul canale e l’accesso al Mercato dei Venti. La build integrata `875ac74` serve da riferimento per il confronto.
 
+## Stato di approvazione (registrato 2026-11-21)
+
+- **Approvati dall'utente:** passo 1 (piazza, ponte, mercato: già realizzato nel commit `84c1ff4`, giudicato riuscito dalla revisione di Claude con confronto giorno/notte) e **passo 2 (luce e vegetazione)**.
+- **Condizioni del passo 2** (proposte della revisione, accettate con l'approvazione): luci come sprite precalcolati o maschera a bassa risoluzione, non un gradiente per luce a ogni fotogramma; massimo otto luci attive; luce propria per gli interni; rispetto di `prefers-reduced-motion` oltre all'opzione effetti; avvisi di combattimento distinguibili anche per forma e non solo per colore; misura delle prestazioni ripetuta con lo stesso metodo del passo 1.
+- **Da approvare ancora:** passi 3 (personaggi e creature), 4 (magia e combattimento) e 5 (interfaccia). Prima di ciascuno serve una nuova conferma dell'utente.
+- Osservazione aperta dal passo 1: nella piazza più residenti si sovrappongono (visibile anche di notte); da risolvere in `urban-life.js` prima di ampliare la popolazione.
+
 ## Direzione artistica
 
 Velaris deve riconoscersi dai tetti di rame ossidato, dalle lenti di vetro e dalle luci calde visibili attraverso portici e passerelle. A distanza si leggono il canale, il ponte e la piazza. Avvicinandosi emergono insegne dei mestieri, casse di pigmenti e strumenti lungo i banchi. La densità di dettagli segue ciò che il giocatore può osservare o raggiungere.
