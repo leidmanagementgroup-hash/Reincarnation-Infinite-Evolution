@@ -1,11 +1,12 @@
 # PROGRESS.md — Stato del progetto
 
-> Ultimo aggiornamento 2026-11-21, Codex, rifinitura dei quartieri orientali.
+> Ultimo aggiornamento 2026-11-21, Codex, prima prova del World Art Overhaul.
 
 ## In corso
-_Nessuna modifica in corso._
+Pilota della Selva sul branch `codex/world-art-myrathen`, dalla base `07e42e9`, in attesa di revisione prima del merge.
 
 ## Prossimo passo
+0. Rivedere il [World Art Overhaul](WORLD_ART_OVERHAUL.md) e il confronto della Selva. Il prossimo incremento proposto mette a confronto Valle degli Antichi e Passo dei Larici. Usare materiali e forme locali, mantenendo la profondità visiva del pilota. Il piano del generatore 2.0 e l’integrazione economica procedono sui rispettivi branch.
 1. La rifinitura orientale chiude UX-002 e UX-003. Il prossimo intervento previsto è il **Generatore Procedurale Urbano 2.0**, da avviare con approvazione. Partire dai lotti orientali, da `settlementTypes` e dalle cache del terreno. Conservare porte, seed e compatibilità dei salvataggi.
 2. I passi grafici 3–5 attendono una nuova conferma. I branch precedenti `velaris-city-expansion` e `velaris-city-verified` restano come copie di lavoro. Ripartire da `main`.
 3. Per la **fase 3** il banco di Velaris riceve già prodotti locali e merci di commissione. Riutilizzare le scorte persistenti e il mercato condiviso con la Selva. Restano da collegare altre filiere, richieste individuali, eventi e servizi.
@@ -48,6 +49,16 @@ La tabella elenca i sistemi disponibili. La sezione seguente indica le verifiche
 | Build a file singolo | ✅ | `build.py` |
 
 ## Test e verifiche
+
+### World Art Overhaul · Selva degli Alambicchi
+
+- `node --check continents.js`, test di integrazione Node e build Python indipendente identica byte per byte.
+- Confronto Node con `07e42e9`: quattro semi, Selva, Valle degli Antichi e Conca delle Stelle Silenziose, 8.008 oggetti, 48 interrogazioni sulle rotte e 594.864 campioni di collisione per tre raggi. Risultati identici.
+- Edge: 193.140 letture di collisioni e acqua a tre semi, passaggi a piedi tra mercato, Velaris e Conca, rientri e tre salvataggi v7 nativi importati e ricaricati. Conservati stirpe, coordinate e quantità esatte. Nessun errore JavaScript o richiesta di rete durante la prova.
+- Edge: 10/10 prove dei sistemi principali e 12/12 dei quartieri orientali. Verificati la coltivazione persistente della serra e il ritorno dalla porta. Prova completa della campagna fino all’epilogo con evoluzioni Goblin e quattro boss. Una lama salvata in una build v5 si importa con statistiche esatte e resta riparabile dopo l’usura e il caricamento.
+- Confronto effettivo in Edge del borgo e del sentiero alle 12:15 e del borgo alle 22:00. Stesso seme, camera, ora, meteo, scala e personaggio. L’illuminazione notturna usa il calendario e il filtro esistenti.
+- Edge a finestra visibile, percorso di camera ripetibile a cache calda. Il p95 CPU del disegno passa da 1,3 a 0,5 ms di giorno e da 1,2 a 0,6 ms di notte. Il p95 dell’intervallo fra fotogrammi resta 4,3 ms, con zero stalli oltre 33 ms nella misura.
+- Su sette ingressi alternati per build a cache fredda, mediana dell’ingresso 31,4 → 33,2 ms e del primo disegno 20,4 → 11,2 ms. Misure locali di Edge a 1366×768 con seme 19425. Il tocco su dispositivo reale e le prestazioni su altro hardware restano da misurare.
 
 ### Rifinitura dei quartieri orientali
 

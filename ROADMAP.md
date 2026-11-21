@@ -34,6 +34,14 @@
 - [ ] **Fase 4.** Allacciare eventi al calendario, reputazione, quest e leggi locali.
 - [ ] **Fase 5.** Applicare la struttura urbana ad altri insediamenti, con luoghi unici e capitali nei cinque continenti.
 
+## World Art Overhaul
+
+- [Piano artistico e tecnico dei cinque continenti](WORLD_ART_OVERHAUL.md), con standard di scala, composizione, materiali e illuminazione e criteri di verifica per regione.
+- [x] Pilota della Selva degli Alambicchi verificato sul branch `codex/world-art-myrathen`, con confronto in Edge.
+- [ ] Rivedere il pilota prima del merge.
+- [ ] Provare le stesse regole su un territorio con geografia diversa. Nordharyn e il Passo dei Larici sono il riferimento successivo per sentieri, roccia e architettura mineraria.
+- [ ] Collegare materiali, vegetazione e famiglie architettoniche ai profili del Generatore Procedurale Urbano 2.0.
+
 ## Priorità Media — Contenuti ★
 - [x] ★ **Primo ampliamento di Velaris** con quattro quartieri, sette interni e servizi integrati.
 - [ ] ★ **Altre città, metropoli e relazioni politiche fra regni** su vasta scala.

@@ -2,6 +2,14 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-21] World Art Overhaul · Selva degli Alambicchi — Codex
+
+### Modificato
+- Terreno e margini dei sentieri della Selva, chiome con profondità, tetti e banchi riconoscibili, sprite riutilizzati dalla cache. Ricostruito `Reincarnation.html` (file `continents.js`).
+
+### Documentazione
+- Analisi dei riferimenti, regole visuali e piano per i cinque continenti. Collegati `WORLD_ART_OVERHAUL.md`, `PIANO_GRAFICO.md`, `GAME_DESIGN.md`, `ROADMAP.md` e `PROGRESS.md`.
+
 ## [2026-11-21] Rifinitura dei quartieri orientali di Velaris — Codex
 
 Commit della rifinitura `b0d570b`.
