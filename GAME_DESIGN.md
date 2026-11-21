@@ -93,6 +93,8 @@ La locanda, la bottega, la fucina, la Gilda del Compasso, l’archivio, l’acca
 
 La serra ha un’aiuola persistente. Il campo facoltativo `cityWorks.seedbedAt` vale −1 per il terreno vuoto, 0 dopo la semina e indica il minuto assoluto di maturazione dopo l’irrigazione. Costa una semente, richiede 80 minuti di calendario e produce due erbe per raccolta. Semina e raccolta usano gli eventi `sow` e `reap` dei mestieri. Le partite v7 anteriori all’espansione ricevono un’aiuola vuota.
 
+Routine per quartiere: ogni residente abita nel quartiere del proprio lavoro (`homesByDistrict` in `urban-life.js`) e la sera passeggia verso la piazza del suo quartiere invece che tutti verso la Piazza delle Quattro Lenti; le soste restano distribuite da `spread()` e i percorsi verificati in modo esatto (BUG-011). Gli edifici dell’annesso registrano i vetri come quelli storici, quindi di notte si accendono con lo stesso strato precalcolato del passo 2; le atmosfere locali del passo 2 restano limitate ai quartieri storici a est del canale.
+
 Il formato v7 conserva `urban` (routine, scorte, memorie e commissioni) e `cityWorks` (restauro, colazione, esercitazioni e letture). Le mappe si rigenerano dallo stesso seme. I salvataggi precedenti ricevono i nuovi campi al caricamento. La v5 di GitHub può includere equipaggiamento, conflitti, reputazione e Santuario. La migrazione conserva i campi presenti e inizializza quelli mancanti nelle v5 precedenti.
 
 ## 4. Meccaniche

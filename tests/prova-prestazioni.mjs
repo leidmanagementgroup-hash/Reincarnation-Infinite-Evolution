@@ -3,7 +3,7 @@
 //   variabili: SECS (durata per scena, default 30), K (disegni per fotogramma; 16 = stress), OUT (cartella di lavoro),
 //   SCENES (elenco, es. piazza12,portici21,orti@tramonto; luoghi: piazza ponte mercato giardini portici orti serra).
 // Per confrontare due build alternale: costruisci main in un'altra cartella (git worktree) e passa i due HTML.
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -75,4 +75,12 @@ try {
     }
   }
 } catch (e) { console.log('ERR ' + e.message); }
-finally { edge.kill(); await sleep(500); try { fs.rmSync(profile, { recursive: true, force: true }); } catch {} process.exit(0); }
+finally {
+  // Chiude Edge con tutti i processi figli (edge.kill() chiudeva solo il principale e lasciava istanze aperte).
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/PID', String(edge.pid), '/T', '/F'], { stdio: 'ignore' });
+    // Edge può riaprirsi in processi staccati dal lanciatore: chiude tutti quelli che usano il profilo temporaneo di questa prova.
+    const tag = path.basename(profile).replace(/'/g, '');
+    spawnSync('powershell', ['-NoProfile', '-Command', `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object { $_.CommandLine -like '*${tag}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`], { stdio: 'ignore' });
+  } else edge.kill();
+  await sleep(800); try { fs.rmSync(profile, { recursive: true, force: true }); } catch {} process.exit(0); }
