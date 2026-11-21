@@ -43,6 +43,13 @@ Nel codice, il terreno della Valle (`world.js`) combina grana e rumore interpola
 | **3 · Terreni contrastanti** | Blocchi separati per Conca delle Stelle Silenziose e Altopiano dei Re Perduti, poi Savana dei Giganti e Santuario del Primo Germoglio, Costa delle Sette Vele e Gola delle Mille Corone. | Per ogni coppia, provare un tragitto fra insediamento e natura e un confronto in due condizioni di luce. Controllare che i materiali rendano riconoscibili confini e percorsi. |
 | **4 · [Generatore Procedurale Urbano 2.0](https://github.com/leidmanagementgroup-hash/Reincarnation-Infinite-Evolution/blob/ae170e4c894dcdf15565745df66e279cb399e987/MEGA_CITY_OVERHAUL.md#generatore-procedurale-urbano-20)** | Applicare i profili di terreno e architettura come dati al Borgo dei Filoni e a Calis. Riservare piazze storiche, monumenti, soglie e luoghi narrativi definiti a mano. | Verificare gli stessi identificatori e planimetrie su due ordini di caricamento. Controllare varietà di sagoma, densità di attività e carico dei settori prima di aumentare il numero degli edifici. |
 
+### Stato (2026-11-22)
+
+- **1 · Selva**: pilota di Codex (`codex/world-art-myrathen` `4d8b060`), recuperato senza modifiche nel branch `claude/world-art-overhaul`.
+- **2 e 3 · tutte le altre regioni continentali**: realizzati da Claude nello stesso branch con un metodo comune (`groundArt`, `flora`, `masonry` in `continents.js`): terreno a 2 px per bioma, sentieri e piazze, vegetazione, rocce, edifici, banchi, pozzi, lampioni e rovine per continente come sprite in cache. In più la luce del mondo aperto (`world-light.js`: tinte di crepuscolo e notte per continente, finestre, aloni, particelle per bioma, ombre di nuvole) e la Cripta delle Soglie. Verifiche e misure in `PROGRESS.md`.
+- **Restano**: Cava e Fenditura (lavoro non committato di Codex), Santuario della Marea Muta, varchi e pilastri dei monumenti, incremento 4 (Generatore Procedurale Urbano 2.0). Velaris non è stata toccata.
+- Strumenti di verifica ripetibili: `tests/scatti-mondo.cjs` (scatti e prestazioni), `tests/confronto-mondo.cjs` (geometria e collisioni), `tests/prova-browser-mondo.cjs` (salvataggi e camminata).
+
 ### Criteri di accettazione
 
 1. **Immagini ripetibili.** Acquisire inquadrature di gioco da centro abitato e sentiero o bioma. Fissare seme, camera, ingrandimento, ora e meteo per ciascuna coppia. Confrontare leggibilità del tragitto, profondità delle sagome, riconoscibilità dei materiali e livello di dettaglio. Provare anche la vista notturna con movimento ridotto.

@@ -43,7 +43,9 @@
 - [Piano artistico e tecnico dei cinque continenti](WORLD_ART_OVERHAUL.md), con standard di scala, composizione, materiali e illuminazione e criteri di verifica per regione.
 - [x] Pilota della Selva degli Alambicchi verificato sul branch `codex/world-art-myrathen`, con confronto in Edge.
 - [ ] Rivedere il pilota prima del merge.
-- [ ] Provare le stesse regole su un territorio con geografia diversa. Nordharyn e il Passo dei Larici sono il riferimento successivo per sentieri, roccia e architettura mineraria.
+- [x] Stesse regole estese alle otto regioni continentali, alla luce notturna del mondo aperto (anche Valle di Vela) e alla Cripta: branch `claude/world-art-overhaul` (Claude, 2026-11-22), da rivedere prima del merge.
+- [ ] Decidere come unire il branch di Claude con il lavoro non committato di Codex (`world-art-wide`): stesse parti di `continents.js`, `interface.js`, `world.js` (ART-001).
+- [ ] Cava delle Braci e Fenditura Astrale (presenti solo nel lavoro di Codex), Santuario della Marea Muta, varchi e pilastri dei monumenti per bioma.
 - [ ] Collegare materiali, vegetazione e famiglie architettoniche ai profili del Generatore Procedurale Urbano 2.0.
 
 ## Priorità Media — Contenuti ★

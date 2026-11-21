@@ -20,6 +20,12 @@ Apri `Reincarnation.html` in un browser moderno. Grafica, musica sintetizzata e 
 - Premi **O** in città per vedere abitanti, orari e commissioni. Il salvataggio conserva le interazioni, le consegne e il restauro della fonte della piazza.
 - Legno, minerale, erbe e grano dei mestieri locali riforniscono all’alba le scorte condivise dalla bottega e dal banco nella Selva. Anche le commissioni consegnate in città possono rifornire questi banchi. I prezzi seguono la disponibilità.
 
+### Paesaggi, notte e luce
+
+- Ogni continente ha un paesaggio proprio: querce, travertino e colonne a Vaelthoria; larici, baite e rocche innevate a Nordharyn; cristalli, cupole e alberi velati a Myrathen; acacie, capanne di paglia e palafitte fra le radici a Voryndhal; palme, case bianche, pinnacoli d’arenaria e adobe ad Azheryon.
+- Di sera i borghi accendono finestre e lampioni; nel cuore della notte restano accese poche finestre. La Cripta delle Soglie è sempre in penombra, rischiarata dalle sue lanterne.
+- Neve leggera, lucciole, spore, scintille e polvere cambiano da un bioma all’altro; di giorno le ombre delle nuvole scorrono sul terreno. Con **effetti ridotti** (Opzioni) o con la riduzione del movimento del sistema le particelle e le nuvole si fermano e le luci non pulsano.
+
 ### Vita quotidiana
 
 - **Inventario con I.** Cerca per nome, filtra per categoria e ordina le pile. Oggetti, ingredienti e materiali si accumulano senza limite di slot o di peso. Dal pannello puoi usare le provviste e cambiare equipaggiamento.
@@ -67,6 +73,7 @@ Dalla cartella dei sorgenti esegui `python build.py Reincarnation.html`. Lo scri
 
 | File | Contenuto |
 |---|---|
+| `world-light.js` | Luce del mondo aperto: tinte di crepuscolo e notte per continente, finestre accese, aloni di lanterne e cristalli, particelle e ombre di nuvole per bioma |
 | `world.js` | Geografia della regione, percorsi, elementi procedurali, collisioni e mappa |
 | `expansion-world.js` | Cava delle Braci, Fenditura Astrale e passaggi regionali |
 | `continents.js` | Geografia delle nove nuove regioni e della Cripta delle Soglie, rotte, caricamento e monumenti |

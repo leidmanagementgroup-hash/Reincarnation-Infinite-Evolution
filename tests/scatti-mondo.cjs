@@ -6,7 +6,8 @@
 // (Game.step non fa nulla durante gli scatti). Con due build salva anche il confronto PRIMA (sopra) / DOPO (sotto).
 // Non modifica i salvataggi: ogni build usa un contesto del browser nuovo e vuoto.
 // BENCH=1: invece degli scatti misura, per scena e ora, il costo dell'ingresso nella regione (primo disegno incluso)
-// e il tempo CPU di un fotogramma completo (FRAMES fotogrammi, default 240), alternando le build ROUNDS volte (default 2).
+// e il tempo CPU di un fotogramma completo e del solo disegno del mondo (mediana/p95/massimo, FRAMES fotogrammi, default 240),
+// alternando le build ROUNDS volte (default 2).
 // Usare PW_HEADED=1 per Edge a finestra visibile con GPU.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -38,7 +39,7 @@ const scenes = (sceneFilter ? sceneFilter.split(',') : Object.keys(SPOTS)).filte
 
 const INIT = () => {
   // Orologio manuale: la pagina disegna solo quando lo strumento chiama __tick.
-  let queue = [], id = 0; window.__now = 1000;
+  let queue = [], id = 0; window.__now = 1000; window.__realRAF = window.requestAnimationFrame.bind(window);
   window.requestAnimationFrame = cb => { queue.push(cb); return ++id; };
   window.cancelAnimationFrame = () => {};
   window.__tick = (n = 1) => { for (let i = 0; i < n; i++) { window.__now += 1000 / 60; const q = queue; queue = []; for (const f of q) f(window.__now); } };
@@ -83,7 +84,7 @@ async function shoot(file) {
       if (reached !== region) { errors.push(label + ': ' + reached); continue; }
       if (process.env.BENCH) shots[label + '-ingresso'] = enterMs;
       for (const hour of hours) {
-        const data = await page.evaluate(([px, py, hour]) => {
+        const data = await page.evaluate(async ([px, py, hour]) => {
           const s = Game.s;
           if (UI.panel) UI.close();
           if (!window.__step) { window.__step = Game.step; Game.step = () => {}; }
@@ -92,10 +93,18 @@ async function shoot(file) {
           s.time += ((hour * 60 - cur + 1440) % 1440) / Calendar.minutesPerSecond;
           __tick(24);
           if (window.__bench) {
-            const n = window.__bench, times = [];
-            for (let i = 0; i < n; i++) { const t0 = performance.now(); __tick(1); times.push(performance.now() - t0); }
-            times.sort((a, b) => a - b);
-            return { med: +times[n >> 1].toFixed(3), p95: +times[Math.floor(n * .95)].toFixed(3), max: +times[n - 1].toFixed(3) };
+            // Fotogramma intero (simulazione ferma, HUD incluso) e solo disegno del mondo (terreno, oggetti, attori, luce).
+            if (!window.__wrapped) {
+              window.__wrapped = true; window.__draw = 0;
+              const wrap = (obj, name) => { const f = obj && obj[name]; if (typeof f !== 'function') return; obj[name] = function (...a) { const t0 = performance.now(); try { return f.apply(this, a); } finally { window.__draw += performance.now() - t0; } }; };
+              wrap(World, 'drawGround'); wrap(World, 'drawFront'); if (window.WorldLight) { wrap(WorldLight, 'draw'); wrap(WorldLight, 'ambient'); }
+            }
+            const n = window.__bench, times = [], draws = [];
+            // Fra un fotogramma e l'altro il browser presenta la tela, come nel gioco (niente accumulo di comandi).
+            for (let i = 0; i < n; i++) { await new Promise(r => __realRAF(r)); window.__draw = 0; const t0 = performance.now(); __tick(1); times.push(performance.now() - t0); draws.push(window.__draw); }
+            const q = a => { a.sort((x, y) => x - y); return [+a[n >> 1].toFixed(3), +a[Math.floor(n * .95)].toFixed(3), +a[n - 1].toFixed(3)]; };
+            const [med, p95, max] = q(times), [dmed, dp95, dmax] = q(draws);
+            return { med, p95, max, dmed, dp95, dmax };
           }
           return document.getElementById('field').toDataURL('image/png');
         }, [x, y, hour]);
@@ -144,7 +153,7 @@ async function bench() {
   const med = a => { const b = [...a].sort((x, y) => x - y); return b[b.length >> 1]; };
   const rows = Object.entries(table).map(([k, byBuild]) => [k, ...builds.map((_, i) => {
     const list = byBuild[i] || [];
-    return typeof list[0] === 'number' ? +med(list).toFixed(1) + ' ms' : `med ${med(list.map(x => x.med)).toFixed(2)} / p95 ${med(list.map(x => x.p95)).toFixed(2)} / max ${med(list.map(x => x.max)).toFixed(1)}`;
+    return typeof list[0] === 'number' ? +med(list).toFixed(1) + ' ms' : `fotogramma ${med(list.map(x => x.med)).toFixed(2)}/${med(list.map(x => x.p95)).toFixed(2)}/${med(list.map(x => x.max)).toFixed(1)} · disegno ${med(list.map(x => x.dmed)).toFixed(2)}/${med(list.map(x => x.dp95)).toFixed(2)}/${med(list.map(x => x.dmax)).toFixed(1)}`;
   })]);
   console.log(['scena', ...builds.map(b => path.basename(b))].join(' | '));
   for (const r of rows) console.log(r.join(' | '));

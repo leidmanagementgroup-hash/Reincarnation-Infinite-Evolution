@@ -2,7 +2,7 @@
 
 Direzione artistica e tecnica per [l’Aggiornamento 5](MEGA_CITY_OVERHAUL.md). La prima prova riguarda la Piazza delle Quattro Lenti a Velaris, il ponte sul canale e l’accesso al Mercato dei Venti. La build integrata `875ac74` serve da riferimento per il confronto.
 
-Per terreni, vegetazione e architettura fuori da Velaris, consulta il [World Art Overhaul](WORLD_ART_OVERHAUL.md). Il riferimento principale è la scena della Valle di Vela indicata dall’utente.
+Per terreni, vegetazione e architettura fuori da Velaris, consulta il [World Art Overhaul](WORLD_ART_OVERHAUL.md). Il riferimento principale è la scena della Valle di Vela indicata dall’utente. La luce del mondo aperto (`world-light.js`) segue le stesse condizioni del passo 2: aloni precalcolati, al massimo otto attivi, `prefers-reduced-motion` ed effetti ridotti rispettati; Velaris e gli interni mantengono la propria luce.
 
 ## Stato di approvazione (registrato 2026-11-21)
 

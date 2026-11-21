@@ -2,8 +2,8 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
-## [2026-11-21] World Art Overhaul, continuazione: pilota della Selva recuperato e strumenti di confronto — Claude
-Branch `claude/world-art-overhaul` da `origin/main` `7060f17` (non unito; nessun merge senza approvazione dell'utente).
+## [2026-11-22] World Art Overhaul, continuazione: continenti, luce del mondo aperto, Cripta — Claude
+Branch `claude/world-art-overhaul` da `origin/main` `7060f17` (non unito; nessun merge senza approvazione dell'utente). Commit `cce96db` (recupero e strumenti), `1c3e21f` (terreno, vegetazione, architettura), `b541ace` (luce e Cripta), `a9ff3c3` (atmosfere), poi prove e documenti. File toccati: `continents.js`, `world.js`, `interface.js`, `build.py`, nuovo `world-light.js`, `tests/`, documenti; nessun file urbano o economico.
 ### Aggiunto
 - Pilota grafico della Selva degli Alambicchi di Codex (commit `4d8b060` del branch `codex/world-art-myrathen`), applicato senza modifiche a `continents.js`; documenti di Codex `WORLD_ART_OVERHAUL.md` e sezioni collegate in `GAME_DESIGN.md`, `PIANO_GRAFICO.md`, `ROADMAP.md`. Le voci di Codex per `CHANGELOG.md` e `PROGRESS.md` erano in conflitto testuale con `main`: il loro contenuto è riassunto qui e in `PROGRESS.md`.
 - `tests/scatti-mondo.cjs`: scatti ripetibili della tela di gioco reale (terreno, oggetti, attori, effetti e atmosfera) in 18 luoghi di tutte le regioni, stesso seme, ora, meteo, camera e numero di fotogrammi; con due build salva il confronto PRIMA/DOPO.
@@ -18,6 +18,10 @@ Branch `claude/world-art-overhaul` da `origin/main` `7060f17` (non unito; nessun
 - `interface.js`: `atmosphere()` usa le tinte di `WorldLight.sky` e chiama `WorldLight.draw` dopo il velo notturno; la Cripta delle Soglie ha una penombra costante con le lanterne sempre accese.
 - Atmosfera mobile per bioma (`world-light.js`, `WorldLight.ambient`, chiamata da `interface.js` al posto delle particelle generiche fuori dalla Valle): neve leggera sull'Altopiano, aghi dorati al Passo, spore e lucciole nella Selva e al Santuario, scintille stellari alla Conca, polvere e vento a Savana, Costa e Gola; di giorno, all'aperto, ombre di nuvole che scorrono piano. Spente con effetti ridotti e `prefers-reduced-motion`; la pioggia e la neve del meteo restano quelle di prima.
 - Cripta delle Soglie (`continents.js`): roccia scura, bordi e pareti in mattoni con ombra di contatto sul pavimento, giunzioni fra sale senza cuciture, lastre smussate con crepe e muschio, cerchi di rune turchesi. Forma delle sale e collisioni invariate.
+### Aggiunto (prove)
+- `tests/prova-browser-mondo.cjs`: salvataggi di una build precedente in 11 regioni caricati nella nuova, camminata con il corpo sempre su suolo percorribile, giorno/tramonto/notte, ricarica, effetti ridotti. `tests/scatti-mondo.cjs` con modalità `BENCH` (ingresso, fotogramma e solo disegno, con `requestAnimationFrame` reale fra i fotogrammi).
+### Verifica
+- Tutte le prove superate (dettagli in `PROGRESS.md`): confronto del mondo identico a `main` (17,2 milioni di campioni `canWalk`, 1 587 rotte), integrazione, economia (158 e 147 controlli), percorsi (0 bloccati su 41 040), residenti (0), browser 10/10, 12/12, economia, 15/15; Cava, Fenditura e Velaris identiche byte per byte a `main` negli scatti; Velaris con prestazioni identiche; regioni continentali da 0,7–1,2 a 0,2–0,3 ms per fotogramma (mediana). Documenti: `PROGRESS.md`, `GAME_DESIGN.md` (§2.1, §3.3), `LEGGIMI.md`, `ROADMAP.md`, `WORLD_ART_OVERHAUL.md`, `PIANO_GRAFICO.md`. Problemi aperti: ART-001 (lavoro non committato di Codex sugli stessi file), ART-002 (branch Tiled: solo conflitti nei documenti).
 
 ## [2026-11-21] PERF-001: ricerca dei percorsi di Velaris più veloce, percorsi identici — Claude
 Branch `claude/perf-001-pathfinding`, da `main` `96a03f5`; unito a `main` per fast-forward il 2026-11-21 (`96a03f5` → `a1e4c54`) su approvazione dell'utente. Dopo il merge: test di integrazione, percorsi (BUG-011), sovrapposizioni, economia e browser rieseguiti su `main`, percorsi identici a `96a03f5`, HTML allineato, stato remoto verificato.
