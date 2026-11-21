@@ -2,6 +2,15 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-21] Rifinitura dei quartieri orientali di Velaris — Codex
+
+### Aggiunto
+- Diciotto lanterne sulle vie orientali e lungo l’accesso alla Serra delle Talee. Riflessi freddi nei Portici del Vetro, luce verde e lucciole ambrate negli Orti dell’Alambicco. Le luci riusano la cache e il limite di otto aloni visibili (file `urban-exterior.js`).
+
+### Modificato
+- Turni, soste e passeggiate dei Portici distribuiti fra la Corte dei Soffiatori, la Loggia delle Vetrerie, il Passaggio delle Vetrate e il Crocevia dei Carrettieri (file `urban-life.js`, `urban-exterior.js`).
+- Esteso il test delle luci ai due quartieri orientali. Ricostruito `Reincarnation.html` e aggiornati `PROGRESS.md`, `ROADMAP.md`, `GAME_DESIGN.md` e `LEGGIMI.md`.
+
 ## [2026-11-21] Integrazione del lavoro di Codex: quartieri orientali, Serra delle Talee, tipi di insediamento — Claude
 Unito a `main` per fast-forward su approvazione dell'utente (`16b6129` → `769d231`, branch `claude/integrazione-codex-velaris`). Dopo l'unione: test di integrazione, sonde dei percorsi e dei residenti (0 bloccati, 0 tratte illegali, 0 sovrapposizioni), prove nel browser 10/10 e 12/12, build identica ai sorgenti; cartelle di Codex e backup intatti. Fonte: `velaris-city-verified` di Codex (backup in `Downloads/Codex-backup-2026-11-21`).
 ### Aggiunto (lavoro di Codex)

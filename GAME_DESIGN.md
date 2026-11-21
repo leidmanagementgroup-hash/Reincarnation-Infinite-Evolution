@@ -85,6 +85,8 @@ Nota: `World`, `ActorArt` ed `EvolutionContent` sono **estesi da più moduli** s
 
 L’ingresso dalla Selva degli Alambicchi porta a `city-velaris`. La città misura 2864×1496 pixel logici. A est dei quattro quartieri storici sorgono i Portici del Vetro e gli Orti dell’Alambicco. Le vie continuano oltre l’antico limite della città. Semi e coordinate dei vecchi edifici mantengono validi gli ingressi e i salvataggi. I due settori hanno cache del terreno distinte. La minimappa orientale può essere disegnata prima di visitare i nuovi quartieri.
 
+Le lanterne orientali illuminano gli incroci e il vialetto della serra. I Portici hanno una dominante fredda e gli Orti una luce verde con lucciole ambrate. Le soste ai Portici si distribuiscono fra quattro punti collegati. Le assegnazioni lavorative dipendono dal mestiere, mentre la sosta dopo il turno e la passeggiata sono determinate da residente e giorno di calendario.
+
 Il ruolo urbanistico è esplicito nella regione. Velaris è una cittadina. `UrbanWorld.settlementTypes` registra le fasce progettuali per borgo (5–15 edifici), villaggio (20–50), cittadina (60–150), grande città (200–500) e capitale (da 500, fino a 1.500 e oltre nel progetto completo).
 
 Nella Piazza delle Quattro Lenti, sul ponte centrale e sulla via del Mercato dei Venti, le superfici in pietra e rame sono incluse nel Canvas del terreno già in cache. Il calendario tinge gli esterni di Velaris prima degli effetti di combattimento e illumina fino a otto lanterne visibili con una maschera riutilizzata. L’opzione effetti ridotti ferma il luccichio delle lanterne e le increspature del canale.

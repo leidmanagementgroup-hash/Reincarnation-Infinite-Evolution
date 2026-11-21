@@ -18,13 +18,13 @@
     ['greenhouse','Mirea dal Seme di Vetro','dryad','Custode della serra','Conserva i semi delle colture che resistono ai terreni della Selva.']
   ];
   const tracks=[
-    ['Portatore','arcades-court','market'],['Maniscalco','forge','plaza'],['Notaia','archive','market'],
+    ['Portatore','arcades-crossing','arcades-lane'],['Maniscalco','forge','plaza'],['Notaia','archive','market'],
     ['Cuoca','inn','market'],['Apprendista','academy','plaza'],['Scriba','archive','market'],
     ['Corriere','guild','market'],['Guardia civica','plaza','gate'],['Orticoltrice','orchards-work','orchards-court'],
-    ['Carpentiere','forge','market'],['Mercante di stoffe','arcades-court','arcades-work'],['Copista','academy','archive'],
-    ['Carovaniera','gate','market'],['Cartografo','guild','archive'],['Tessitrice','arcades-work','arcades-court'],
+    ['Carpentiere','forge','market'],['Mercante di stoffe','arcades-court','arcades-crossing'],['Copista','academy','archive'],
+    ['Carovaniera','gate','market'],['Cartografo','guild','archive'],['Tessitrice','arcades-loggia','arcades-work'],
     ['Birraio','inn','market'],['Maestra d’acqua','plaza','inn'],['Erborista','orchards-work','orchards-court'],
-    ['Artigiana di cuoio','arcades-work','arcades-court'],['Mediatore','plaza','guild']
+    ['Artigiana di cuoio','arcades-lane','arcades-loggia'],['Mediatore','plaza','guild']
   ];
   const fallbackRaces=[
     'human','goblin','elf','spirit','dryad','dwarf','orc','wolf','slime','vampire','kobold','triton','drake','skeleton','troll','golem'
@@ -185,6 +185,7 @@
     const market=byId['district-wind']||services.shop||plaza;
     const gate=byId.entry||plaza;
     const squares=[plaza,market,byId['arcades-court'],byId['orchards-court']].filter(Boolean);
+    const arcadeStops=['arcades-court','arcades-loggia','arcades-lane','arcades-crossing'].map(id=>byId[id]).filter(Boolean);
     const graphHomes=Object.values(ext.residences||{}).map((p,i)=>stop(p,'Corte '+(i+1),'home',p.id||'home-'+i)).filter(Boolean);
     const residential=graphHomes.length?graphHomes:points.filter(p=>!Object.values(services).some(q=>distance(p,q)<60));
     const inn=services.inn||plaza;
@@ -195,12 +196,12 @@
       if(!homesByDistrict.has(district))homesByDistrict.set(district,[]);
       homesByDistrict.get(district).push(home);
     }
-    runtime.places={homes,homesByDistrict,squares,anchors:{...byId,...services,plaza,market,gate,inn}};
+    runtime.places={homes,homesByDistrict,squares,arcadeStops,anchors:{...byId,...services,plaza,market,gate,inn}};
     return runtime.places;
   }
 
   function basePlan(s,p,runtime){
-    const {homes,homesByDistrict,squares,anchors}=allPlaces(runtime);
+    const {homes,homesByDistrict,squares,arcadeStops,anchors}=allPlaces(runtime);
     const standard=p.timetable,d=day(s),market=anchors.market;
     const duty=anchors[p.workKind]||market;
     const district=runtime.ext.districtAt(duty.x,duty.y).id;
@@ -209,8 +210,12 @@
     const home=sidestep(runtime,{...homeBase,name:'Casa presso '+homeBase.name},p.planBias%8,9);
     const work=p.staff?sidestep(runtime,duty,p.planBias%8,12):sidestep(runtime,duty,p.planBias%8,17);
     const rest=sidestep(runtime,anchors[p.pauseKind]||anchors.plaza,(p.planBias+3)%8,14);
-    const errands=squares[(p.planBias+d)%squares.length]||rest;
-    const evening=sidestep(runtime,standard%6===0?anchors.inn:anchors['district-'+district]||anchors.plaza,standard%8,16);
+    const square=squares[(p.planBias+d)%squares.length]||rest;
+    const errands=square.id==='arcades-court'?arcadeStops[hash(p.planBias,'errands-'+d)%arcadeStops.length]:square;
+    const walk=standard%6===0?anchors.inn:
+      district==='arcades'&&arcadeStops.length?arcadeStops[hash(p.planBias,'walk-'+d)%arcadeStops.length]:
+      anchors['district-'+district]||anchors.plaza;
+    const evening=sidestep(runtime,walk,standard%8,16);
     const wake=p.staff?391:(342+standard%158);
     const lunch=p.staff?777+standard%17:687+standard%179;
     const shiftEnd=p.staff?1200:1032+standard%136;

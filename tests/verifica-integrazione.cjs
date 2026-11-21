@@ -261,8 +261,15 @@ for (const spot of [city.plaza, { x: 1040, y: 726 }, { x: 1860, y: 1070 }, { x: 
   paintCity(12, spot);
 }
 assert(paintCity(22, { x: 1040, y: 726 }).glows >= 4, 'Di notte le lanterne e i cristalli del ponte sono accesi');
+const eastLights = [city.districts.find(d => d.id === 'arcades'), city.districts.find(d => d.id === 'orchards')];
+for (const spot of eastLights) {
+  const night = paintCity(22, spot);
+  assert(night.glows >= 4 && night.glows <= 8, spot.name + ': luci stradali attive entro il limite');
+  assert.equal(paintCity(12, spot).glows, 0, spot.name + ': aloni spenti a mezzogiorno');
+}
 scope.UI = { effects: false };
 paintCity(22, { x: 1040, y: 726 });
+assert(paintCity(22, eastLights[1]).glows >= 4, 'Le lanterne degli Orti restano accese con effetti ridotti');
 delete scope.UI;
 scope.matchMedia = () => ({ matches: true });
 paintCity(22, { x: 1860, y: 1070 });

@@ -60,6 +60,9 @@
   const annexStops=[
     {id:'arcades-court',x:2460,y:489,name:'Corte dei Soffiatori',district:'arcades'},
     {id:'arcades-work',x:2350,y:475,name:'Banco delle ampolle',district:'arcades'},
+    {id:'arcades-loggia',x:2642,y:256,name:'Loggia delle Vetrerie',district:'arcades'},
+    {id:'arcades-lane',x:2718,y:489,name:'Passaggio delle Vetrate',district:'arcades'},
+    {id:'arcades-crossing',x:2516,y:726,name:'Crocevia dei Carrettieri',district:'arcades'},
     {id:'orchards-court',x:2516,y:1218,name:'Piazzetta delle Radici',district:'orchards'},
     {id:'orchards-work',x:2624,y:1160,name:'Orto delle spezie',district:'orchards'}
   ];
@@ -295,6 +298,9 @@
     // Cristalli luminosi: solo decorazione, senza collisione.
     for(const [x,y] of CRYSTALS)add('crystal',x,y,{district:districtAt(x,y).id});
     for(const [x,y] of [[2398,454],[2514,454],[2398,534],[2514,534]])add('prismLamp',x,y);
+    for(const [x,y] of [[2158,265],[2430,266],[2642,267],[2718,500],[2158,741],[2499,742],
+      [2157,974],[2457,975],[2678,975],[2540,1130],[2599,1130],[2450,1230],[2535,1231],
+      [2642,1230],[2770,1231],[2158,1433],[2445,1433],[2688,1433]])add('lamp',x,y);
     for(const [x,y] of [[2332,451],[2535,468],[2535,510]])add('stall',x,y,{solid:9,district:'arcades'});
     add('lensSpire',2460,458,{solid:10,district:'arcades'});
     for(const [x,y] of [[2394,1026],[2426,1026],[2394,1071],[2426,1071],[2394,1116],[2426,1116],[2664,1150],[2700,1150]])
@@ -500,11 +506,13 @@
         }
       }
     }
-    // Atmosfere dei quartieri: Mercato dei Venti caldo e polveroso, Giardini delle Lanterne freschi e verdi.
-    const wind=districts.find(d=>d.id==='wind'),lampsD=districts.find(d=>d.id==='lamps');
+    // Colori e particelle seguono i materiali e la vegetazione dei quartieri orientali.
+    const [,,wind,lampsD,arcades,orchards]=districts;
     const moods=[
-      {id:'wind',box:{minX:canal.right+4,maxX:annexStart-4,minY:wind.minY,maxY:wind.maxY},tint:'224,150,70',tintNight:'255,150,70',a:.055,moteColor:'#ecc88c',n:70},
-      {id:'lamps',box:{minX:canal.right+4,maxX:annexStart-4,minY:lampsD.minY,maxY:lampsD.maxY},tint:'70,150,100',tintNight:'40,170,160',a:.065,moteColor:'#faf6c4',n:90}
+      {box:{minX:canal.right+4,maxX:annexStart-4,minY:wind.minY,maxY:wind.maxY},tint:'224,150,70',tintNight:'255,150,70',a:.055,moteColor:'#ecc88c',n:70},
+      {box:{minX:canal.right+4,maxX:annexStart-4,minY:lampsD.minY,maxY:lampsD.maxY},tint:'70,150,100',tintNight:'40,170,160',a:.065,moteColor:'#faf6c4',firefly:'#d8f58a',n:90},
+      {box:arcades,tint:'102,180,190',tintNight:'84,165,198',a:.09,moteColor:'#bce4d7',n:52},
+      {box:orchards,tint:'159,184,100',tintNight:'123,168,96',a:.1,moteColor:'#e3d29f',firefly:'#f4d578',n:58}
     ];
     function band(c,cam,d,rgb,a){
       for(let k=0;k<2;k++){
@@ -525,7 +533,7 @@
       for(const m of moods){
         const d=m.box,w=d.maxX-d.minX,h=d.maxY-d.minY;
         if(d.minX>cam.x+cam.w||d.maxX<cam.x||d.minY>cam.y+cam.h||d.maxY<cam.y)continue;
-        const garden=m.id==='lamps',glowing=garden&&(e.night>.1||e.twilight>.25);
+        const garden=!!m.firefly,glowing=garden&&(e.night>.1||e.twilight>.25);
         c.save();
         if(glowing)c.globalCompositeOperation='screen';
         for(let i=0;i<m.n;i++){
@@ -535,8 +543,8 @@
           if(glowing){
             const pulse=e.calm?.55:Math.max(0,Math.sin(time*1.3+i*1.7));
             if(pulse<.08)continue;
-            c.globalAlpha=.7*pulse;rect(c,'#d8f58a',wx,wy,2,2);
-            c.globalAlpha=.16*pulse;rect(c,'#d8f58a',wx-1,wy-1,4,4);
+            c.globalAlpha=.7*pulse;rect(c,m.firefly,wx,wy,2,2);
+            c.globalAlpha=.16*pulse;rect(c,m.firefly,wx-1,wy-1,4,4);
           }else{c.globalAlpha=garden?.38:.3;rect(c,m.moteColor,wx,wy,1,1);}
         }
         c.restore();

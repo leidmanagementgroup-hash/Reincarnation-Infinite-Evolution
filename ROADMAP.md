@@ -12,9 +12,9 @@
 
 - [x] RISK-006: lo stato incoerente del Santuario ora produce un avviso invece del rifiuto del salvataggio (2026-11-21).
 - [x] RISK-007: morte permanente dei compagni di gilda confermata e documentata in `GAME_DESIGN.md` §4.9 (2026-11-21).
-- [x] UX-001: affollamento serale ridotto dalle routine per quartiere di Codex (unite a `main` il 2026-11-21); la parte restante è UX-003.
+- [x] UX-001: affollamento serale ridotto dalle routine per quartiere di Codex (unite a `main` il 2026-11-21).
 - [x] Integrazione del lavoro di Codex (quartieri orientali, Serra delle Talee, tipi di insediamento) unita a `main` (2026-11-21, `769d231`).
-- [ ] **Prossima fase — rifinitura di Velaris** (da approvare): UX-002 lanterne agli incroci e atmosfere locali per Portici del Vetro e Orti dell'Alambicco; UX-003 alleggerire la Corte dei Soffiatori.
+- [x] **Rifinitura di Velaris.** UX-002 (lanterne e atmosfere dei quartieri orientali) e UX-003 (soste e turni distribuiti nei Portici).
 - [ ] **Fase successiva —** Generatore Procedurale Urbano 2.0: generalizzare lotti, vie, confini e oggetti dell'annesso (oggi a coordinate fisse) partendo da `settlementTypes`, cache per settori e routine per quartiere.
 - [x] BUG-011: risolto e unito a `main` (2026-11-21).
 - [ ] Verificare in partita il bilanciamento dei danni ai compagni (quanto spesso scendono in stato critico).
@@ -26,7 +26,7 @@
 
 - [Piano ufficiale Mega City Overhaul](MEGA_CITY_OVERHAUL.md), con requisiti, fasi, criteri di verifica e passaggio di consegne fra modelli.
 - [x] **Fase 0.** Verificare l’integrazione v5/v6 e la base urbana di Velaris.
-- [x] Residenti sovrapposti nella piazza di Velaris: soste distribuite (branch `claude/fix-residenti-sovrapposti`). Resta BUG-011 (percorsi scartati).
+- [x] Residenti sovrapposti nella piazza di Velaris: soste distribuite (branch `claude/fix-residenti-sovrapposti`). BUG-011 risolto a parte.
 - [x] **Passo 2 del piano grafico** (luce e vegetazione): completato e unito a `main` (2026-11-21). I passi 3-5 restano da approvare.
 - [x] **Fase 1.** Prima porzione grafica di Velaris fra piazza, ponte e mercato, secondo il [piano artistico e tecnico](PIANO_GRAFICO.md).
 - [ ] **Fase 2.** Estendere l’identità dei quartieri, vegetazione, orientamento e varietà degli interni.
