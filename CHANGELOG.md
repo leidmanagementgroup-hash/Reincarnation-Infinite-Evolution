@@ -4,6 +4,8 @@ Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGEN
 
 ## [2026-11-21] Rifinitura dei quartieri orientali di Velaris — Codex
 
+Commit della rifinitura `b0d570b`.
+
 ### Aggiunto
 - Diciotto lanterne sulle vie orientali e lungo l’accesso alla Serra delle Talee. Riflessi freddi nei Portici del Vetro, luce verde e lucciole ambrate negli Orti dell’Alambicco. Le luci riusano la cache e il limite di otto aloni visibili (file `urban-exterior.js`).
 
