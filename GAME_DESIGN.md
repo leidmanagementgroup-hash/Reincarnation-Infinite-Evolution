@@ -100,6 +100,10 @@ Routine per quartiere: ogni residente abita nel quartiere del proprio lavoro (`h
 
 Il formato v7 conserva `urban` (routine, scorte, memorie e commissioni), `cityWorks` (restauro, colazione, esercitazioni e letture) ed `economy.flows` (campo facoltativo, `schema: 1`: giorno, ricchezza, spedizioni in viaggio, riporti frazionari e registro delle merci; assente nei salvataggi precedenti, che lo ricevono al giorno corrente senza recuperi retroattivi, e ricreato se non valido). Le mappe si rigenerano dallo stesso seme. I salvataggi precedenti ricevono i nuovi campi al caricamento. La v5 di GitHub può includere equipaggiamento, conflitti, reputazione e Santuario. La migrazione conserva i campi presenti e inizializza quelli mancanti nelle v5 precedenti.
 
+### 3.2 Selva degli Alambicchi
+
+`continents.js` disegna il terreno della Selva degli Alambicchi a due pixel logici con variazioni su più scale e margini di sentiero irregolari. Le chiome e gli edifici del borgo riusano sprite originali in cache. Le texture usano un seme dedicato, mentre il flusso casuale dei punti solidi, delle risorse e dei varchi resta quello già pubblicato. Le dimensioni della regione e il collegamento verso Velaris sono quelli della planimetria esistente. Direzione per le aree successive nel [World Art Overhaul](WORLD_ART_OVERHAUL.md).
+
 ## 4. Meccaniche
 
 ### 4.1 Incarnazione e stirpi

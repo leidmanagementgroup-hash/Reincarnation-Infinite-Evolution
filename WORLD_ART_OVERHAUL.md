@@ -1,0 +1,53 @@
+# World Art Overhaul · Direzione artistica di Lùmora
+
+Il primo screenshot fornito dall’utente è il riferimento principale per qualità, composizione e scala. La Selva degli Alambicchi in Myrathen è la prima area pilota. Il piano estende le regole di ambientazione ai cinque continenti e si affianca al [piano grafico](PIANO_GRAFICO.md) e al [Mega City Overhaul](MEGA_CITY_OVERHAUL.md).
+
+## Lettura dei riferimenti
+
+| Elemento | Primo screenshot, bosco della Valle di Vela | Secondo screenshot, esempio del disegno continentale |
+|---|---|---|
+| Composizione | Un sentiero curvo collega una radura e un tratto più chiuso. Gruppi di alberi fanno da cornice a spazi aperti dove i personaggi si distinguono. | La via e i banchi sono riconoscibili. Spigoli, contorno uniforme del sentiero e alberi ripetuti fanno percepire l’impianto prima del paesaggio. |
+| Terreno | Verdi chiari e scuri occupano zone ampie. I ciuffi d’erba e i gruppi di fiori si addensano sulle sponde del sentiero. | Il rumore a blocchi domina superfici ampie e il bordo scuro della strada riduce il passaggio graduale fra terreno e via. |
+| Vegetazione | Chiome a più livelli, tagli irregolari, larghezze diverse e ombre ai piedi danno volume. Le conifere hanno un profilo distinto dalle latifoglie. | Le chiome tonde ripetono contorno, tronco e macchia di luce. Il verde freddo identifica il bioma, ma la variazione di forma resta limitata. |
+| Architettura | Il bosco domina l’inquadratura. Il riferimento per gli edifici va completato con il Borgo di Vela e con gli esterni già rifiniti di Velaris. | Case, banchi e lampioni sono leggibili, ma le facciate ripetono modo di costruire, proporzioni e finestre. La scena offre pochi indizi del mestiere o della storia locale. |
+| Contrasto | La luce sulla strada e i contorni dei personaggi mantengono leggibili movimento e combattimento. | La dominante fredda riduce la separazione fra terreno, chiome e arredi. Illuminazione e meteo vanno confrontati a parità di ora prima di attribuire il divario alla palette. |
+
+Nel codice, il terreno della Valle (`world.js`) combina grana e rumore interpolato a tre scale, una maschera per le strade, bordi irregolari e ombre di contatto. Gli alberi usano sagome articolate e varianti. Le regioni di `continents.js` condividono la rete di partenza di `pathPoints()`, la composizione base di piccoli insediamenti e gran parte dei metodi di disegno. Palette e specie vegetali cambiano per bioma, ma la parentela resta evidente quando forma e organizzazione sono quasi identiche.
+
+## Regole comuni
+
+- **Scala.** Mantenere prospettiva, pixel logici e ingrandimento senza interpolazione. Usare il personaggio, la soglia e il tronco come riferimenti per dimensionare un nuovo elemento. La base visiva deve coincidere con le coordinate di appoggio e con gli ostacoli previsti.
+- **Composizione.** Usare una sagoma, una costruzione, un crocevia o un elemento naturale come riferimento in ogni scena importante. Alternare fasce dense, quinte vegetali e radure. Lasciare spazio visivo attorno ad accessi, interazioni e avvisi di combattimento.
+- **Materiali.** Costruire il terreno a più scale con masse ampie, bordi a gradini e piccoli raggruppamenti di dettaglio. Usare ombra, tono medio e luce per descrivere un materiale. Riservare gli accenti più luminosi ai punti d’interesse, agli oggetti interattivi e ai segnali di gioco.
+- **Terreno e percorsi.** Rendere leggibile la gerarchia fra strada, sentiero e traccia naturale con materiale, larghezza e usura. Variare i margini con ghiaia, erbe, acqua o pietre adatte al suolo. Raggruppare gli elementi secondo esposizione, umidità, coltivazione e passaggio, con transizioni riconoscibili fra biomi.
+- **Edifici e natura.** Differenziare prima le sagome e la funzione, poi i colori. Officine, mercati e abitazioni si distinguono per pianta, tetto, ingresso e oggetti d’uso. Le specie vegetali cambiano per portamento, sottobosco e forma delle ombre. Le varianti riusano una tavolozza locale e un vocabolario di materiali.
+- **Giorno e notte.** Usare il calendario e un’illuminazione coerente con il luogo. Le ombre di contatto ancorano le sagome. Le sorgenti locali corrispondono a luci visibili, con aloni in cache e budget già usato a Velaris, fino a otto aloni attivi. Le animazioni decorative rispettano gli effetti ridotti e `prefers-reduced-motion`.
+- **Varietà riproducibile.** Legare la decorazione al seme, all’identità dell’area e alla posizione. Conservare il flusso casuale della geometria già pubblicata. Calcolare e disegnare superfici ripetute una volta sola, poi riusare gli sprite e disegnare gli oggetti prossimi alla camera.
+
+## Identità per continente
+
+| Continente e aree esistenti | Prima famiglia di forme e materiali | Intervento naturale e punto di riferimento |
+|---|---|---|
+| **Vaelthoria** · Borgo di Vela (`valley`), Valle degli Antichi (`ancient-valley`), Arco di Serralba | Legno caldo, pietra chiara, campi a margine del borgo. Travertino e murature antiche nelle opere degli Ardel. | La Valle di Vela resta il riferimento. Nella Valle degli Antichi mettere in risalto il passaggio fra piana, colline boschive e rovine, usando la Custode delle Origini e l’acquedotto come riferimenti. |
+| **Nordharyn** · Passo dei Larici (`frost-pass`), Borgo dei Filoni, Rocca di Hadrin (`winter-citadel`) | Tetti ripidi, imposte robuste e pietra stratificata. Porticati e attrezzature minerarie ai Filoni, volumi fortificati a Hadrin. | Separare lariceti, prati di disgelo e scarpate innevate. Valorizzare Gola del Disgelo e Sentinella Eterna con profili più caratterizzati e ombre fredde. |
+| **Myrathen** · Selva degli Alambicchi (`verdant-canopy`), Velaris e Conca delle Stelle Silenziose (`moon-grove`) | Chiome verde freddo, legno scuro, rame ossidato e vetro turchese. Segni di lavoro vetrario e alchemico intorno a banchi e soglie. | La Selva lega Pozze dei Riflessi, Querceto Incantato e Ruderi di Vetro. Alla Conca, cristalli e radure notturne danno una seconda identità al continente. |
+| **Voryndhal** · Terrazze di Namar (`golden-savanna`), Borgo delle Fronde (`root-sanctuary`) | Namar con alberi a ombrello, corti aperte e strutture da pascolo. Alle Fronde, passerelle, fusti e radici strutturano gli spazi. | Passare da radure d’ocra e rive di marea a ruscelli e grandi radici. La Madre delle Radici si distingue per silhouette e relazione con il suolo. |
+| **Azheryon** · Porto di Calis (`dune-port`), Oasi di Damar (`sunken-dunes`) | Legno salmastro, magazzini e tende a Calis. Pietra calda, portici ombreggiati e materiali carovanieri a Damar. | Disegnare continuità fra duna, prateria salmastra e linea d’acqua. Nel canyon usare pareti stratificate, oasi raccolte e la via per il Giudice delle Ere. |
+
+## Incrementi e verifica
+
+| Incremento | Consegna | Passaggio al successivo |
+|---|---|---|
+| **1 · Selva degli Alambicchi** | Primo intervento sulla regione esistente. Dare carattere locale al percorso fra botteghe, sentieri e pozze con materiali, chiome, dettagli di terreno e forme architettoniche. | Confronto della stessa inquadratura prima e dopo. Verificare a piedi varchi, sentieri e accessi ai servizi, controllare salvataggi, collisioni e costo di ingresso. |
+| **2 · Regioni a confronto** | Valle degli Antichi e Passo dei Larici. Separare visivamente il paesaggio degli Ardel dall’ambiente minerario. | Prove diurne e notturne su almeno tre semi, controllo di arrivi, soglie, punti d’interesse e continuità del percorso. |
+| **3 · Terreni contrastanti** | Blocchi separati per Conca delle Stelle Silenziose e Altopiano dei Re Perduti, poi Savana dei Giganti e Santuario del Primo Germoglio, Costa delle Sette Vele e Gola delle Mille Corone. | Per ogni coppia, provare un tragitto fra insediamento e natura e un confronto in due condizioni di luce. Controllare che i materiali rendano riconoscibili confini e percorsi. |
+| **4 · [Generatore Procedurale Urbano 2.0](https://github.com/leidmanagementgroup-hash/Reincarnation-Infinite-Evolution/blob/ae170e4c894dcdf15565745df66e279cb399e987/MEGA_CITY_OVERHAUL.md#generatore-procedurale-urbano-20)** | Applicare i profili di terreno e architettura come dati al Borgo dei Filoni e a Calis. Riservare piazze storiche, monumenti, soglie e luoghi narrativi definiti a mano. | Verificare gli stessi identificatori e planimetrie su due ordini di caricamento. Controllare varietà di sagoma, densità di attività e carico dei settori prima di aumentare il numero degli edifici. |
+
+### Criteri di accettazione
+
+1. **Immagini ripetibili.** Acquisire inquadrature di gioco da centro abitato e sentiero o bioma. Fissare seme, camera, ingrandimento, ora e meteo per ciascuna coppia. Confrontare leggibilità del tragitto, profondità delle sagome, riconoscibilità dei materiali e livello di dettaglio. Provare anche la vista notturna con movimento ridotto.
+2. **Integrità del mondo.** Per gli interventi di solo disegno, confrontare geometria, ostacoli, varchi, servizi e risultati di `canWalk` con la build di partenza. Camminare nel gioco lungo il percorso interessato, passare di regione e ricaricare un salvataggio precedente. Continuare a usare gli stessi identificatori, le soglie e i semi. In futuro il generatore urbano aggiunge immobili mediante il proprio registro e conserva la compatibilità secondo il piano 2.0.
+3. **Prestazioni.** Confrontare sulla stessa macchina tempo di primo ingresso, ritorno a cache calda, mediana e p95 del costo CPU a scena stabilizzata, intervallo fra fotogrammi e stalli oltre 33 ms. Il primo obiettivo è un p95 CPU entro il 10% della base comparabile. Registrare eventuali scostamenti assoluti, soprattutto quando il valore di riferimento è molto basso. Per grandi città aggiungere memoria delle cache e prova sui margini dei settori.
+4. **Regressioni e consegna.** Eseguire la suite d’integrazione e le prove browser per movimenti, interni e salvataggi. Conservare le verifiche di BUG-011, UX-002 e UX-003. Registrare in [PROGRESS.md](PROGRESS.md) i risultati effettivi, i limiti, il branch e la build offline usata per il confronto.
+
+Gli incrementi riguardano l’ambientazione. Il motore JavaScript/Canvas 2D e la build autonoma continuano a servire lo stesso combattimento, le interazioni, le routine e i salvataggi. Il raccordo con l’economia, la scala delle città e lo stato delle attività seguono il piano urbano e l’integrazione economica separata.

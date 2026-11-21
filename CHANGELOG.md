@@ -2,6 +2,13 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-21] World Art Overhaul, continuazione: pilota della Selva recuperato e strumenti di confronto — Claude
+Branch `claude/world-art-overhaul` da `origin/main` `7060f17` (non unito; nessun merge senza approvazione dell'utente).
+### Aggiunto
+- Pilota grafico della Selva degli Alambicchi di Codex (commit `4d8b060` del branch `codex/world-art-myrathen`), applicato senza modifiche a `continents.js`; documenti di Codex `WORLD_ART_OVERHAUL.md` e sezioni collegate in `GAME_DESIGN.md`, `PIANO_GRAFICO.md`, `ROADMAP.md`. Le voci di Codex per `CHANGELOG.md` e `PROGRESS.md` erano in conflitto testuale con `main`: il loro contenuto è riassunto qui e in `PROGRESS.md`.
+- `tests/scatti-mondo.cjs`: scatti ripetibili della tela di gioco reale (terreno, oggetti, attori, effetti e atmosfera) in 18 luoghi di tutte le regioni, stesso seme, ora, meteo, camera e numero di fotogrammi; con due build salva il confronto PRIMA/DOPO.
+- `tests/confronto-mondo.cjs`: confronto esaustivo fra due versioni del mondo (`canWalk` su griglia per tre raggi, acqua, punti, varchi, luoghi, rotte) per tutte le 23 regioni e più semi.
+
 ## [2026-11-21] PERF-001: ricerca dei percorsi di Velaris più veloce, percorsi identici — Claude
 Branch `claude/perf-001-pathfinding`, da `main` `96a03f5`; unito a `main` per fast-forward il 2026-11-21 (`96a03f5` → `a1e4c54`) su approvazione dell'utente. Dopo il merge: test di integrazione, percorsi (BUG-011), sovrapposizioni, economia e browser rieseguiti su `main`, percorsi identici a `96a03f5`, HTML allineato, stato remoto verificato.
 ### Corretto
