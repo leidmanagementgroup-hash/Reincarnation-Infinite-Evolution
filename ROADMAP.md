@@ -46,7 +46,7 @@
 - [x] Stesse regole estese alle otto regioni continentali, alla luce notturna del mondo aperto (anche Valle di Vela) e alla Cripta: branch `claude/world-art-overhaul` (Claude), unito a `main` il 2026-11-22 (`ad6daa4`).
 - [x] ART-001: lavoro non committato di Codex copiato e verificato, confrontato con `main` file per file e recuperato dove aggiunge qualcosa (branch `claude/world-art-cava-fenditura`, Claude, 2026-11-22).
 - [x] Cava delle Braci e Fenditura Astrale: profondità, lava, isole sospese, luce notturna (branch `claude/world-art-cava-fenditura`, unito a `main` il 2026-11-22, `8da2400`).
-- [x] Santuario della Marea Muta, statue, pilastri, varchi e otto interni di Velaris: integrazione di Claude e Codex sul branch `claude/integrazione-santuario-interni` (da approvare).
+- [x] Santuario della Marea Muta, statue, pilastri, varchi e otto interni di Velaris: integrazione di Claude e Codex sul branch `claude/integrazione-santuario-interni`, unita a `main` il 2026-11-22 (`ae2b5c7`).
 - [ ] Arredi narrativi della Cripta delle Soglie; sprite di creature, evoluzioni ed effetti di combattimento (passi 3–4 di `PIANO_GRAFICO.md`, da approvare).
 - [ ] Collegare materiali, vegetazione e famiglie architettoniche ai profili del Generatore Procedurale Urbano 2.0.
 
