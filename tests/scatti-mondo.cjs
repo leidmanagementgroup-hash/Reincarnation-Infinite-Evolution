@@ -40,6 +40,11 @@ const SPOTS = {
   'santuario-ingresso': ['frost-pass', 877, 330], 'santuario-soglia': ['nadir-vault', 190, 560],
   'santuario-deposito': ['nadir-vault', 547, 540], 'santuario-chiostro': ['nadir-vault', 570, 230],
   'santuario-trono': ['nadir-vault', 900, 300],
+  // Interni di Velaris (raggiunti dalle porte della città).
+  'interno-locanda': ['city-velaris-inn', 384, 330], 'interno-emporio': ['city-velaris-shop', 384, 330],
+  'interno-forgia': ['city-velaris-forge', 384, 330], 'interno-gilda': ['city-velaris-guild', 384, 330],
+  'interno-archivio': ['city-velaris-archive', 384, 330], 'interno-accademia': ['city-velaris-academy', 384, 330],
+  'interno-casa': ['city-velaris-house', 384, 330], 'interno-serra': ['city-velaris-greenhouse', 384, 330],
   // Varchi e monumenti (i monumenti sono nelle scene *-statua, *-rocca, *-conca, *-radici, *-damar).
   'varco-vaelthoria': ['ancient-valley', 704, 150], 'varco-nordharyn': ['frost-pass', 1150, 470],
   'varco-myrathen': ['verdant-canopy', 1150, 470], 'varco-voryndhal': ['golden-savanna', 1150, 470],
@@ -134,22 +139,22 @@ async function compose(pairs, labels) {
   try {
     const page = await browser.newPage();
     const result = {};
-    for (const [key, a, b] of pairs) {
-      result[key] = await page.evaluate(async ([a, b, labels]) => {
+    for (const [key, ...images] of pairs) {
+      result[key] = await page.evaluate(async ([images, labels]) => {
         const load = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.src = src; });
-        const [A, B] = await Promise.all([load(a), load(b)]);
-        const s = 2, gap = 6, c = document.createElement('canvas');
-        c.width = A.width * s; c.height = (A.height + B.height) * s + gap;
+        const list = await Promise.all(images.map(load));
+        const s = list.length > 2 ? 1 : 2, gap = 6, c = document.createElement('canvas'), h = list[0].height * s;
+        c.width = list[0].width * s; c.height = list.length * h + (list.length - 1) * gap;
         const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
         g.fillStyle = '#10151a'; g.fillRect(0, 0, c.width, c.height);
-        g.drawImage(A, 0, 0, A.width * s, A.height * s); g.drawImage(B, 0, A.height * s + gap, B.width * s, B.height * s);
-        g.font = 'bold 18px sans-serif';
-        for (const [text, y] of [[labels[0], 8], [labels[1], A.height * s + gap + 8]]) {
-          const w = g.measureText(text).width + 16; g.fillStyle = '#000000b0'; g.fillRect(8, y, w, 28);
-          g.fillStyle = '#ffe9b0'; g.fillText(text, 16, y + 20);
-        }
+        g.font = 'bold ' + (s > 1 ? 18 : 13) + 'px sans-serif';
+        list.forEach((img, i) => {
+          const y = i * (h + gap); g.drawImage(img, 0, y, img.width * s, img.height * s);
+          const text = labels[i] || ('build ' + (i + 1)), w = g.measureText(text).width + 12;
+          g.fillStyle = '#000000b0'; g.fillRect(6, y + 6, w, s > 1 ? 28 : 20); g.fillStyle = '#ffe9b0'; g.fillText(text, 12, y + (s > 1 ? 26 : 21));
+        });
         return c.toDataURL('image/png');
-      }, [a, b, labels]);
+      }, [images, labels]);
     }
     return result;
   } finally { await browser.close(); }
@@ -184,14 +189,14 @@ async function bench() {
   const runs = [];
   for (const file of builds) {
     const t0 = Date.now(), r = await shoot(file); runs.push(r);
-    const tag = builds.length > 1 ? (runs.length === 1 ? 'prima' : 'dopo') : path.basename(file, '.html');
+    const tag = builds.length === 2 ? (runs.length === 1 ? 'prima' : 'dopo') : builds.length > 2 ? 'b' + runs.length : path.basename(file, '.html');
     for (const [k, v] of Object.entries(r.shots)) save(tag + '-' + k, v);
     console.log(`${tag}: ${Object.keys(r.shots).length} scatti in ${((Date.now() - t0) / 1000).toFixed(1)} s, errori: ${r.errors.length}`);
     for (const e of r.errors) console.log('  ' + e);
   }
-  if (runs.length === 2) {
-    const pairs = Object.keys(runs[0].shots).filter(k => runs[1].shots[k]).map(k => [k, runs[0].shots[k], runs[1].shots[k]]);
-    const same = pairs.filter(([, a, b]) => a === b).map(([k]) => k);
+  if (runs.length >= 2) {
+    const pairs = Object.keys(runs[0].shots).filter(k => runs.every(r => r.shots[k])).map(k => [k, ...runs.map(r => r.shots[k])]);
+    const same = pairs.filter(([, a, ...rest]) => rest.every(b => b === a)).map(([k]) => k);
     const labels = (process.env.LABELS || 'PRIMA,DOPO').split(',');
     const composed = await compose(pairs, labels);
     for (const [k, v] of Object.entries(composed)) save('confronto-' + k, v);
