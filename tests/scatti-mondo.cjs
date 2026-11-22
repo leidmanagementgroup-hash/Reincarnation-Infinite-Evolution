@@ -8,7 +8,7 @@
 // BENCH=1: invece degli scatti misura, per scena e ora, il costo dell'ingresso nella regione (primo disegno incluso)
 // e il tempo CPU di un fotogramma completo e del solo disegno del mondo (mediana/p95/massimo, FRAMES fotogrammi, default 240),
 // alternando le build ROUNDS volte (default 2).
-// Usare PW_HEADED=1 per Edge a finestra visibile con GPU.
+// Usare PW_HEADED=1 per Edge a finestra visibile con GPU. RACE=skeleton FORM=3: stirpe e forma del personaggio negli scatti.
 const fs = require('node:fs');
 const crypto = require('node:crypto');
 const path = require('node:path');
@@ -78,12 +78,17 @@ async function shoot(file) {
     await page.locator('#dialog button[data-do="resume"]').first().waitFor({ state: 'visible', timeout: 8000 });
     await page.click('#dialog button[data-do="resume"]');
     if (process.env.BENCH) await page.evaluate(n => { window.__bench = n; }, Number(process.env.FRAMES || 240));
-    await page.evaluate(seed => {
+    await page.evaluate(([seed, race, form]) => {
       const r0 = Math.random; let n = 0; Math.random = () => n++ === 0 ? seed / 4294967296 : .24;
       try { Game.newGame(); } finally { Math.random = r0; }
       Game.s.campaign.stage = Math.max(Game.s.campaign.stage || 0, 5);
+      // RACE e FORM (facoltativi): stirpe e forma evolutiva del personaggio (0 base, 1-2 primo stadio, 3-4 secondo).
+      if (race) {
+        const p = Game.s.player; p.race = race;
+        if (form > 0) { p.evolutionStage = form <= 2 ? 1 : 2; p.form = (form - 1) % 2; } else p.form = null;
+      }
       __tick(3);
-    }, Number(process.env.SEED || 19425));
+    }, [Number(process.env.SEED || 19425), process.env.RACE || '', Number(process.env.FORM || 0)]);
     for (const label of scenes) {
       const [region, x, y] = SPOTS[label];
       const [reached, enterMs] = await page.evaluate(id => {

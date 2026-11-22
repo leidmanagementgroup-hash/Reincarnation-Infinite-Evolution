@@ -87,6 +87,7 @@ Dalla cartella dei sorgenti esegui `python build.py Reincarnation.html`. Lo scri
 | `expansion-species.js` | Stirpi aggiunte e forme evolutive avanzate |
 | `expansion-art.js` | Arte animata delle nuove stirpi, creature e guardiani |
 | `continental-species.js` | Otto stirpi aggiuntive e loro profili biologici |
+| `creature-art.js` | Sprite dedicati di Scheletro errante, Orso dei larici e Viverna di brina, con cinque forme evolutive |
 | `lantern.js` | Evento serale della valle, animazione e ricompensa |
 | `growth.js` | Biologia fantasy, predisposizioni, innata evolutiva, allenamento e metamorfosi |
 | `world-life.js` | Mestieri, luoghi di lavoro, routine degli NPC, eventi, continenti e rinascita |
