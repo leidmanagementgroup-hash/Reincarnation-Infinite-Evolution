@@ -3,7 +3,8 @@
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
 ## [2026-11-22] Integrazione: fase 4 del World Art Overhaul su `main` dopo PERF-002 — Claude
-Branch `claude/integrazione-fase4` da `main` `3ff458b` (PERF-002 di Codex): merge di `claude/world-art-fase4` (`16b6317`), poi fast-forward di `main` con l'approvazione dell'utente. Branch originali `claude/world-art-fase4` e `codex/perf-002-npc` conservati.
+Branch `claude/integrazione-fase4` da `main` `3ff458b` (PERF-002 di Codex): merge di `claude/world-art-fase4` (`16b6317`), poi fast-forward di `main` con l'approvazione dell'utente. Branch originali `claude/world-art-fase4` e `codex/perf-002-npc` conservati, come le build di prova.
+- Fast-forward di `main` da `3ff458b` a `1f684e1` (merge `claude/integrazione-fase4`); `Reincarnation.html` ricostruito su `main` identico al commit (SHA-256 `0c49851c…`). Verifiche ripetute su `main`: `verifica-integrazione`, economia 158, `sonda-percorsi` 0 bloccati su 41 040, `verifica-perf-002` 181 scene equivalenti rispetto a prima di PERF-002 (worktree della fase 4), Edge `prova-browser` 10/10, `velaris-est` 12/12, mondo 15/15, creature 7/7, combattimento 7/7, famiglie 6/6.
 ### Integrazione
 - Nessun file di codice in comune: PERF-002 tocca `urban-life.js` e tre prove; la fase 4 `continents.js`, `world-light.js`, `engine.js`, `build.py`, `tests/scatti-mondo.cjs` e quattro moduli nuovi (`creature-art.js`, `combat-fx.js`, `city-families.js` e i loro strumenti di prova). Conflitti solo in `CHANGELOG.md` e `PROGRESS.md`, conciliati tenendo entrambe le storie.
 ### Verifica
