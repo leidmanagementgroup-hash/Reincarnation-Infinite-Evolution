@@ -33,7 +33,7 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 |---|---|---|---|
 | 1 | `world-light.js` | `WorldLight` | Luce del mondo aperto (World Art Overhaul): tinte di crepuscolo e notte per continente, finestre accese, aloni precalcolati (massimo otto), particelle e ombre di nuvole per bioma; i moduli del mondo registrano le sorgenti con `WorldLight.provide` |
 | 2 | `world.js` | `World` | Valle di Vela (1600×1080 px logici): geografia, percorsi, scenario procedurale, collisioni, mappa |
-| 3 | `expansion-world.js` | `World` | Cava delle Braci, Fenditura Astrale, passaggi regionali |
+| 3 | `expansion-world.js` | `World` | Cava delle Braci, Fenditura Astrale, passaggi regionali; profondità di terrazze e pareti, lava, isole sospese, strato emissivo e sorgenti di luce per `WorldLight` |
 | 4 | `continents.js` | `World` | Cinque continenti, nove nuove regioni + Cripta delle Soglie, rotte, caricamento regione, monumenti; terreno, vegetazione, edifici e luci per bioma (sprite in cache) |
 | 5 | `sprites.js` | `ActorArt` | Sprite animati, forme evolute, icone, ritratti |
 | 6 | `expansion-species.js` | `EvolutionContent` | Stirpi aggiunte e rami evolutivi avanzati |
@@ -105,11 +105,15 @@ Il formato v7 conserva `urban` (routine, scorte, memorie e commissioni), `cityWo
 
 `continents.js` disegna il terreno della Selva degli Alambicchi a due pixel logici con variazioni su più scale e margini di sentiero irregolari. Le chiome e gli edifici del borgo riusano sprite originali in cache. Le texture usano un seme dedicato, mentre il flusso casuale dei punti solidi, delle risorse e dei varchi resta quello già pubblicato. Le dimensioni della regione e il collegamento verso Velaris sono quelli della planimetria esistente. Direzione per le aree successive nel [World Art Overhaul](WORLD_ART_OVERHAUL.md).
 
-### 3.3 Paesaggi dei continenti (World Art Overhaul, branch `claude/world-art-overhaul`)
+### 3.3 Paesaggi dei continenti (World Art Overhaul)
 
 `continents.js` disegna le otto regioni continentali diverse dalla Selva (che resta il pilota di Codex, §3.2) con lo stesso metodo: terreno a 2 px da rampe di colore per bioma (`groundArt`: suolo, prato umido, zona secca, margine, sentiero, lastricato), rumore su tre scale con retino ai confini, sentieri dal contorno irregolare con il centro consumato, dettagli con un seme proprio, rive a strati, piazza lastricata del borgo e pavimento radiale del monumento. Alberi, cespugli, rocce, cristalli, case, sale, banchi, pozzi, lampioni e rovine sono sprite disegnati una volta per regione (`area.sprites`) da `flora` e `masonry`: ogni continente ha sagome e materiali propri (Vaelthoria querce e travertino, Nordharyn larici, baite e rocca innevata, Myrathen cristalli, alberi velati e cupole, Voryndhal acacie, capanne e palafitte fra alberi a radici aeree, Azheryon palme, case bianche, pinnacoli d’arenaria, cactus e adobe). Le basi degli sprite coincidono con i punti d’appoggio e gli ingombri di collisione esistenti; la sequenza casuale che colloca oggetti solidi, risorse e varchi è invariata, quindi `canWalk`, varchi e rotte restano identici (verifica: `tests/confronto-mondo.cjs`). La Cripta delle Soglie ha pareti in mattoni, lastre smussate e rune, con le stesse sale.
 
 `world-light.js` (`WorldLight`) aggiunge al mondo aperto le tinte di crepuscolo e notte per continente (`skies`, notte fino a 0,42–0,52 di opacità), le finestre accese e fino a otto aloni precalcolati per lanterne, torce, fuochi, cristalli e monumenti; `interface.js` lo chiama in `atmosphere()` dopo il velo notturno. `WorldLight.ambient` sostituisce le particelle generiche fuori dalla Valle con quelle del bioma e, di giorno, con ombre di nuvole. I sotterranei (`under`, oggi la Cripta) hanno una penombra costante. Cava, Fenditura e Santuario restano con i valori precedenti. Nessun dato di salvataggio nuovo.
+
+### 3.4 Cava delle Braci e Fenditura Astrale (World Art Overhaul)
+
+`expansion-world.js` genera il terreno dalla maschera a 2 px che decide anche le collisioni; il disegno legge la maschera senza cambiarla. Ai colori e ai rilievi di Codex (pozze di luce, cenge, correnti della lava, nubi del vuoto) si aggiungono `depthShade` (orli illuminati verso chi guarda e in ombra sul lato lontano, pareti con gradiente e fenditure, riflesso della lava, vene incandescenti, crosta e crepe della lava, calore sul terreno vicino, sottofondi pendenti sotto le isole della Fenditura, frammenti nel vuoto) e le ombre di contatto degli oggetti. Ogni regione ha uno strato emissivo (`map.glow`) che `WorldLight.draw` riaccende di notte sopra il velo, e registra lanterne, forgia, nucleo astrale, osservatorio, guglie e varchi come sorgenti di luce; tinte `ember` per la Cava e `astral` per la Fenditura. In `interface.js` atmosfera e luci si disegnano prima degli avvisi di combattimento (`Game.drawFX`).
 
 ## 4. Meccaniche
 

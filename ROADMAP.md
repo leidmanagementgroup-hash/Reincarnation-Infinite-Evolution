@@ -44,8 +44,9 @@
 - [x] Pilota della Selva degli Alambicchi verificato sul branch `codex/world-art-myrathen`, con confronto in Edge.
 - [ ] Rivedere il pilota prima del merge.
 - [x] Stesse regole estese alle otto regioni continentali, alla luce notturna del mondo aperto (anche Valle di Vela) e alla Cripta: branch `claude/world-art-overhaul` (Claude), unito a `main` il 2026-11-22 (`ad6daa4`).
-- [ ] Decidere come unire il World Art Overhaul di `main` con il lavoro non committato di Codex (`world-art-wide`): stesse parti di `continents.js`, `interface.js`, `world.js` (ART-001).
-- [ ] Cava delle Braci e Fenditura Astrale (presenti solo nel lavoro di Codex), Santuario della Marea Muta, varchi e pilastri dei monumenti per bioma.
+- [x] ART-001: lavoro non committato di Codex copiato e verificato, confrontato con `main` file per file e recuperato dove aggiunge qualcosa (branch `claude/world-art-cava-fenditura`, Claude, 2026-11-22).
+- [x] Cava delle Braci e Fenditura Astrale: profondità, lava, isole sospese, luce notturna (branch `claude/world-art-cava-fenditura`, da approvare).
+- [ ] Santuario della Marea Muta, varchi e pilastri dei monumenti per bioma, interni di Velaris.
 - [ ] Collegare materiali, vegetazione e famiglie architettoniche ai profili del Generatore Procedurale Urbano 2.0.
 
 ## Priorità Media — Contenuti ★

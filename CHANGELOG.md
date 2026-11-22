@@ -2,6 +2,28 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-22] Cava delle Braci e Fenditura Astrale; ART-001 risolto — Claude (con lavoro recuperato di Codex)
+Branch `claude/world-art-cava-fenditura` da `main` `cf86486` (non unito; nessun merge senza approvazione dell'utente). Commit `74b74d0` (recupero di `expansion-world.js`), `120ddc9` (recupero di atmosfera prima degli avvisi e bande di duna), `419f9a0` (Cava e Fenditura), poi ottimizzazione dell'ingresso, prove e documenti.
+### ART-001
+- Copia completa e verificata del lavoro non committato di Codex (worktree `world-art-wide`, branch `codex/world-art-overhaul`, base `96a03f5`) in `C:\Users\elaro\Downloads\Codex-backup-2026-11-22-world-art-wide`: patch binaria, copie byte per byte dei sei file, `SHA256.txt`, `stato.txt`; la patch riapplicata a un'esportazione pulita di `96a03f5` riproduce esattamente i file del worktree. Il worktree di Codex non è stato modificato (solo comandi in lettura, `--no-optional-locks`).
+- Analisi per file contro `main` `cf86486`: `expansion-world.js` recuperato per intero (su `main` non aveva concorrenti); `interface.js` recuperati l'ordine atmosfera → avvisi di combattimento e lo stop delle particelle con `prefers-reduced-motion`, scartate le tinte regionali (superate da `WorldLight.sky`); `continents.js` recuperate solo le bande di duna sui suoli aridi, scartati terreno e acque regionali (superati dal terreno per bioma di `main`, già verificato); `world.js` scartate le pozze di luce delle lanterne (doppione degli aloni di `WorldLight`); `PROGRESS.md` e `WORLD_ART_OVERHAUL.md` di Codex superati dai documenti di `main`. Nessuna funzione o modulo sovrascritto per intero, salvo `expansion-world.js` che su `main` era identico alla base di Codex.
+### Recuperato da Codex
+- `expansion-world.js`: colori del terreno, pozze di luce sui punti d'interesse, cenge e giunture delle pareti, correnti della lava, nubi del vuoto astrale, crepe e bagliori dei bordi (`paintTerrainRelief`).
+- `interface.js`: atmosfera e luci disegnate prima di `Game.drawFX` (aree di pericolo e numeri dei colpi leggibili di notte, condizione di `PIANO_GRAFICO.md`); particelle ferme con `prefers-reduced-motion`.
+- `continents.js`: leggere bande di duna sui suoli di Costa e Gola.
+### Aggiunto (Claude, `expansion-world.js`, `world-light.js`)
+- Profondità: orli delle terrazze illuminati verso chi guarda e in ombra sul lato lontano, pareti con gradiente, fenditure verticali e riflesso rosso della lava alla base, vene di minerale incandescente nelle pareti della Cava.
+- Cava: crosta galleggiante e crepe incandescenti sulla lava, calore che arrossa il terreno vicino alla lava.
+- Fenditura: sottofondi pendenti sotto le isole sospese (roccia stratificata che si assottiglia, gocce di cristallo in punta), frammenti di roccia lontani nel vuoto; sentieri di nuovo più chiari del suolo illuminato.
+- Ombre di contatto a terra sotto castelletti, forgia, osservatorio, archi, guglie, carrelli e lanterne.
+- Luce: strato emissivo (lava, crepe, vene, gocce) riacceso di notte sopra il velo; sorgenti per `WorldLight` (lanterne, forgia, nucleo astrale, osservatorio, guglie, varchi); tinte `ember` (Cava) e `astral` (Fenditura). Supporto `emissive` in `WorldLight.draw`.
+- Maschera, oggetti, sequenza casuale, boss e arene invariati: collisioni, rotte e salvataggi identici a `main`.
+### Verifica
+- Tutte le prove superate (dettagli in `PROGRESS.md`): collisioni e rotte identiche a `main` (17,2 milioni di campioni), integrazione, economia, percorsi, residenti, browser 10/10, 12/12, economia, 15/15, Cava e Fenditura 6/6; 42 scatti su 66 identici byte per byte a `main` (gli altri sono Cava, Fenditura e le dune di Azheryon); prestazioni per fotogramma invariate, primo ingresso in Cava e Fenditura +20–35 ms (una volta per partita). HTML di prova SHA-256 `9dcc64fb…`, identico ai sorgenti.
+### Aggiunto (prove)
+- `tests/prova-browser-cava.cjs`: campagna fatta avanzare con i comandi del motore (missione, tre creature, Orveth, ricompensa, Kharun) per creare salvataggi legittimi nella Cava e nella Fenditura con una build precedente; importazione, camminata, giorno/tramonto/notte, combattimento notturno contro Syrava fino alla vittoria, ricarica, errori JS.
+- `tests/scatti-mondo.cjs`: quattro inquadrature in più (ingresso e forgia della Cava, osservatorio e Cuore del Varco) e file `build-usate.json` con SHA-256 delle build fotografate.
+
 ## [2026-11-22] World Art Overhaul, continuazione: continenti, luce del mondo aperto, Cripta — Claude
 Branch `claude/world-art-overhaul` da `origin/main` `7060f17`; **unito a `main` per fast-forward il 2026-11-22 (`7060f17` → `ad6daa4`) su approvazione dell'utente**. Dopo l'unione: HTML identico ai sorgenti, file urbani ed economici invariati rispetto a `7060f17`, rieseguiti su `main` con esito positivo: `verifica-integrazione.cjs`, `economia-flussi.cjs` (158), `economia-flussi-2.cjs`, `economia-integrazione.cjs` (147), `sonda-percorsi.cjs` (0 bloccati su 41 040), `sonda-residenti.cjs` (0), browser 10/10, 12/12, economia, mondo 15/15, 36 scatti identici byte per byte a quelli del branch. Commit `cce96db` (recupero e strumenti), `1c3e21f` (terreno, vegetazione, architettura), `b541ace` (luce e Cripta), `a9ff3c3` (atmosfere), `5b35516` (prove e documenti). File toccati: `continents.js`, `world.js`, `interface.js`, `build.py`, nuovo `world-light.js`, `tests/`, documenti; nessun file urbano o economico.
 ### Aggiunto

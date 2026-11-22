@@ -84,8 +84,8 @@
     const a=Math.floor(x/size),b=Math.floor(y/size);
     let u=x/size-a,v=y/size-b;
     u=u*u*(3-2*u);v=v*v*(3-2*v);
-    const q=(i,j)=>hash(i,j,s)/4294967295;
-    const top=q(a,b)*(1-u)+q(a+1,b)*u, bottom=q(a,b+1)*(1-u)+q(a+1,b+1)*u;
+    // Stesse operazioni nello stesso ordine di prima, senza creare una funzione a ogni chiamata.
+    const top=(hash(a,b,s)/4294967295)*(1-u)+(hash(a+1,b,s)/4294967295)*u, bottom=(hash(a,b+1,s)/4294967295)*(1-u)+(hash(a+1,b+1,s)/4294967295)*u;
     return top*(1-v)+bottom*v;
   }
   function canvas(w,h){
@@ -158,8 +158,9 @@
   };
   function terrainLight(name,x,y){
     let light=0;
-    for(const [cx,cy,rx,ry,level] of strata[name]){
-      const falloff=1-((x-cx)/rx)**2-((y-cy)/ry)**2;
+    const list=strata[name];
+    for(let i=0;i<list.length;i++){
+      const [cx,cy,rx,ry,level]=list[i],falloff=1-((x-cx)/rx)**2-((y-cy)/ry)**2;
       if(falloff>0)light=Math.max(light,falloff*falloff*level);
     }
     return light;
@@ -193,9 +194,39 @@
   }
   // Profondità (World Art Overhaul): modifica rgb sul posto e restituisce il colore emissivo [r,g,b,a] o null.
   // Usa solo la maschera già calcolata: le collisioni non cambiano.
-  function lavaAt(map,x,y){return map.reg.id==='quarry'&&!solidAt(map,x,y)&&x>34&&y>34&&x<map.reg.width-30&&y<map.reg.height-30&&quarryHazard(x,y);}
+  // Lava per cella (coordinate pari), calcolata una volta per regione.
+  function lavaAt(map,x,y){
+    if(!map.lava)return false;
+    const mx=x>>1,my=y>>1;
+    return mx>=0&&my>=0&&mx<map.maskW&&my<map.maskH&&map.lava[my*map.maskW+mx]===1;
+  }
+  // Distanza in pixel dalla cella di terra più vicina nella stessa colonna, alla stessa riga o sopra (0 = terra).
+  function prepareDepth(map){
+    const {maskW,maskH,mask}=map,above=new Int16Array(maskW*maskH);
+    for(let i=0;i<maskW;i++){
+      let last=-1e4;
+      for(let j=0;j<maskH;j++){const k=j*maskW+i;if(mask[k]===1)last=j;above[k]=Math.min(30000,(j-last)*2);}
+    }
+    map.above=above;
+    if(map.reg.id==='quarry'){
+      const lava=map.lava=new Uint8Array(maskW*maskH);
+      for(let j=0;j<maskH;j++)for(let i=0;i<maskW;i++){
+        const x=i*2,y=j*2;
+        lava[j*maskW+i]=Number(mask[j*maskW+i]!==1&&x>34&&y>34&&x<map.reg.width-30&&y<map.reg.height-30&&quarryHazard(x,y));
+      }
+    }
+  }
+  // Lunghezza dei sottofondi per colonna, calcolata una volta (stesso valore di prima).
+  function hangLength(map,x){
+    const cache=map.hang||(map.hang=new Map());
+    let len=cache.get(x);
+    if(len===undefined){len=16+Math.floor(noise(x,0,10,map.seed+5)*30)+(hash(x>>1,1,map.seed)%5);cache.set(x,len);}
+    return len;
+  }
+  const heatProbe=[0,8,0,-8,8,0,-8,0,0,18,12,12,-12,12,0,-16];
   function depthShade(map,x,y,ground,edge,face,rgb){
-    const isRift=map.reg.id==='rift',stir=hash(x,y,map.seed+977);
+    const cell=(y>>1)*map.maskW+(x>>1);
+    const isRift=map.reg.id==='rift';
     const tint=(r,g,b)=>{rgb[0]+=r;rgb[1]+=g;rgb[2]+=b;};
     const scale=k=>{rgb[0]*=k;rgb[1]*=k;rgb[2]*=k;};
     if(ground){
@@ -207,26 +238,29 @@
       if(!isRift){
         // Calore della lava sul terreno vicino.
         let heat=0;
-        for(const [dx,dy] of [[0,9],[0,-9],[9,0],[-9,0],[0,18],[13,13],[-13,13],[0,-16]])if(lavaAt(map,x+dx,y+dy))heat+=Math.abs(dx)+Math.abs(dy)>15?.5:1;
+        for(let n=0;n<16;n+=2){const dx=heatProbe[n],dy=heatProbe[n+1];if(lavaAt(map,x+dx,y+dy))heat+=Math.abs(dx)+Math.abs(dy)>15?.5:1;}
         if(heat)tint(Math.min(46,heat*9),Math.min(14,heat*3),-Math.min(10,heat*2));
       }
       return null;
     }
     if(face){
       // Parete: più chiara sotto l'orlo, più scura in basso, fenditure verticali e riflesso della lava alla base.
-      let d=2;while(d<14&&!solidAt(map,x,y-d))d+=2;
+      // Prima terra sopra a 2…12 px (altrimenti 14), come il vecchio ciclo di campioni.
+      const near=cell-map.maskW>=0?map.above[cell-map.maskW]+2:30000,d=near<14?near:14;
       scale(1.08-d/14*.42);
       if((hash(x>>2,0,map.seed+31)%7)===0&&d>3)scale(.78);
       if(!isRift&&lavaAt(map,x,y+4)){tint(42,12,0);return [120,40,10,150];}
       // Vene di minerale incandescente nelle pareti della Cava.
+      const stir=hash(x,y,map.seed+977);
       if(!isRift&&d>4&&stir%37===0){rgb[0]=226;rgb[1]=118;rgb[2]=58;return [240,120,50,200];}
       if(isRift&&d>=12&&stir%23===0)return [90,140,170,160];
       return null;
     }
     if(isRift){
       // Sottofondo pendente delle isole: roccia che si assottiglia nel vuoto, con gocce di cristallo in punta.
-      const len=16+Math.floor(noise(x,0,10,map.seed+5)*30)+(hash(x>>1,1,map.seed)%5);
-      let d=16;while(d<=len&&!solidAt(map,x,y-d))d+=2;
+      const len=hangLength(map,x);
+      // Prima terra a 16 px o più sopra: 16 + distanza misurata dalla riga 8 celle più in alto.
+      const up=cell-8*map.maskW,d=up>=0?16+map.above[up]:30000;
       if(d<=len){
         // Roccia viva sotto l'isola: chiara vicino alla parete, si scurisce e si sfrangia verso la punta.
         const t=d/len,band=((y+(hash(x>>3,2,map.seed)%5))%7)<2,side=(hash(x>>2,4,map.seed)%3)-1;
@@ -248,7 +282,7 @@
     }
     // Lava: crosta scura che galleggia, crepe incandescenti ai bordi delle placche.
     if(x<29||y<31||x>map.reg.width-26||y>map.reg.height-27)return null;
-    const crust=noise(x,y,16,map.seed+611)*.7+noise(x,y,6,map.seed+612)*.3;
+    const stir=hash(x,y,map.seed+977),crust=noise(x,y,16,map.seed+611)*.7+noise(x,y,6,map.seed+612)*.3;
     if(crust>.735){const k=(crust-.735)*6;rgb[0]=112-k*30+stir%8;rgb[1]=44-k*10+stir%5;rgb[2]=36;return [60,14,6,110];}
     if(crust>.722&&stir%3){rgb[0]=Math.min(255,rgb[0]+52);rgb[1]=Math.min(220,rgb[1]+46);rgb[2]+=18;return [255,160,70,230];}
     return [Math.min(255,rgb[0]+30),Math.min(255,rgb[1]+6),rgb[2],200];
@@ -270,6 +304,7 @@
       map.mask[index]=Number(x>boundary&&y>boundary&&x<reg.width-boundary&&y<reg.height-boundary&&
         (isRift?riftGround(x,y,road):!quarryHazard(x,y)));
     }
+    prepareDepth(map);
     const coarse=canvas(maskW,maskH),surface=coarse.getContext('2d'),data=surface.createImageData(maskW,maskH);
     // Strato emissivo (lava, crepe incandescenti, gocce di cristallo): di notte WorldLight lo riaccende sopra il velo.
     const glowHalf=canvas(maskW,maskH),gh=glowHalf.getContext('2d'),glow=gh.createImageData(maskW,maskH);
