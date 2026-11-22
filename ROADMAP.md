@@ -50,7 +50,8 @@
 - [x] Cripta delle Soglie con materiali per sala, arredi narrativi, bracieri e penombra propria (fase 4 A, branch `claude/world-art-fase4`, da approvare).
 - [x] Sprite dedicati per un campione di stirpi (Scheletro errante, Orso dei larici, Viverna di brina) e metodo riutilizzabile (fase 4 B, stesso branch).
 - [ ] Estendere il metodo: Grifone, Fata ed Elementale; forme 3–4 delle nove stirpi originali (`advancedLegacy`); Umano e Nano per ultimi (aspetto dei residenti).
-- [ ] Effetti di combattimento per elemento, colpo critico, schivata, impatti, boss e trasformazioni (fase 4 C, non iniziata: prima un campo `element` solo visivo sugli effetti di `engine.js`).
+- [x] Effetti di combattimento per elemento, colpo forte, schivata, impatti, boss e trasformazioni (fase 4 C, `combat-fx.js` ed etichetta visiva `fxTag` in `engine.js`, stesso branch, da approvare).
+- [ ] Seguiti della fase C: elemento per singola tecnica dove il nome lo chiede più della stirpe; suono per elemento.
 - [ ] Famiglie architettoniche per continente come catalogo separato per il Generatore Procedurale Urbano 2.0 (fase 4 D, non iniziata).
 - [ ] Collegare materiali, vegetazione e famiglie architettoniche ai profili del Generatore Procedurale Urbano 2.0.
 

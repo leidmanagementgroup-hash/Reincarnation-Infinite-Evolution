@@ -29,6 +29,7 @@ Apri `Reincarnation.html` in un browser moderno. Grafica, musica sintetizzata e 
 - Il Santuario della Marea Muta, se il tuo mondo lo nasconde, è un bacino d’acqua immobile con sale di pietra, rune e colonne che brillano nella penombra.
 - Nella Cava delle Braci la lava resta incandescente anche di notte e scalda la roccia vicina; nella Fenditura Astrale le isole sospese mostrano la roccia che pende nel vuoto. Le terrazze hanno l’orlo illuminato verso di te: i bordi praticabili si riconoscono a colpo d’occhio.
 - Neve leggera, lucciole, spore, scintille e polvere cambiano da un bioma all’altro; di giorno le ombre delle nuvole scorrono sul terreno. Con **effetti ridotti** (Opzioni) o con la riduzione del movimento del sistema le particelle e le nuvole si fermano e le luci non pulsano.
+- In combattimento ogni stirpe e ogni creatura ha un elemento che si riconosce dagli effetti: fiamme e braci, spruzzi d'acqua, schegge di ghiaccio, saette, ombre risucchiate, raggi di luce o colpi fisici. Il terzo colpo della combo ha un'onda d'urto e un numero più grande; la schivata riuscita lascia una scia azzurra; i boss cambiano aura a ogni fase. Avvisi di pericolo e numeri restano sempre sopra agli effetti. Con **effetti ridotti** o con la riduzione del movimento del sistema restano solo simboli fermi.
 
 ### Vita quotidiana
 
@@ -104,6 +105,7 @@ Dalla cartella dei sorgenti esegui `python build.py Reincarnation.html`. Lo scri
 | `gear.js`, `gear-panel.js` | Equipaggiamento per rarità, durabilità, riparazioni, maestria, tempra, ascensione e incantamento |
 | `npc-conflicts.js`, `npc-conflict-panel.js` | Pattuglie, ferite, soccorsi, morte permanente degli abitanti, memoriali e rito della rinascita |
 | `engine.js` | Tabelle di stirpi e tecniche, simulazione, incontri, missioni, progressione e persistenza |
+| `combat-fx.js` | Effetti di combattimento per elemento: impatti, proiettili, anelli, colpo forte, schivata, aure e trasformazioni dei boss |
 | `audio.js` | Composizione originale, arrangiamento dinamico e suoni di gioco tramite Web Audio |
 | `interface.js` | Input, ciclo di gioco, telecamera, HUD e gestione dei pannelli |
 | `panels.js` | Diario, inventario, mappe, interazioni con gli abitanti e grimorio |

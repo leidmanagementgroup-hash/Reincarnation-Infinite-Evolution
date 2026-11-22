@@ -65,14 +65,15 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 | 32 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
 | 33 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
 | 34 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
-| 35 | `audio.js` | `Score` | Musica e suoni |
-| 36 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
-| 37 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
-| 38 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
-| 39 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
-| 40 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
-| 41 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
-| 42 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
+| 35 | `combat-fx.js` | `CombatFX` | Effetti di combattimento per elemento (fisico, fuoco, acqua, ghiaccio, fulmine, oscurità, luce): impatti, proiettili, anelli, colpo forte, schivata, aure e trasformazioni dei boss, evoluzione, numeri; solo disegno (§4.3) |
+| 36 | `audio.js` | `Score` | Musica e suoni |
+| 37 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
+| 38 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
+| 39 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
+| 40 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
+| 41 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
+| 42 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
+| 43 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
 
 Nota: `World`, `ActorArt` ed `EvolutionContent` sono **estesi da più moduli** successivi (ciascuno incapsula e riassegna il globale precedente): l'ordine in `build.py` è vincolante.
 
@@ -135,7 +136,7 @@ Le trasformazioni sono **automatiche e osservate** (albero con V). Secondo stadi
 **Sprite delle stirpi.** La forma disegnata è `spriteForm(p)`: 0 base, 1–2 primo stadio (ramo 0/1), 3–4 secondo stadio. `ActorArt` è una catena: `sprites.js` (nove stirpi originali), `expansion-art.js` (ventisette stirpi aggiunte, creature e guardiani; le forme 3–4 delle originali con ali, cresta e gemme comuni), `continental-species.js` (otto stirpi che prendono in prestito uno sprite esistente più un accento) e `creature-art.js` (sprite dedicati; oggi Scheletro errante, Orso dei larici, Viverna di brina, elencati in `ActorArt.dedicated`). Metodo per dare uno sprite proprio a una stirpe senza toccare le meccaniche: (1) **piano corporeo** per vista (fronte, spalle, lato; sinistra speculare) con coordinate intere ai piedi, asse di simmetria fra le colonne -1 e 0 e ingombro vicino a quello di prima; (2) **volto** leggibile a 1:1 (occhi a 1–2 px con un punto di luce, muso o mascella) solo nelle viste in cui si vede; (3) **forme**: il ramo offensivo aggiunge un'arma o una sagoma aggressiva con accento caldo, il ramo di sostegno un oggetto o un'aura con accento freddo, il secondo stadio ingrandisce la sagoma e aggiunge un elemento nuovo (elmo, corona, cristalli, ali a velo), sempre coerente con il nome della forma e la sua tecnica; (4) **pose**: passo a due tempi in movimento, due tempi lenti in attesa (dettagli, non le zampe), posa d'attacco, lampo del colpo; (5) contorno d'inchiostro, ombra e fotogrammi in memoria comuni; (6) verifica con `tests/scatti-creature.cjs` e `tests/prova-browser-creature.cjs`. Requisiti, statistiche, alberi, tecniche e tempi restano in `engine.js`, `growth.js` e nei dati delle stirpi.
 
 ### 4.3 Combattimento
-Attacco base concatenabile (J / clic), schivata, tre tecniche assegnabili (1-2-3), innata (R), pozione (Q). **Combinazioni magiche** (K): coppie di tecniche, fusioni assegnabili a un tasto. Boss con **fasi** e **combattimento adattivo** (`adaptive-combat.js`). Sconfitta → ritorno all'ultima statua attivata, recupero fino a 3 Scintille dal borsello; prima della prima attivazione, Nerea ti risveglia al borgo.
+Attacco base concatenabile (J / clic), schivata, tre tecniche assegnabili (1-2-3), innata (R), pozione (Q). **Combinazioni magiche** (K): coppie di tecniche, fusioni assegnabili a un tasto. Boss con **fasi** e **combattimento adattivo** (`adaptive-combat.js`). **Effetti per elemento** (`combat-fx.js`): ogni stirpe e ogni mostro ha uno dei sette elementi visivi (fisico, fuoco, acqua, ghiaccio, fulmine, oscurità, luce); `engine.js` copia un'etichetta solo visiva (`fxTag`, mai salvata) su effetti, proiettili e aree e segnala colpi, ferite, schivate, scatti, cambi di fase, sconfitte ed evoluzioni a `CombatFX`, che disegna con variazioni da una funzione hash (nessun `Math.random`). Ordine in `Game.drawFX`: decorazioni (aure, impatti, archi, anelli, scintille), poi avvisi di pericolo e aree, proiettili, compagno, numeri; ciò che tocca la figura del personaggio resta al 25%, i numeri che si toccano salgono di una riga. Il gioco non ha colpi critici casuali: il «colpo forte» visivo è il terzo colpo della combo (×1,25 già nel motore). Con effetti ridotti o `prefers-reduced-motion` restano solo forme ferme. Sconfitta → ritorno all'ultima statua attivata, recupero fino a 3 Scintille dal borsello; prima della prima attivazione, Nerea ti risveglia al borgo.
 
 ### 4.4 Mestieri e vita quotidiana
 Pesca, forgia, agricoltura, allevamento, cucina con minigiochi (tocco vs tenuto premuto); competenza e qualità; ricettario di combinazioni riuscite; piatti con benefici temporanei. Inventario senza limiti di slot/peso. Calendario: giorno = 30 min reali, stagione = 12 giorni, sonno → 06:00 con avanzamento di colture/animali/scorte; bisogni dipendenti dalla specie. Diario con incarichi facoltativi e richiesta del giorno degli abitanti.

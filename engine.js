@@ -149,6 +149,11 @@
   let s=null, effects=[],shots=[],hazards=[],autosave=0,combat=0,ally=null;
   let practiceSession=null;
   let combo=0,comboUntil=0,tickGrowth=0,movingTime=0,worldEpoch=0,evadePending=false,wardPractice=null;
+  // Effetti di combattimento (combat-fx.js): etichetta visiva dell'elemento per gli effetti creati in questo momento.
+  // Solo disegno: non entra nei salvataggi e non cambia danni, tempi, ingombri, velocità o numeri casuali.
+  let fxTag=null;
+  const fxOf=src=>{try{return window.CombatFX?.tag(src)||null;}catch{return null;}};
+  const fx=(type,data)=>{try{window.CombatFX?.emit(type,data,s);}catch{}};
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
   const heading=(dx,dy)=>Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');
@@ -200,6 +205,7 @@
   function resetTransient(){
     effects=[];shots=[];hazards=[];ally=null;autosave=0;combat=0;practiceSession=null;
     combo=0;comboUntil=0;tickGrowth=0;movingTime=0;evadePending=false;wardPractice=null;worldEpoch++;
+    fxTag=null;try{window.CombatFX?.reset();}catch{}
   }
   function newGame(){
     const seed=(Math.random()*4294967296)>>>0, r=randomRace();
@@ -266,7 +272,7 @@
     const equippedSlot=p.slots.indexOf(previous);
     if(equippedSlot>=0&&!p.slots.includes(form.skill))p.slots[equippedSlot]=form.skill;
     p.hp=stats().hpMax;p.mp=stats().mpMax;
-    ring(p.x,p.y,60,'#eec482');spark(p.x,p.y,'#ffd5e8',32);
+    ring(p.x,p.y,60,'#eec482',null);spark(p.x,p.y,'#ffd5e8',32,null);fx('evolve',{x:p.x,y:p.y,race:p.race});
     emit('sound','evolve');announce(['Evoluzione · '+form.name,...(notes||[])]);
     return true;
   }
@@ -378,20 +384,20 @@
         'Porta tre erbe di rugiada a Ivo ('+Math.min(3,p.inventory.herb)+'/3).','Ivo ha riacceso la forgia con le tue erbe.'][s.sideQuest],
       elderLost:fallen('elder')};
   }
-  function spark(x,y,color,n=10){
+  function spark(x,y,color,n=10,tag=fxTag){
     for(let i=0;i<n;i++){
       const a=Math.random()*Math.PI*2,v=12+Math.random()*47;
-      effects.push({kind:'dust',x,y:y-7,vx:Math.cos(a)*v,vy:Math.sin(a)*v-12,ttl:.25+Math.random()*.25,color});
+      effects.push({kind:'dust',x,y:y-7,vx:Math.cos(a)*v,vy:Math.sin(a)*v-12,ttl:.25+Math.random()*.25,color,tag});
     }
   }
-  function label(x,y,text,color){effects.push({kind:'label',x,y:y-13,text,color,ttl:.85,vy:-17,vx:0});}
-  function ring(x,y,r,color){effects.push({kind:'ring',x,y,r,color,ttl:.45,duration:.45});}
+  function label(x,y,text,color,tag=fxTag){effects.push({kind:'label',x,y:y-13,text,color,ttl:.85,vy:-17,vx:0,tag});}
+  function ring(x,y,r,color,tag=fxTag){effects.push({kind:'ring',x,y,r,color,ttl:.45,duration:.45,tag});}
   function gainXp(amount){
     const p=s.player;p.xp+=amount;
     while(p.xp>=stats().xpNext){
       p.xp-=stats().xpNext;p.level++;p.hp=stats().hpMax;p.mp=stats().mpMax;
       emit('sound','level');emit('toast','Livello '+p.level+' · Vitalità e mana ripristinati.');
-      ring(p.x,p.y,32,'#ffdf82');
+      ring(p.x,p.y,32,'#ffdf82',null);
     }
   }
   function keep(){save();emit('change');}
@@ -420,7 +426,8 @@
     announce(Legendary.recordKill(s,m.type));
     if(m.type==='nadir')announce(Reputation.record(s,'legendary-kill'));
     gainXp(def.xp);advance();
-    label(m.x,m.y-6,'+'+def.xp+' PE','#f8dd90');spark(m.x,m.y,'#e7bc6b',16);
+    label(m.x,m.y-6,'+'+def.xp+' PE','#f8dd90',null);spark(m.x,m.y,'#e7bc6b',16,null);
+    fx('defeat',{x:m.x,y:m.y,type:m.type,boss:!!def.boss,legendary:!!def.legendary});
     emit('sound',def.boss?'victory':'loot');
     if(s.quest===2 && p.kills===3)emit('toast','Il Cerchio delle Radici è aperto.');
     if(m.type==='boss')emit('toast','Corona di Orveth ottenuta. '+(elderRecord()?'Torna al registro di Vela.':'Nerea ti aspetta al borgo.'));
@@ -440,12 +447,12 @@
     const hp=Math.max(floor,m.hp-Math.max(1,Math.round(damage*Adaptive.damageFactor(s,m,channel)))),dealt=m.hp-hp;
     Adaptive.seeHit(s,m,channel);
     m.hp=hp;m.hit=.15;m.engaged=true;s.seen[m.type]=true;combat=5;
-    label(m.x,m.y,dealt,color||'#fff0c4');spark(m.x,m.y,color||'#fada8a',5);
+    label(m.x,m.y,dealt,color||'#fff0c4');spark(m.x,m.y,color||'#fada8a',5);fx('hit',{x:m.x,y:m.y,tag:fxTag,boss:!!def.boss});
     if(m.hp<=0){kill(m);return dealt;}
     if(floor&&m.hp===floor){
       Adaptive.clearGuard(s,m);
       m.phase++;m.wind=0;m.pattern='';m.cd=.6;m.grace=.55;m.dash=0;m.cycle=0;
-      ring(m.x,m.y,54,def.color||'#e792be');emit('toast',(m.type==='boss'?'Orveth apre il cuore':def.name)+' · '+(m.phase===3?'Fase III':'Fase II'));emit('sound','boss');
+      ring(m.x,m.y,54,def.color||'#e792be',fxOf({monster:m.type}));fx('phase',{x:m.x,y:m.y,type:m.type,phase:m.phase,legendary:!!def.legendary});emit('toast',(m.type==='boss'?'Orveth apre il cuore':def.name)+' · '+(m.phase===3?'Fase III':'Fase II'));emit('sound','boss');
     }
     return dealt;
   }
@@ -476,7 +483,7 @@
   function hurtPlayer(amount,magical=false){
     const p=s.player;
     if(p.invul>0){
-      if(evadePending){evadePending=false;record('dodge',1,{magical});label(p.x,p.y,'Schivata','#a6eced');}
+      if(evadePending){evadePending=false;record('dodge',1,{magical});label(p.x,p.y,'Schivata','#a6eced',null);fx('dodge',{x:p.x,y:p.y});}
       return;
     }
     const d=Math.max(2,Math.round(amount-stats().defense*.62-(magical&&p.race==='drake'?3:0)));
@@ -484,7 +491,7 @@
     if(d>absorbed)announce(Gear.defend(s,{hit:true,damage:d-absorbed,magical})?.notices);
     if(absorbed&&wardPractice){recordImpact(wardPractice);wardPractice=null;}
     if(d>absorbed&&p.hp>0)record('damage',1,{magical,damage:d-absorbed});
-    label(p.x,p.y,d===absorbed?'Scudo':'−'+(d-absorbed),d===absorbed?'#91dbff':'#ffaaa4');
+    label(p.x,p.y,d===absorbed?'Scudo':'−'+(d-absorbed),d===absorbed?'#91dbff':'#ffaaa4',null);fx('hurt',{x:p.x,y:p.y,tag:fxTag,shield:d===absorbed});
     emit('sound','hit');if(p.hp<=0)recover();
   }
   function move(a,dx,dy,r=5){
@@ -514,7 +521,7 @@
     const p=s.player, near=nearest(p,reach),current=dirVectors[p.dir];
     if(near && (distance(p,near)<21 || (near.x-p.x)*current[0]+(near.y-p.y)*current[1]>-4))p.dir=heading(near.x-p.x,near.y-p.y);
     const [vx,vy]=dirVectors[p.dir],angle=Math.atan2(vy,vx);
-    effects.push({kind:'arc',x:p.x,y:p.y-7,angle,r:reach*.86,ttl:.21,duration:.21,color});
+    effects.push({kind:'arc',x:p.x,y:p.y-7,angle,r:reach*.86,ttl:.21,duration:.21,color,tag:fxTag});
     let hits=0,boss=false;
     for(const m of s.monsters){
       if(!targetable(m)||distance(p,m)>reach+(codex[m.type].boss?9:0))continue;
@@ -528,11 +535,11 @@
     return hits;
   }
   function launch(x,y,dir,style,damage,color,hostile=false,speed=hostile?88:190){
-    shots.push({x,y,vx:dir[0]*speed,vy:dir[1]*speed,style,damage,color,hostile,ttl:hostile?2.1:1.05});
+    shots.push({x,y,vx:dir[0]*speed,vy:dir[1]*speed,style,damage,color,hostile,ttl:hostile?2.1:1.05,tag:fxTag});
   }
   function heal(amount){
     const p=s.player,max=stats().hpMax,delta=Math.min(max-p.hp,Math.round(amount));
-    p.hp+=delta;if(delta>0)label(p.x,p.y,'+'+Math.ceil(delta),'#9bf7ba');ring(p.x,p.y,23,'#97eab6');
+    p.hp+=delta;if(delta>0)label(p.x,p.y,'+'+Math.ceil(delta),'#9bf7ba',null);ring(p.x,p.y,23,'#97eab6',null);
   }
   function recordImpact(practice){
     if(!practice||practice.used)return;
@@ -552,6 +559,7 @@
     const dir=target?normalize(target.x-p.x,target.y-p.y):dirVectors[p.dir];
     const power=stats().attack*def.power*(innate?1:1+.16*(entry.level-1)),color=def.color;
     p.mp-=def.cost;p.cooldowns[id]=def.cooldown;p.swing=.2;
+    fxTag=fxOf({race:p.race,skill:id,style:def.style,innate:innate?def.id:null});
     if(!innate){
       entry.uses++;
       const next=Math.min(5,1+Math.floor(entry.uses/5));
@@ -590,7 +598,7 @@
         break;
       case 'cleave':if(arc(power,46,color))recordImpact(spellPractice);break;
       case 'familiar':
-        ally={x:p.x,y:p.y,life:10,cd:.2,power,color,practice:spellPractice};spark(p.x,p.y,color);
+        ally={x:p.x,y:p.y,life:10,cd:.2,power,color,practice:spellPractice,tag:fxTag};spark(p.x,p.y,color);
         break;
     }
     let rescued=false;
@@ -602,7 +610,7 @@
       record('npcRescue',1,{npc,critical:saved.critical,region:saved.region});
     }
     if(rescued)keep();
-    emit('sound',def.style==='heal'?'heal':'skill');return true;
+    fxTag=null;emit('sound',def.style==='heal'?'heal':'skill');return true;
   }
   function activeSkill(p,id){
     const def=skills[id],evolved=weaveById[id]?.evolved;
@@ -638,7 +646,7 @@
     const stage=s.time<=comboUntil?combo+1:1;
     const finisher=stage===3,impact=stats().attack*damage*(finisher?1.25:1);
     p.cooldowns.attack=style==='claw'?.34:style==='slam'?.47:.4;
-    p.swing=.2;
+    p.swing=.2;fxTag=fxOf({race:p.race,strike:style,strong:finisher});
     if(style==='spit'){
       const target=nearest(p,reach),facing=dirVectors[p.dir];
       const inFront=target&&(target.x-p.x)*facing[0]+(target.y-p.y)*facing[1]>-4;
@@ -655,7 +663,7 @@
       if(arc(impact,reach+(finisher?5:0),color,width,stage))registerStrike(style,stage);
       else combo=0;
     }
-    emit('sound','attack');return true;
+    fxTag=null;emit('sound','attack');return true;
   }
   function action(name){
     if(!s)return false;const p=s.player;
@@ -666,7 +674,7 @@
       case 'dash':{
         if(p.cooldowns.dash>0)return false;const [x,y]=dirVectors[p.dir];p.dashX=x;p.dashY=y;
         p.dash=.18;p.invul=p.race==='spirit'?.55:.34;p.cooldowns.dash=p.race==='wolf'?.95:1.5;evadePending=true;
-        spark(p.x,p.y,'#a6eced',6);emit('sound','dash');return true;}
+        spark(p.x,p.y,'#a6eced',6,null);fx('dash',{x:p.x,y:p.y});emit('sound','dash');return true;}
       case 'potion':
         Inventory.sync(s);
         if(p.cooldowns.potion>0)return false;
@@ -894,7 +902,7 @@
     }
   }
   function hazard(x,y,r,duration,damage,color){
-    hazards.push({x,y,r,ttl:duration,damage,color});
+    hazards.push({x,y,r,ttl:duration,damage,color,tag:fxTag});
   }
   function hasCover(from,to){
     const steps=Math.ceil(distance(from,to)/8);
@@ -906,7 +914,7 @@
   }
   function burstEnemy(m){
     const p=s.player,def=codex[m.type],color=def.color||(def.boss?'#f79faa':'#c6ef8c');
-    const damage=def.damage;
+    const damage=def.damage;fxTag=fxOf({monster:m.type});
     switch(m.pattern){
       case 'shot':
         if(m.type==='shardling')fanEnemy(m,3,.5,106,'#9cf3ff',damage);
@@ -994,7 +1002,7 @@
         spark(m.x,m.y,color,9);break;
       }
     }
-    m.cd=phaseCooldown(m,def);m.pattern='';
+    m.cd=phaseCooldown(m,def);m.pattern='';fxTag=null;
   }
   function updateMonster(m,dt){
     const def=codex[m.type],boss=!!def.boss, behavior=def.behavior||monsterBehavior[m.type];
@@ -1014,7 +1022,7 @@
     if(m.dash>0){
       const dashSpeed=m.type==='syrava'?231:m.type==='shade'?211:172;
       m.dash=Math.max(0,m.dash-dt);m.moving=move(m,m.aimX*dashSpeed*dt,m.aimY*dashSpeed*dt,boss?7:5);
-      if(distance(m,p)<(boss?22:15))hurtPlayer(def.damage+2);
+      if(distance(m,p)<(boss?22:15)){fxTag=fxOf({monster:m.type});hurtPlayer(def.damage+2);fxTag=null;}
       return;
     }
     if(m.wind>0){m.wind=Math.max(0,m.wind-dt);if(!m.wind)burstEnemy(m);return;}
@@ -1053,12 +1061,14 @@
       b.ttl-=dt;if(b.ttl<=0)continue;
       b.x+=b.vx*dt;b.y+=b.vy*dt;
       if(!World.canWalk(b.x,b.y,1))continue;
-      if(b.hostile && distance(b,p)<9){hurtPlayer(b.damage,true);if(worldEpoch!==epoch)return;continue;}
+      if(b.hostile && distance(b,p)<9){fxTag=b.tag||null;hurtPlayer(b.damage,true);fxTag=null;if(worldEpoch!==epoch)return;continue;}
       if(!b.hostile){
         const m=nearest(b,13);
         if(m){
+          fxTag=b.tag||null;
           const dealt=hurtMonster(m,b.damage,b.color,'projectile');
           if(b.style==='leech'&&dealt)heal(dealt*.33);
+          fxTag=null;
           if(dealt){
             if(!b.practice?.used)announce(Gear.strike(s,{hit:true,magical:b.practice?.event==='magic',boss:!!codex[m.type].boss,combo:b.practice?.stage}).notices);
             recordImpact(b.practice);
@@ -1091,7 +1101,7 @@
       ally.life-=dt;ally.cd-=dt;ally.x=p.x+Math.cos(s.time*2)*16;ally.y=p.y+Math.sin(s.time*2)*7;
       const m=nearest(ally,123);
       if(m&&ally.cd<=0){
-        launch(ally.x,ally.y,normalize(m.x-ally.x,m.y-ally.y),'orb',ally.power,ally.color);
+        fxTag=ally.tag||null;launch(ally.x,ally.y,normalize(m.x-ally.x,m.y-ally.y),'orb',ally.power,ally.color);fxTag=null;
         shots.at(-1).practice=ally.practice;ally.cd=1.35;
       }
       if(ally.life<=0)ally=null;
@@ -1100,7 +1110,7 @@
     if(worldEpoch!==epoch)return;
     for(const h of hazards){
       h.ttl-=dt;
-      if(h.ttl>0&&distance(h,p)<h.r)hurtPlayer(h.damage,true);
+      if(h.ttl>0&&distance(h,p)<h.r){fxTag=h.tag||null;hurtPlayer(h.damage,true);fxTag=null;}
       if(worldEpoch!==epoch)return;
     }
     hazards=hazards.filter(h=>h.ttl>0);
@@ -1206,9 +1216,29 @@
     ctx.globalAlpha=.8;groundCircle(ctx,x,y,r,color,false);
     if(progress>.025)groundCircle(ctx,x,y,r*progress,color,false);
   }
+  function drawEffect(ctx,f){
+    const x=Math.round(f.x),y=Math.round(f.y);ctx.globalAlpha=Math.min(1,f.ttl*5);
+    switch(f.kind){
+      case 'label':
+        ctx.textAlign='center';ctx.font='bold 8px monospace';ctx.fillStyle='#29323c';ctx.fillText(f.text,x+1,y+1);
+        ctx.fillStyle=f.color;ctx.fillText(f.text,x,y);break;
+      case 'ring':circle(ctx,x,y,Math.max(.2,f.r*(1-f.ttl/f.duration)),f.color);break;
+      case 'arc':{
+        const k=1-f.ttl/f.duration;ctx.strokeStyle=f.color;ctx.lineWidth=2.5;
+        ctx.beginPath();ctx.arc(x,y,f.r*(.77+.23*k),f.angle-1.1+k*.7,f.angle+.8+k*.45);
+        ctx.stroke();ctx.lineWidth=1;break;}
+      case 'dust':ctx.fillStyle=f.color;ctx.fillRect(x,y,2,2);break;
+    }
+  }
   function drawFX(ctx){
     if(!s)return;
+    const art=window.CombatFX,scene=art?{t:s.time,region:s.region,player:s.player,monsters:s.monsters,hazards,codex}:null;
     ctx.save();ctx.lineWidth=1;
+    // Decorazioni del combattimento (aure, impatti, archi, anelli, scintille) sotto avvisi di pericolo, proiettili
+    // e numeri: restano leggibili anche negli scontri affollati (combat-fx.js, solo disegno).
+    if(art)art.draw(ctx,'under',scene);
+    for(const f of effects){if(f.kind==='label')continue;if(art&&f.tag)art.effect(ctx,f,scene);else drawEffect(ctx,f);}
+    ctx.globalAlpha=1;ctx.lineWidth=1;
     for(const m of s.monsters){
       if(m.hp<=0||!m.wind)continue;
       const pattern=m.pattern,progress=1-m.wind/m.windDuration,color=codex[m.type].color||(m.phase===2?'#ff9db9':'#ffbf75');
@@ -1261,25 +1291,14 @@
       ctx.globalAlpha=.78;groundCircle(ctx,h.x,h.y,h.r,h.color,false);
     }
     for(const b of shots){
+      if(art&&b.tag){art.shot(ctx,b,scene);continue;}
       const x=Math.round(b.x),y=Math.round(b.y-7);ctx.fillStyle=b.color;
       ctx.globalAlpha=.4;ctx.fillRect(Math.round(x-b.vx*.025)-2,Math.round(y-b.vy*.025)-1,4,3);
       ctx.globalAlpha=1;ctx.fillRect(x-3,y-1,7,3);ctx.fillRect(x-1,y-3,3,7);ctx.fillStyle='#fff8dc';ctx.fillRect(x-1,y-1,3,3);
     }
     if(ally)diamond(ctx,Math.round(ally.x),Math.round(ally.y-13),ally.color);
-    for(const f of effects){
-      const x=Math.round(f.x),y=Math.round(f.y);ctx.globalAlpha=Math.min(1,f.ttl*5);
-      switch(f.kind){
-        case 'label':
-          ctx.textAlign='center';ctx.font='bold 8px monospace';ctx.fillStyle='#29323c';ctx.fillText(f.text,x+1,y+1);
-          ctx.fillStyle=f.color;ctx.fillText(f.text,x,y);break;
-        case 'ring':circle(ctx,x,y,Math.max(.2,f.r*(1-f.ttl/f.duration)),f.color);break;
-        case 'arc':{
-          const k=1-f.ttl/f.duration;ctx.strokeStyle=f.color;ctx.lineWidth=2.5;
-          ctx.beginPath();ctx.arc(x,y,f.r*(.77+.23*k),f.angle-1.1+k*.7,f.angle+.8+k*.45);
-          ctx.stroke();ctx.lineWidth=1;break;}
-        case 'dust':ctx.fillStyle=f.color;ctx.fillRect(x,y,2,2);break;
-      }
-    }
+    // Numeri e scritte sopra tutto il resto.
+    for(const f of effects)if(f.kind==='label'){if(art)art.label(ctx,f);else drawEffect(ctx,f);}
     const p=s.player,boss=s.monsters.find(m=>m.hp>0&&m.engaged&&codex[m.type].boss);
     if(boss&&p.y<boss.y&&p.y>boss.y-55&&Math.abs(p.x-boss.x)<27){
       ctx.globalAlpha=1;
