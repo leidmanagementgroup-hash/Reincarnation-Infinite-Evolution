@@ -3,7 +3,7 @@
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
 ## [2026-11-22] Santuario della Marea Muta, monumenti e varchi per continente — Claude
-Branch `claude/world-art-santuario` da `main` `ec03eeb` (non unito; nessun merge senza approvazione dell'utente). Commit `82f5804` (Santuario), `e54567f` (monumenti e varchi), poi luce del portale, prove e documenti. File: `legendary-land.js`, `legendary.js`, `continents.js`, `world-light.js`, `interface.js`, `tests/`.
+Branch `claude/world-art-santuario` da `main` `ec03eeb` (non unito; nessun merge senza approvazione dell'utente). Commit `82f5804` (Santuario), `e54567f` (monumenti e varchi), `ab8a10e` (luce del portale, prove e documenti). File: `legendary-land.js`, `legendary.js`, `continents.js`, `world-light.js`, `interface.js`, `tests/`.
 ### Modificato
 - **Santuario della Marea Muta** (`legendary-land.js`): le sale diventano piattaforme di pietra su un bacino d'acqua immobile (riflessi sotto le pareti, alghe, coralli e rovine sommerse fuori dal calpestabile), parapetti e pareti frontali che scendono nell'acqua, lastre smussate con umidità e fasce a onde, cerchi di rune luminosi attorno ai luoghi di lettura, arena del Trono con bordo chiaro, solco inciso a onde e raggi, colonne scanalate con capitello a conchiglia e glifi (sprite in cache), portale ad arco con velo d'acqua che scorre. Strato emissivo e sorgenti per `WorldLight` (portale, arena, trono, cerchi, colonne); penombra marina costante (`tide`) con bolle che salgono.
 - Lapidi incise a onde e trono a conchiglia (`legendary.js`): stessi punti, stessi segnali di lettura e colori dell'erede.
