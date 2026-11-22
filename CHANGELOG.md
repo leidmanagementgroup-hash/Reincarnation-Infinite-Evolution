@@ -2,6 +2,22 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-22] Integra il Piazzale degli Argani con la Fase 4 — Codex
+
+Branch `codex/integrazione-filoni-fase4`, base `1f684e1` con la Fase 4, prototipo `56886ab`.
+
+### Modificato
+
+- `urban-districts.js` adotta facciate, soglie e arredi della famiglia di Nordharyn per i 13 edifici del Piazzale. Le finestre e le lanterne usano i metadati del catalogo per l'illuminazione notturna. `filoni-sprites.js` conserva terreno e vegetazione locali.
+- `build.py` include entrambi gli aggiornamenti nell'HTML offline. La struttura del prototipo conserva le impronte dei lotti, gli identificatori delle cinque porte e i tre residenti con turni.
+- `tests/verifica-filoni.cjs` confronta 55 semi con il prototipo. `tests/prova-browser-filoni.cjs` verifica i servizi e ricarica salvataggi effettivi dai cinque interni della build precedente. Esiti in [PROGRESS.md](PROGRESS.md#integrazione-filoni-e-fase-4).
+
+## [2026-11-22] Apri il Piazzale degli Argani al Borgo dei Filoni — Codex
+Branch `codex/generatore-urbano-filoni`, base `3ff458b`, commit `6f025a7`.
+### Aggiunto
+- Quartiere di Nordharyn con 13 lotti, piazza d'autore, strade e soglie connesse, cinque interni e tre residenti con turni diurni. Il nuovo passaggio parte dal borgo esistente senza spostare il mercato o i varchi storici.
+- Planimetria deterministica, collisioni e superfici per settore, cache a capienza limitata e mappa semplificata. L'atlante del quartiere riusa 14 sprite effettivi del World Art Overhaul e le sorgenti di illuminazione del motore.
+- Riposo, commercio sul mercato `filoni` e forgia attraverso i sistemi già presenti. Salvataggi v7 con ID separati per ciascuna porta e interno. HTML offline ricostruito, test e misure in `PROGRESS.md`.
 ## [2026-11-22] Integrazione: fase 4 del World Art Overhaul su `main` dopo PERF-002 — Claude
 Branch `claude/integrazione-fase4` da `main` `3ff458b` (PERF-002 di Codex): merge di `claude/world-art-fase4` (`16b6317`), poi fast-forward di `main` con l'approvazione dell'utente. Branch originali `claude/world-art-fase4` e `codex/perf-002-npc` conservati.
 ### Integrazione

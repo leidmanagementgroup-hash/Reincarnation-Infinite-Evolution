@@ -132,7 +132,7 @@
       case 'inventory':
         html=actions(btn('Equipaggiamento e riparazioni','gear','primary'))+LifePanels.inventory(s);break;
       case 'gear':
-        html=GearPanel.render(s,detail)+(UrbanWorld.kind(v.region)==='forge'?actions(btn('Prova di forgiatura','workshop','primary','smithing')):'')+
+        html=GearPanel.render(s,detail)+((UrbanWorld.kind(v.region)==='forge'||UrbanDistricts.roomKind(v.region)==='forge')?actions(btn('Prova di forgiatura','workshop','primary','smithing')):'')+
           actions(btn('Torna all’inventario','inventory'));break;
       case 'skills':{
         html=innatePanel(v.growth?.innate,true)+h('Tecniche assegnabili')+actions(btn('Enciclopedia delle abilità','spellbook'))+'<p>Assegna un potere a uno dei tre tasti. Ogni cinque utilizzi la maestria sale di un livello, fino al quinto.</p>';

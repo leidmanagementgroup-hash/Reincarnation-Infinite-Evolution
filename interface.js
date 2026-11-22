@@ -306,7 +306,7 @@
     if(v.location!==prevLoc){prevLoc=v.location;const b=$('#zoneBanner');b.textContent=v.location;b.classList.remove('show');void b.offsetWidth;b.classList.add('show');clearTimeout(zoneTimer);zoneTimer=setTimeout(()=>b.classList.remove('show'),2700);}
   }
   function atmosphere(t,v){
-    if(UrbanWorld.kind(v.region))return;
+    if(World.regions[v.region]?.indoor)return;
     const hourParts=v.clock.split(':').map(Number),hour=hourParts[0]+hourParts[1]/60;
     const {minutes,sunriseMinutes,sunsetMinutes}=v.calendar,day=minutes>=sunriseMinutes&&minutes<=sunsetMinutes;
     const daylight=sunsetMinutes-sunriseMinutes;

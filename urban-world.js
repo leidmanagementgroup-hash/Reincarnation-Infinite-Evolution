@@ -1,7 +1,7 @@
 /* Velaris grows outward from its original settlement. The original World remains the owner of every existing map. */
 (() => {
   'use strict';
-  const base=window.World;
+  const base=window.World,district=window.UrbanDistricts;
   const cityId='city-velaris',originId='verdant-canopy';
   const settlementTypes={
     hamlet:{label:'Borgo',minBuildings:5,maxBuildings:15},
@@ -19,11 +19,16 @@
   const forest=base.regions[originId];
   const kinds=new Map(UrbanInteriors.kinds.map(kind=>[UrbanInteriors.get(kind).id,kind]));
   const forestRegion={...forest,points:{...forest.points,gates:[...forest.points.gates,intoCity]}};
+  const pass=base.regions[district.origin];
+  const passRegion={...pass,points:{...pass.points,gates:[...pass.points.gates,district.enter]},
+    landmarks:[...pass.landmarks,{name:'Via per il Piazzale degli Argani',x:district.enter.x,y:district.enter.y}]};
   const cityRegion={...UrbanExterior.region,settlementType:'town',points:{...UrbanExterior.region.points,gates:[outOfCity]}};
-  const regions={...base.regions,[originId]:forestRegion,[cityId]:cityRegion,
+  const regions={...base.regions,[originId]:forestRegion,[district.origin]:passRegion,[cityId]:cityRegion,...district.regions,
     ...Object.fromEntries([...kinds].map(([id,kind])=>[id,{...UrbanInteriors.get(kind),hidden:true}]))};
-  const continents=base.continents.map(continent=>continent.id===cityRegion.continent
-    ?{...continent,regions:[...continent.regions,cityId]}:continent);
+  const continents=base.continents.map(continent=>{
+    const extra=[cityRegion,district.regions[district.id]].filter(region=>region.continent===continent.id).map(region=>region.id);
+    return extra.length?{...continent,regions:[...continent.regions,...extra]}:continent;
+  });
   const own=(row,key)=>Object.hasOwn(row,key);
   let cacheSeed=null,current=null,overworldSeed=19425,exteriorCache=null;
   const interiorCache=new Map();
@@ -52,13 +57,15 @@
   }
   const kind=id=>kinds.get(id)||null;
   const inCity=id=>id===cityId||kinds.has(id);
-  const localRegion=id=>inCity(id)?originId:id;
+  const localRegion=id=>inCity(id)?originId:district.owns(id)?district.origin:id;
+  const venueMap=s=>district.owns(s.region)?district.create(s.region,s.seed):interior(kind(s.region),s.seed);
   const pointOf=site=>site.point||site;
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const near=(s,site)=>!!site&&distance(s.player,pointOf(site))<=(site.range||24);
 
   function route(from,to,stage){
     if(from===to)return null;
+    if(district.owns(from))return district.route(from,to,overworldSeed);
     if(kinds.has(from)){
       const map=interior(kind(from),overworldSeed);
       const door=exterior(overworldSeed).services.find(site=>site.id===kind(from));
@@ -73,12 +80,17 @@
       return outOfCity;
     }
     if(inCity(to))return from===originId?intoCity:base.route(from,originId,stage);
+    if(district.owns(to))return from===district.origin?district.enter:base.route(from,district.origin,stage);
     return base.route(from,to,stage);
   }
   function setRegion(id,seed=overworldSeed){
     if(!own(regions,id))return false;
     const key=seed>>>0;
-    if(inCity(id)){
+    if(district.owns(id)){
+      const map=district.create(id,key);
+      if(!map)return false;
+      current={id,map};
+    }else if(inCity(id)){
       const map=id===cityId?exterior(key):interior(kind(id),key);
       if(!map)return false;
       current={id,map};
@@ -86,6 +98,7 @@
       if(!base.setRegion(id,key))return false;
       current=null;
     }
+    district.active(current?.id===district.id?current.map:null);
     overworldSeed=key;
     return api;
   }
@@ -114,6 +127,7 @@
     drawGround(ctx,cam,t){return current?current.map.drawGround(ctx,cam,t):base.drawGround(ctx,cam,t);},
     drawFront(ctx,cam,t,actors=[]){
       if(current)return current.map.drawFront(ctx,cam,t,actors);
+      if(base.region===district.origin)return base.drawFront(ctx,cam,t,actors.concat({x:district.enter.x,y:district.enter.y,draw:district.guide}));
       if(base.region!==originId)return base.drawFront(ctx,cam,t,actors);
       const sign={x:entry.x+14,y:entry.y-16,draw:g=>marker(g,entry.x+14,entry.y-16,t,'gate')};
       return base.drawFront(ctx,cam,t,actors.concat(sign));
@@ -122,15 +136,14 @@
     get region(){return current?.id||base.region;},
     get width(){return current?regions[current.id].width:base.width;},
     get height(){return current?regions[current.id].height:base.height;},
-    get points(){return this.region===originId?forestRegion.points:current?regions[current.id].points:base.points;},
+    get points(){return this.region===originId?forestRegion.points:this.region===district.origin?passRegion.points:current?regions[current.id].points:base.points;},
     get spawn(){return current?regions[current.id].spawn:base.spawn;},
-    get landmarks(){return current?regions[current.id].landmarks:base.landmarks;}
+    get landmarks(){return this.region===district.origin?passRegion.landmarks:current?regions[current.id].landmarks:base.landmarks;}
   };
 
   function site(s,id){
-    const venue=kind(s?.region);
-    if(!venue)return null;
-    const raw=interior(venue,s.seed)?.sites.find(site=>site.id===id);
+    if(!s||!kind(s.region)&&!district.owns(s.region))return null;
+    const raw=venueMap(s)?.sites.find(site=>site.id===id);
     return raw?{...raw,region:s.region,point:pointOf(raw)}:null;
   }
   const access=(s,id)=>near(s,site(s,id));
@@ -138,6 +151,7 @@
     return {...raw,...extra,kind:'urban-site',range:raw.range||24,point:pointOf(raw)};
   }
   function sites(s){
+    if(district.owns(s.region))return venueMap(s).sites.map(raw=>interaction(raw));
     if(s.region===cityId){
       const layout=exterior(s.seed);
       return [...layout.services.map(door=>interaction(door,{id:'door-'+door.id,text:'Entra · '+door.name})),
@@ -150,6 +164,7 @@
   function use(s,id){
     const currentSite=sites(s).find(raw=>raw.id===id);
     if(!near(s,currentSite))return {ok:false,text:'Avvicinati al luogo.'};
+    if(district.owns(s.region))return district.use(s,currentSite);
     if(id.startsWith('door-')){
       const venue=id.slice(5),room=UrbanInteriors.get(venue);
       if(!room)return {ok:false,text:'L’ingresso è chiuso.'};
@@ -168,6 +183,10 @@
     return {ok:true,panel:{id:'city-site',detail:id}};
   }
   function location(s){
+    if(s.region===district.id){
+      const marks=district.regions[s.region].landmarks;
+      return marks.reduce((a,b)=>distance(a,s.player)<distance(b,s.player)?a:b).name;
+    }
     if(s.region!==cityId)return null;
     const city=exterior(s.seed);
     if(city.districtAt)return city.districtAt(s.player.x,s.player.y)?.name||null;
@@ -177,6 +196,7 @@
     return hit?.name||closest?.name||null;
   }
   function actors(s,t){
+    if(district.owns(s.region))return district.actors(s,t);
     if(kind(s.region)==='greenhouse'&&s.cityWorks.seedbedAt!==-1){
       const ready=s.cityWorks.seedbedAt,mature=ready>0&&Calendar.timestamp(s.calendar,s.time)>=ready;
       return [{x:384,y:296,draw(ctx){

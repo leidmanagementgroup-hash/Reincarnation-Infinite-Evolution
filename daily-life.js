@@ -86,8 +86,8 @@
     d.temperature=0;d.critical=0;d.buff=null;
   }
   function restPlace(s){
-    if(window.UrbanWorld?.access(s,'inn-bed'))return 'Locanda di Velaris';
-    if(window.UrbanWorld?.access(s,'house-bed'))return 'Casa dell’Ospitalità';
+    if(window.UrbanWorld?.access(s,'inn-bed'))return UrbanWorld.site(s,'inn-bed').name||'Locanda di Velaris';
+    if(window.UrbanWorld?.access(s,'house-bed'))return UrbanWorld.site(s,'house-bed').name||'Casa dell’Ospitalità';
     if(window.UrbanWorld?.inCity(s.region))return null;
     if(nearby(s,Tradecraft.inn.region,Tradecraft.inn,38))return Tradecraft.inn.name;
     if(s.build?.structures?.some(o=>o.plan==='house'&&nearby(s,o.region,{x:o.x+24,y:o.y+24},36)))return 'Casa di proprietà';

@@ -240,9 +240,9 @@
     return parts.join(' · ');
   }
   function service(s){
-    if(window.UrbanWorld?.kind(s.region)==='forge'){
+    if(window.UrbanWorld?.kind(s.region)==='forge'||window.UrbanDistricts?.roomKind(s.region)==='forge'){
       const near=UrbanWorld.access(s,'forge'),open=openHours(s);
-      return {near,open,npc:near&&open,rank:level(s),name:'Fucina di Velaris'};
+      return {near,open,npc:near&&open,rank:level(s),name:UrbanWorld.site(s,'forge')?.name||'Fucina di Velaris'};
     }
     const home=window.World?.regions?.valley?.points?.smith;
     const place=home&&(window.Life?.npcPoint?.(s,'smith',home)||home);
