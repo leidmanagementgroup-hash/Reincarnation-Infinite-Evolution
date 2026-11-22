@@ -331,7 +331,8 @@
       }
       return;
     }
-    if(['rain','storm','snow'].includes(v.calendar.weatherKind)){
+    // Nei sotterranei (Cripta, Santuario) non piove e non nevica.
+    if(!under&&['rain','storm','snow'].includes(v.calendar.weatherKind)){
       const snow=v.calendar.weatherKind==='snow';
       ctx.fillStyle=snow?'#eaf6ff85':'#c0e5f16d';
       for(let i=0;i<(snow?42:68);i++){const x=((i*73-t*(snow?12:39)-cam.x*.3)%cam.w+cam.w)%cam.w,y=((i*83+t*(snow?29:130)-cam.y*.5)%cam.h+cam.h)%cam.h;ctx.fillRect(x|0,y|0,1,snow?1:4);}

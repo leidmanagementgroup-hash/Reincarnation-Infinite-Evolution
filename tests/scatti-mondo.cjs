@@ -36,6 +36,14 @@ const SPOTS = {
   'cava': ['quarry', 558, 540], 'cava-ingresso': ['quarry', 300, 560], 'cava-forgia': ['quarry', 840, 430],
   'fenditura': ['rift', 731, 470], 'fenditura-osservatorio': ['rift', 425, 560], 'fenditura-cuore': ['rift', 1068, 300],
   'cripta': ['ardel-crypt', 694, 500],
+  // Santuario della Marea Muta: esiste solo in alcuni mondi, usare SEED=1116 (ingresso nel Passo dei Larici).
+  'santuario-ingresso': ['frost-pass', 877, 330], 'santuario-soglia': ['nadir-vault', 190, 560],
+  'santuario-deposito': ['nadir-vault', 547, 540], 'santuario-chiostro': ['nadir-vault', 570, 230],
+  'santuario-trono': ['nadir-vault', 900, 300],
+  // Varchi e monumenti (i monumenti sono nelle scene *-statua, *-rocca, *-conca, *-radici, *-damar).
+  'varco-vaelthoria': ['ancient-valley', 704, 150], 'varco-nordharyn': ['frost-pass', 1150, 470],
+  'varco-myrathen': ['verdant-canopy', 1150, 470], 'varco-voryndhal': ['golden-savanna', 1150, 470],
+  'varco-azheryon': ['dune-port', 1150, 470], 'varco-valle': ['valley', 1220, 650],
   'velaris-piazza': ['city-velaris', 940, 740]
 };
 const scenes = (sceneFilter ? sceneFilter.split(',') : Object.keys(SPOTS)).filter(k => SPOTS[k]);
@@ -64,18 +72,21 @@ async function shoot(file) {
     await page.locator('#dialog button[data-do="resume"]').first().waitFor({ state: 'visible', timeout: 8000 });
     await page.click('#dialog button[data-do="resume"]');
     if (process.env.BENCH) await page.evaluate(n => { window.__bench = n; }, Number(process.env.FRAMES || 240));
-    await page.evaluate(() => {
-      const r0 = Math.random; let n = 0; Math.random = () => n++ === 0 ? 19425 / 4294967296 : .24;
+    await page.evaluate(seed => {
+      const r0 = Math.random; let n = 0; Math.random = () => n++ === 0 ? seed / 4294967296 : .24;
       try { Game.newGame(); } finally { Math.random = r0; }
       Game.s.campaign.stage = Math.max(Game.s.campaign.stage || 0, 5);
       __tick(3);
-    });
+    }, Number(process.env.SEED || 19425));
     for (const label of scenes) {
       const [region, x, y] = SPOTS[label];
       const [reached, enterMs] = await page.evaluate(id => {
         const s = Game.s; let ms = 0;
         for (let n = 0; n < 8 && s.region !== id; n++) {
-          const gate = World.route(s.region, id, s.campaign.stage);
+          let gate = World.route(s.region, id, s.campaign.stage);
+          // Santuario non ancora scoperto: si raggiunge l'ingresso e lo si scopre entrando (come in partita).
+          const e = s.legendary?.entrance;
+          if (!gate && id === 'nadir-vault' && e) gate = s.region === e.region ? { x: e.x, y: e.y } : World.route(s.region, e.region, s.campaign.stage);
           if (!gate) return ['nessun percorso ' + s.region + ' → ' + id, 0];
           Object.assign(s.player, { x: gate.x, y: gate.y });
           const t0 = performance.now();

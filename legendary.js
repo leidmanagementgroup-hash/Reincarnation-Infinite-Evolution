@@ -238,15 +238,26 @@
     for(const entry of lore){
       const {x,y,id}=entry;
       rows.push({x,y,draw(c){
-        c.fillStyle='#293242';c.fillRect(x-7,y-15,14,15);
-        c.fillStyle='#647c8a';c.fillRect(x-6,y-15,11,2);c.fillRect(x-5,y-13,8,10);
-        Land.glyph(c,x-1,y-8,l.read.includes(id)?'#a2b7af':'#d8bbe7');
+        // Lapide della marea: tavola incisa a onde su un basamento; il glifo resta il segnale letto/non letto.
+        const box=(col,dx,dy,w,h)=>{c.fillStyle=col;c.fillRect(x+dx,y+dy,w,h);};
+        box('rgba(8,16,24,.5)',-9,-1,19,3);
+        box('#1f2b37',-9,-4,18,4);box('#4f6573',-8,-4,16,1);
+        box('#24303d',-7,-21,14,18);box('#647c8a',-6,-21,12,2);box('#56707e',-6,-19,11,15);box('#7f97a2',-6,-19,1,15);
+        for(let k=0;k<3;k++){box('#3e5664',-5,-9+k*3,10,1);box('#89a7ad',-4+k,-10+k*3,2,1);}
+        box('#9fb6be',-2,-23,4,2);
+        Land.glyph(c,x,y-14,l.read.includes(id)?'#a2b7af':'#d8bbe7');
       }});
     }
     const {x,y}=Land.throne,bronze=l.successorAt!==null&&l.heirDefeatedAt===null;
     rows.push({x,y,draw(c){
-      c.fillStyle=bronze?'#7d573f':'#4b6371';c.fillRect(x-14,y-24,28,24);
-      c.fillStyle=bronze?'#bd8757':'#8daaba';c.fillRect(x-13,y-26,26,4);c.fillRect(x-16,y-8,32,3);
+      // Trono della Marea Muta: schienale a conchiglia a raggi, braccioli e gradino; colori di bronzo con l'erede.
+      const P=bronze?['#3a2a22','#7d573f','#bd8757','#e6be86']:['#1f2c38','#4b6371','#8daaba','#cfe2e4'];
+      const box=(col,dx,dy,w,h)=>{c.fillStyle=col;c.fillRect(x+dx,y+dy,w,h);};
+      box('rgba(8,16,24,.5)',-18,-1,37,3);box(P[0],-17,-6,34,6);box(P[2],-16,-6,32,1);
+      for(let k=0;k<7;k++){const dx=-15+k*5,top=-40+Math.abs(3-k)*3;box(P[0],dx-1,top,5,30-top-14);box(P[1],dx,top+1,3,28-top-14);box(P[3],dx,top+1,1,2);}
+      box(P[0],-14,-24,28,18);box(P[1],-13,-24,26,17);
+      box(P[2],-13,-26,26,4);box(P[2],-16,-8,32,3);
+      box(P[0],-19,-16,6,10);box(P[1],-18,-15,4,8);box(P[0],13,-16,6,10);box(P[1],14,-15,4,8);
       if(l.domain)Land.glyph(c,x,y-17,'#d6e4ae');
     }});
     return rows;
