@@ -19,14 +19,16 @@
   const forest=base.regions[originId];
   const kinds=new Map(UrbanInteriors.kinds.map(kind=>[UrbanInteriors.get(kind).id,kind]));
   const forestRegion={...forest,points:{...forest.points,gates:[...forest.points.gates,intoCity]}};
-  const pass=base.regions[district.origin];
-  const passRegion={...pass,points:{...pass.points,gates:[...pass.points.gates,district.enter]},
-    landmarks:[...pass.landmarks,{name:'Via per il Piazzale degli Argani',x:district.enter.x,y:district.enter.y}]};
+  const districtEntrances=Object.fromEntries([...district.origins].map(([origin,profile])=>{
+    const map=base.regions[origin],gate=profile.enter;
+    return [origin,{...map,points:{...map.points,gates:[...map.points.gates,gate]},
+      landmarks:[...map.landmarks,{name:profile.mark,x:gate.x,y:gate.y}]}];
+  }));
   const cityRegion={...UrbanExterior.region,settlementType:'town',points:{...UrbanExterior.region.points,gates:[outOfCity]}};
-  const regions={...base.regions,[originId]:forestRegion,[district.origin]:passRegion,[cityId]:cityRegion,...district.regions,
+  const regions={...base.regions,[originId]:forestRegion,...districtEntrances,[cityId]:cityRegion,...district.regions,
     ...Object.fromEntries([...kinds].map(([id,kind])=>[id,{...UrbanInteriors.get(kind),hidden:true}]))};
   const continents=base.continents.map(continent=>{
-    const extra=[cityRegion,district.regions[district.id]].filter(region=>region.continent===continent.id).map(region=>region.id);
+    const extra=[cityRegion,...[...district.origins.values()].map(profile=>district.regions[profile.id])].filter(region=>region.continent===continent.id).map(region=>region.id);
     return extra.length?{...continent,regions:[...continent.regions,...extra]}:continent;
   });
   const own=(row,key)=>Object.hasOwn(row,key);
@@ -57,7 +59,7 @@
   }
   const kind=id=>kinds.get(id)||null;
   const inCity=id=>id===cityId||kinds.has(id);
-  const localRegion=id=>inCity(id)?originId:district.owns(id)?district.origin:id;
+  const localRegion=id=>inCity(id)?originId:district.profileFor(id)?.origin||id;
   const venueMap=s=>district.owns(s.region)?district.create(s.region,s.seed):interior(kind(s.region),s.seed);
   const pointOf=site=>site.point||site;
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -80,7 +82,8 @@
       return outOfCity;
     }
     if(inCity(to))return from===originId?intoCity:base.route(from,originId,stage);
-    if(district.owns(to))return from===district.origin?district.enter:base.route(from,district.origin,stage);
+    const destination=district.profileFor(to);
+    if(destination)return from===destination.origin?destination.enter:base.route(from,destination.origin,stage);
     return base.route(from,to,stage);
   }
   function setRegion(id,seed=overworldSeed){
@@ -98,7 +101,7 @@
       if(!base.setRegion(id,key))return false;
       current=null;
     }
-    district.active(current?.id===district.id?current.map:null);
+    district.active(current?.id,current?.map);
     overworldSeed=key;
     return api;
   }
@@ -123,11 +126,12 @@
   const api={
     regions,continents,route,setRegion,init(seed=19425){return setRegion('valley',seed);},
     canWalk(x,y,r){return current?current.map.canWalk(x,y,r):base.canWalk(x,y,r);},
-    buildWater(x,y,r){return current?false:base.buildWater(x,y,r);},
+    buildWater(x,y,r){return current?(current.map.buildWater?.(x,y,r)||false):base.buildWater(x,y,r);},
     drawGround(ctx,cam,t){return current?current.map.drawGround(ctx,cam,t):base.drawGround(ctx,cam,t);},
     drawFront(ctx,cam,t,actors=[]){
       if(current)return current.map.drawFront(ctx,cam,t,actors);
-      if(base.region===district.origin)return base.drawFront(ctx,cam,t,actors.concat({x:district.enter.x,y:district.enter.y,draw:district.guide}));
+      const access=district.origins.get(base.region);
+      if(access)return base.drawFront(ctx,cam,t,actors.concat({x:access.enter.x,y:access.enter.y,draw:access.guide}));
       if(base.region!==originId)return base.drawFront(ctx,cam,t,actors);
       const sign={x:entry.x+14,y:entry.y-16,draw:g=>marker(g,entry.x+14,entry.y-16,t,'gate')};
       return base.drawFront(ctx,cam,t,actors.concat(sign));
@@ -136,9 +140,9 @@
     get region(){return current?.id||base.region;},
     get width(){return current?regions[current.id].width:base.width;},
     get height(){return current?regions[current.id].height:base.height;},
-    get points(){return this.region===originId?forestRegion.points:this.region===district.origin?passRegion.points:current?regions[current.id].points:base.points;},
+    get points(){return this.region===originId?forestRegion.points:districtEntrances[this.region]?.points||(current?regions[current.id].points:base.points);},
     get spawn(){return current?regions[current.id].spawn:base.spawn;},
-    get landmarks(){return this.region===district.origin?passRegion.landmarks:current?regions[current.id].landmarks:base.landmarks;}
+    get landmarks(){return districtEntrances[this.region]?.landmarks||(current?regions[current.id].landmarks:base.landmarks);}
   };
 
   function site(s,id){
@@ -183,7 +187,7 @@
     return {ok:true,panel:{id:'city-site',detail:id}};
   }
   function location(s){
-    if(s.region===district.id){
+    if(district.profileFor(s.region)?.id===s.region){
       const marks=district.regions[s.region].landmarks;
       return marks.reduce((a,b)=>distance(a,s.player)<distance(b,s.player)?a:b).name;
     }

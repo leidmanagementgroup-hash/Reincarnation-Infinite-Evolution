@@ -7,6 +7,12 @@ La campagna Dal Borgo al Varco fa parte di Vaelthoria, al centro del mondo. Dall
 
 Apri `Reincarnation.html` in un browser moderno. Grafica, musica sintetizzata e logica di gioco sono incorporate nel file HTML. Il browser conserva la partita in memoria locale. Dal menu Opzioni e comandi puoi esportare una copia JSON e importarla su un altro dispositivo. Il caricamento migra i salvataggi dalla v1 alla v6, compresa la v5 di GitHub. La vecchia attivazione di Vaelthoria vale per la Custode delle Origini nella Valle degli Antichi. Usa la copia JSON se sposti il file o cambi browser.
 
+### Visitare il Porto di Calis
+
+In **Azheryon**, raggiungi la **Costa delle Sette Vele**. Dal mercato esistente, segui la strada verso est fino al cartello della **Baia del Carico** e premi **E**. La mappa **M** mostra le Terrazze delle Carte, il Mercato delle Sette Vele e la Banchina dei Carichi. Puoi usare i due pontili e visitare la locanda, l'emporio, il Deposito delle Cime e la Casa delle Carte.
+
+Alla banchina leggi il **Registro dei Carichi** con **E** e accetta **Cime per la prossima marea**. Vendi almeno tre **Travi di legno** in un’unica operazione all’Emporio delle Sette Vele, aperto dalle 07:00 alle 20:00, e torna al Registro per riscuotere **16 Scintille** oltre al ricavo della vendita. L’emporio condivide le scorte dello scalo di Calis. Alla locanda puoi riposare e bere alla fonte.
+
 ### Visitare il Borgo dei Filoni
 
 Raggiungi il **Passo dei Larici** nella regione settentrionale di Nordharyn. Dal mercato del Borgo dei Filoni segui la strada verso est fino al cartello e premi **E** per entrare nel **Piazzale degli Argani**. Apri **M** per orientarti fra la piazza, la Corte dei Larici e il Cortile delle Botteghe. Con **E** puoi entrare nella locanda, nelle due botteghe, nella forgia e nella Casa della Cresta.
@@ -91,7 +97,8 @@ Dalla cartella dei sorgenti esegui `python build.py Reincarnation.html`. Lo scri
 | `city-families.js` | Famiglie architettoniche per continente: case, botteghe, sale, banchi, pozzi e lampioni dei borghi |
 | `continents.js` | Geografia delle nove nuove regioni e della Cripta delle Soglie, rotte, caricamento e monumenti |
 | `urban-exterior.js`, `urban-interiors.js`, `urban-world.js` | Quartieri e interni di Velaris, collisioni, mappa, percorsi e collegamenti con la Selva degli Alambicchi |
-| `filoni-sprites.js`, `urban-districts.js` | Piazzale degli Argani, terreno e flora locali, lotti, grafo, settori e cinque interni del Borgo dei Filoni. Gli edifici usano la famiglia di Nordharyn di `city-families.js` |
+| `filoni-sprites.js` | Terreno e flora locali del Piazzale degli Argani |
+| `urban-profiles.js`, `urban-districts.js` | Profili dei Filoni e di Calis, lotti, grafo, collisioni, settori, interni, orari e uso delle famiglie di `city-families.js` |
 | `urban-life.js`, `urban-services.js` | Residenti, orari, commissioni, scorte urbane, fonte della piazza e servizi interattivi |
 | `sprites.js` | Sprite animati, forme evolute, icone e ritratti |
 | `expansion-species.js` | Stirpi aggiunte e forme evolutive avanzate |

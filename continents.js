@@ -1666,10 +1666,12 @@
     }
     travelRoutes.set(key,null);return null;
   }
+  const coastline=key=>(coastLines[advanced[key]?.palette]||[]).map(ellipse=>ellipse.slice());
   const api={regions,continents,route,init(seed=19425){return setRegion('valley',seed);},setRegion,canWalk,buildWater,drawGround,drawFront,drawMap,
     get region(){return id;},get width(){return regions[id].width;},get height(){return regions[id].height;},
     get points(){return regions[id].points;},get landmarks(){return regions[id].landmarks;},get spawn(){return regions[id].spawn;}
   };
+  window.ContinentalCoast=coastline;
   window.World=api;
 })();
 

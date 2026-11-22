@@ -8,8 +8,6 @@ const { pathToFileURL } = require('node:url');
 const { chromium } = require(process.env.PW_CORE || 'playwright-core');
 
 const [candidate, baseline, output = null] = process.argv.slice(2);
-assert(candidate && baseline, 'Specificare la build nuova e quella precedente.');
-if (output) fs.mkdirSync(output, { recursive: true });
 const sha = content => crypto.createHash('sha256').update(content).digest('hex');
 const init = () => {
   const actual = requestAnimationFrame.bind(window);
@@ -80,7 +78,7 @@ const helpers = () => {
       }
       return [];
     }
-    const trail = map.path ? map.path(origin,goal,radius) : roomPath();
+    const trail = map?.path ? map.path(origin,goal,radius) : roomPath();
     if (trail.length < 2) throw Error('Meta non raggiungibile ' + JSON.stringify(goal));
     let marched = 0, checks = 0;
     for (const point of trail.slice(1)) {
@@ -120,15 +118,15 @@ async function open(browser, file, seed, errors) {
   await page.evaluate(helpers);
   return {context,page,sha256:expected,file:filePath};
 }
-async function picture(page, name, spot, time=735) {
-  if(!output)return;
+async function picture(page, name, spot, time=735, directory=output) {
+  if(!directory)return;
   await page.evaluate(([point,time]) => {
     if(UI.panel)UI.close();
     if(point)Object.assign(Game.s.player,point);
     __filoniTime(time);
     __filoniFrame(24);
   },[spot,time]);
-  await page.screenshot({path:path.join(output,name+'.png')});
+  await page.screenshot({path:path.join(directory,name+'.png')});
 }
 async function measure(page) {
   return page.evaluate(async () => {
@@ -148,7 +146,11 @@ async function measure(page) {
   });
 }
 
-(async () => {
+module.exports={open,picture,measure};
+
+if(require.main===module)(async () => {
+  assert(candidate && baseline, 'Specificare la build nuova e quella precedente.');
+  if (output) fs.mkdirSync(output, { recursive: true });
   const browser=await chromium.launch({channel:'msedge'}),errors=[];
   const results={browser:browser.version(),viewport:[1280,720],offline:true,walks:[]};
   try {

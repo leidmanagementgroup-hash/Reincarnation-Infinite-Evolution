@@ -7,6 +7,10 @@
     {id:'herd',category:'Allevamento',name:'Un gregge in salute',from:'Allevatori di Vela',event:'care',target:3,reward:28,need:'Accudisci una lanosa per tre volte.'},
     {id:'kitchen',category:'Cucina',name:'Il quaderno del Focolare',from:'Locandiera del Focolare',event:'cook',target:3,reward:42,need:'Scopri tre ricette differenti.',match:meta=>meta.discovered},
     {id:'routes',category:'Esplorazione',name:'Strade tra i continenti',from:'Cartografi di Vela',event:'visit',target:3,reward:36,need:'Attraversa per la prima volta tre destinazioni diverse.',unique:true},
+    {id:'calis-freight',category:'Commercio',name:'Cime per la prossima marea',from:'Registro dei Carichi di Calis',
+      need:'Vendi almeno tre unità di legno insieme all’Emporio delle Sette Vele. Poi torna al Registro dei Carichi.',
+      event:'trade',target:1,reward:16,site:'cargo-board',
+      match:meta=>meta.market==='calis'&&meta.region==='city-calis-tide-market'&&meta.direction==='sell'&&meta.item==='work'&&BigInt(meta.quantity||0)>=3n},
     {id:'moon',category:'Segreta',name:'Una rete per la luna',from:'Una nota sul ricettario',event:'fish',target:1,reward:60,need:'Pesca una carpa lunare.',secret:true,match:meta=>meta.kind==='mooncarp'}
   ];
   const offers=[
@@ -118,6 +122,7 @@
   }
   function unlocked(s,q){
     if(q.secret)return own(s.daily.quests,q.id);
+    if(q.site)return own(s.daily.quests,q.id)||!!window.UrbanWorld?.access(s,q.site);
     if(q.id==='herd')return Calendar.absoluteDays(s.calendar,s.time)>0||Life.level(s,'herder')>0;
     return true;
   }
@@ -160,6 +165,7 @@
       const q=own(lookup,d.id)&&lookup[d.id],progress=state.quests[d.id];
       if(!q||!progress||progress.claimed||progress.progress<q.target)return {ok:false,text:'Completa prima l’incarico.'};
       if(s.player.gold+q.reward>1e10)return {ok:false,text:'Deposita prima parte delle monete.'};
+      if(q.site&&!window.UrbanWorld?.access(s,q.site))return {ok:false,text:'Torna al Registro dei Carichi per riscuotere.'};
       progress.claimed=true;s.player.gold+=q.reward;
       if(progress.day)state.offerClaimed[q.id]=progress.day;
       return {ok:true,changed:true,text:'Ricompensa · '+q.reward+' Scintille.'};
@@ -172,7 +178,8 @@
       if(!unlocked(s,q))continue;
       const saved=state.quests[q.id],same=saved&&(!q.day||saved.day===q.day||!saved.claimed);
       const entry=same?saved:null;
-      entries.push({...q,progress:entry?.progress||0,accepted:!!entry,claimed:!!entry?.claimed,ready:!!entry&&!entry.claimed&&entry.progress>=q.target});
+      entries.push({...q,progress:entry?.progress||0,accepted:!!entry,claimed:!!entry?.claimed,
+        ready:!!entry&&!entry.claimed&&entry.progress>=q.target,atSite:!q.site||!!window.UrbanWorld?.access(s,q.site)});
     }
     return {hunger:Math.round(state.hunger),thirst:Math.round(state.thirst),energy:Math.round(state.energy),
       temperature:Math.round(state.temperature),critical:Math.floor(state.critical),modifiers:modifiers(s),

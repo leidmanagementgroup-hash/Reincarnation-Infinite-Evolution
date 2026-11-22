@@ -218,7 +218,7 @@
     if(!s?.daily||!window.Daily)return '';
     const rows=Daily.view(s).quests.map(q=>{
       const qty=q.accepted?' · '+q.progress+'/'+q.target:'';
-      let control=q.claimed?'<span class="lifeQuestState">Riscossa</span>':q.ready?action('Riscuoti','daily',{op:'claim',id:q.id},false,true):
+      let control=q.claimed?'<span class="lifeQuestState">Riscossa</span>':q.ready?action('Riscuoti','daily',{op:'claim',id:q.id},!q.atSite,true):
         q.accepted?'<span class="lifeQuestState">In corso</span>':action('Accetta','daily',{op:'accept',id:q.id},false);
       return details(q.name,[q.category,q.from,q.need+qty,q.reward+' Scintille'].filter(Boolean).join(' · '),control);
     });

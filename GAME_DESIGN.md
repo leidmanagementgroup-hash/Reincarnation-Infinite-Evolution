@@ -45,7 +45,8 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 | 12 | `urban-exterior.js` | `UrbanExterior` | Quartieri, edifici, canale, ponti e percorsi deterministici di Velaris (tratti verificati in modo esatto per il raggio del corpo); luce dal calendario, finestre, cristalli, riflessi, ombre e vegetazione animata (movimento ridotto rispettato) |
 | 13 | `urban-interiors.js` | `UrbanInteriors` | Sette interni visitabili e cache delle superfici |
 | 13a | `filoni-sprites.js` | `FiloniSprites` | Vegetazione e tavolozza del terreno del Passo dei Larici |
-| 13b | `urban-districts.js` | `UrbanDistricts` | Piazzale degli Argani: lotti deterministici, facciate di `CityFamilies`, settori, grafo, interni e turni locali |
+| 13b | `urban-profiles.js` | `UrbanProfiles` | Configurazione di Filoni e Calis: lotti, strade, soglie, arredi, turni, terreno e servizi |
+| 13c | `urban-districts.js` | `UrbanDistricts` | Registro, collisioni, percorsi, superfici per settore, interni e facciate per profilo |
 | 14 | `urban-world.js` | `UrbanWorld, World` | Collegamenti con la Selva degli Alambicchi, rotte, collisioni e accesso ai servizi |
 | 15 | `calendar.js` | `Calendar` | Calendario persistente unico (giorno = 1800 s reali = 1440 min di gioco) |
 | 16 | `inventory.js` | `Inventory` | Magazzino a pile, quantità esatte, deposito |
@@ -137,6 +138,14 @@ Il cartello a est del mercato nel Passo dei Larici apre il nuovo quartiere `city
 Il grafo di strade e collegamenti alle soglie usa le stesse sagome di collisione indicizzate per settore del movimento locale. Sono generate bitmap da 256 px soltanto per i settori osservati. La cache conserva tutti quelli inquadrati con un margine ridotto. La carta usa una planimetria compatta. Facciate, soglie, arredi di strada e finestre sono restituiti da `CityFamilies` per Nordharyn. Le soglie disegnate si allineano alle porte persistenti e i vetri e le fiammelle forniti dalla famiglia alimentano `WorldLight`. Le cinque istanze interne riusano piante e arredi collaudati di Velaris, con nomi, accessi, semi di disegno e servizi associati al proprio edificio.
 
 I salvataggi continuano a usare il formato v7. `city-filoni` e gli interni sono registrati prima della validazione della partita. La disposizione si ricostruisce dal seme, senza salvare Canvas, grafo o sprite. Cambi futuri alla generazione devono mantenere la revisione 1 per queste coordinate o migrare esplicitamente le posizioni. I turni dei tre residenti usano il calendario e i percorsi locali. L'attività economica resta aggregata nell'unico mercato dei Filoni.
+
+### 3.6 Porto di Calis · Baia del Carico
+
+Il varco a est dello scalo sulla Costa delle Sette Vele collega `dune-port` a `city-calis`. Il quartiere aggiunge 11 edifici, quattro interni, quattro residenti, due pontili e una banchina lastricata. Il profilo proietta le ellissi costiere esistenti nello spazio locale con origine `(430,200)`. L'acqua blocca il movimento eccetto sulla superficie percorribile dei pontili. Impronte e collisioni della regione originaria restano quelle pubblicate. L'accesso è un punto aggiunto alla mappa e al grafo dei varchi.
+
+`urban-profiles.js` contiene dati separati per revisione, lotti, strade, turni e servizi. `urban-districts.js` condivide indicizzazione spaziale, grafo, regole di soglia, cache dei settori, registro degli interni e sorgenti per l'illuminazione. Le tele del terreno vengono disegnate per area inquadrata e vengono recuperate dalla cache al ritorno. Il registro mantiene al massimo cinque istanze di mappe e interni per seme/regione e non serializza le superfici. I quattro interni di Calis riusano piante di `UrbanInteriors` con chiavi permanenti proprie. Il codice della famiglia di Azheryon disegna cupole, portici, banchi, fronte dei moli e lampioni. La decisione su quale parte dell'acqua si può attraversare appartiene al profilo.
+
+L'emporio usa il mercato `calis` già registrato in `Economy` con gli stessi prezzi, quantità e orari. Il Registro dei Carichi apre il diario. La commissione `calis-freight` registra una vendita unica di almeno tre unità di legno all'emporio, paga 16 Scintille al Registro e usa le missioni persistenti di `Daily`. L'acquisto, la vendita, l'avanzamento e il pagamento passano per i normali comandi di gioco. Restano il salvataggio v7 e la migrazione delle partite precedenti.
 
 ## 4. Meccaniche
 

@@ -41,7 +41,7 @@
   const minBig=(a,b)=>a<b?a:b;
   const shopNear=(s,p)=>s.region===p.region&&Math.hypot(s.player.x-p.x,s.player.y-p.y)<=p.range||
     p.id==='velaris'&&!!window.UrbanWorld?.kind(s.region)&&!!UrbanWorld.access(s,'shop')||
-    p.id==='filoni'&&!!window.UrbanDistricts?.roomKind(s.region)&&!!window.UrbanWorld?.access(s,'shop');
+    p.id===window.UrbanDistricts?.profileFor(s.region)?.market&&!!window.UrbanWorld?.access(s,'shop');
   const clock=s=>window.Calendar?.view(s.calendar,s.time,s.region)||
     {day:1+Math.floor((480+s.time*3)/1440),shopOpen:Math.floor(480+s.time*3)%1440>=420&&Math.floor(480+s.time*3)%1440<1200,seasonIndex:0};
 
@@ -261,7 +261,7 @@
     s.economy.markets[profile.id]=where;
     if(s.economy.flows)MarketFlows.external(s.economy.flows,profile.id,id,buying?-quantity:quantity);
     return done(item.name+' ×'+format.format(quantity)+' · '+(buying?'Pagato ':'Ricevuto ')+wallet(priceTotal).label,
-      {event:{id:'trade',amount:1,meta:{market:profile.id,item:id,direction:data.op}}});
+      {event:{id:'trade',amount:1,meta:{market:profile.id,item:id,direction:data.op,quantity:String(quantity)}}});
   }
   function command(s,data){
     if(!s?.economy||!object(data))return fail('Operazione non disponibile.');

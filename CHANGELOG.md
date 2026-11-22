@@ -2,6 +2,12 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-22] Apri la Baia del Carico al Porto di Calis — Codex
+
+- Secondo profilo urbano da `df21ad7` sul branch `codex/porto-di-calis`. `urban-profiles.js` separa i dati dei due quartieri dal generatore e `urban-world.js` gestisce più ingressi regionali.
+- 11 edifici, quattro interni, quattro residenti, banchina e due pontili percorribili. Famiglia di Azheryon e costa derivata dalla Baia del Carico esistente.
+- Emporio collegato a `calis` e commissione commerciale persistente con ricompensa una tantum nel diario. Compatibilità di Filoni, salvataggi, grafica e prestazioni registrata nel [collaudo](PROGRESS.md#porto-di-calis--secondo-profilo-urbano).
+
 ## [2026-11-22] Pubblica il Piazzale degli Argani su main — Codex
 
 - Fast-forward autorizzato da `f2febd1` a `24d33eb` (`codex/integrazione-filoni-fase4`). Disponibili 13 edifici, cinque interni, tre residenti e servizi collegati al mercato dei Filoni, con la famiglia architettonica di Nordharyn già in uso.
