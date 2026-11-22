@@ -12647,16 +12647,18 @@ window.Lantern = (() => {
     const p=rawPoint(raw);
     return p?{...p,name:raw.name||name,kind,id:id||raw.id||kind}:null;
   }
-  function checkPathPoint(runtime,q){
-    if(runtime.ext.canWalk&&!runtime.ext.canWalk(q.x,q.y,5))return false;
-    if(window.World?.region===cityId&&World.canWalk)return World.canWalk(q.x,q.y,5);
+  function checkPathPoint(runtime,x,y){
+    // UrbanWorld delega la collisione esterna alla stessa mappa, anche mentre si è in un interno.
+    if(runtime.ext.canWalk)return runtime.ext.canWalk(x,y,5);
+    if(window.World?.region===cityId&&World.canWalk)return World.canWalk(x,y,5);
     return true;
   }
+  const sidestepOffsets=[[-15,5],[15,5],[-14,10],[14,10],[0,18],[-8,-10],[8,-10],[0,0]];
   function sidestep(runtime,q,key,spread=12){
-    const lead=[[-15,5],[15,5],[-14,10],[14,10],[0,18],[-8,-10],[8,-10],[0,0]];
-    for(let k=0;k<lead.length;k++){
-      const [x,y]=lead[(key+k)%lead.length],p={...q,x:q.x+Math.round(x*spread/12),y:q.y+Math.round(y*spread/12)};
-      if(checkPathPoint(runtime,p))return p;
+    for(let k=0;k<sidestepOffsets.length;k++){
+      const [dx,dy]=sidestepOffsets[(key+k)%sidestepOffsets.length];
+      const x=q.x+Math.round(dx*spread/12),y=q.y+Math.round(dy*spread/12);
+      if(checkPathPoint(runtime,x,y))return {...q,x,y};
     }
     return q;
   }
@@ -12668,8 +12670,9 @@ window.Lantern = (() => {
       if(!q)continue;
       services[service.kind]=q;
     }
-    const points=Object.values(ext.waypoints||{}).map((p,i)=>stop(p,'Via '+(i+1),'street',p.id||'street-'+i))
-      .filter(Boolean).filter(q=>checkPathPoint(runtime,q));
+    const waypoints=Object.values(ext.waypoints||{});
+    const points=waypoints.map((p,i)=>stop(p,'Via '+(i+1),'street',p.id||'street-'+i))
+      .filter(Boolean).filter(q=>checkPathPoint(runtime,q.x,q.y));
     const byId=Object.fromEntries(points.map(p=>[p.id,p]));
     const plaza=byId.plaza||fallback;
     const market=byId['district-wind']||services.shop||plaza;
@@ -12686,13 +12689,14 @@ window.Lantern = (() => {
       if(!homesByDistrict.has(district))homesByDistrict.set(district,[]);
       homesByDistrict.get(district).push(home);
     }
-    runtime.places={homes,homesByDistrict,squares,arcadeStops,anchors:{...byId,...services,plaza,market,gate,inn}};
+    runtime.places={homes,homesByDistrict,squares,arcadeStops,nodes:points,
+      anchors:{...byId,...services,plaza,market,gate,inn}};
     return runtime.places;
   }
 
-  function basePlan(s,p,runtime){
+  function basePlan(p,runtime,d){
     const {homes,homesByDistrict,squares,arcadeStops,anchors}=allPlaces(runtime);
-    const standard=p.timetable,d=day(s),market=anchors.market;
+    const standard=p.timetable,market=anchors.market;
     const duty=anchors[p.workKind]||market;
     const district=runtime.ext.districtAt(duty.x,duty.y).id;
     const housing=homesByDistrict.get(district)||homes;
@@ -12722,58 +12726,118 @@ window.Lantern = (() => {
     return {home,work,schedule};
   }
   // Distanza minima desiderata fra due residenti fermi nello stesso momento.
-  const gap=15;
-  function ring(bias){
-    const out=[{x:0,y:0}];
-    for(const [r,n] of [[15,8],[26,12],[38,16],[50,20],[62,24],[75,28],[88,32]])
-      for(let i=0;i<n;i++){const a=((i+bias%n)%n)/n*Math.PI*2;out.push({x:Math.round(Math.cos(a)*r),y:Math.round(Math.sin(a)*r*.8)});}
-    return out;
-  }
-  // Piano giornaliero di tutti i residenti, con le soste distribuite: in uno stesso intervallo
-  // nessuno occupa il posto di un altro. Deterministico (ordine dei profili), calcolato una volta al giorno.
-  function spread(s,runtime){
-    const d=day(s);
-    if(runtime.plans&&runtime.plansDay===d)return runtime.plans;
-    const plans=new Map(),placed=[];
-    for(const p of profiles(s.seed).list){
-      const plan=basePlan(s,p,runtime),list=plan.schedule;
-      const schedule=list.map((entry,i)=>{
-        const from=entry.at,to=i+1<list.length?list[i+1].at:1440,base=entry.point;
-        const busy=placed.filter(o=>o.from<to&&from<o.to&&distance(o.point,base)<gap+95);
-        let pick=base;
-        if(busy.some(o=>distance(o.point,base)<gap)){
-          // Primo posto libero a distanza ≥ gap; se la zona è satura, il più lontano dagli altri.
-          let best=-1;pick=base;
-          for(const o of ring(p.planBias)){
-            const q={...base,x:base.x+o.x,y:base.y+o.y};
-            const room=busy.reduce((m,b)=>Math.min(m,distance(b.point,q)),1e9);
-            if(room<=best)continue;
-            if(o.x||o.y){if(!checkPathPoint(runtime,q)||!straight(runtime,base,q))continue;}
-            best=room;pick=q;
-            if(room>=gap)break;
-          }
-          if(best<gap){
-            // Zona stretta o satura: prova i nodi stradali vicini, raggiungibili dal percorso.
-            for(const w of Object.values(runtime.ext.waypoints||{})){
-              const q=rawPoint(w);
-              if(!q||distance(q,base)>130||!checkPathPoint(runtime,q))continue;
-              const room=busy.reduce((m,b)=>Math.min(m,distance(b.point,q)),1e9);
-              if(room<=best||!route(runtime,base,q))continue;
-              best=room;pick={...base,x:q.x,y:q.y};
-              if(room>=gap)break;
-            }
-          }
-        }
-        placed.push({from,to,point:pick});
-        return pick===base?entry:{...entry,point:pick};
-      });
-      plans.set(p.id,{home:schedule[0].point,work:plan.work,schedule});
+  const gap=15,neighborRadius=110;
+  const rings=[[15,8],[26,12],[38,16],[50,20],[62,24],[75,28],[88,32]].map(([r,n])=>
+    Array.from({length:n},(_,i)=>{
+      const a=i/n*Math.PI*2;
+      return {x:Math.round(Math.cos(a)*r),y:Math.round(Math.sin(a)*r*.8)};
+    }));
+
+  function closestStop(busy,point,minimum){
+    let room=Infinity;
+    for(const other of busy){
+      room=Math.min(room,distance(other,point));
+      if(room<=minimum)break;
     }
-    runtime.plans=plans;runtime.plansDay=d;
-    return plans;
+    return room;
+  }
+  function assignStop(runtime,job,from,to,base,bias){
+    const {cells,busy}=job;
+    const cx=Math.floor(base.x/neighborRadius),cy=Math.floor(base.y/neighborRadius);
+    busy.length=0;
+    for(let y=cy-1;y<=cy+1;y++){
+      const row=cells.get(y);
+      if(!row)continue;
+      for(let x=cx-1;x<=cx+1;x++){
+        const records=row.get(x);
+        if(!records)continue;
+        for(const o of records)
+          if(o.from<to&&from<o.to&&distance(o.point,base)<neighborRadius)busy.push(o.point);
+      }
+    }
+    let pick=base,best=closestStop(busy,base,-1);
+    if(best>=gap)return pick;
+    const q={x:0,y:0};
+    // Stesso ordine dei candidati di sempre, con la distanza minore già nota per la posizione iniziale.
+    for(const ring of rings){
+      const start=bias%ring.length;
+      for(let i=0;i<ring.length;i++){
+        const o=ring[(start+i)%ring.length];
+        q.x=base.x+o.x;q.y=base.y+o.y;
+        const room=closestStop(busy,q,best);
+        if(room<=best||!checkPathPoint(runtime,q.x,q.y)||!straight(runtime,base,q))continue;
+        best=room;pick={...base,x:q.x,y:q.y};
+        if(room>=gap)return pick;
+      }
+    }
+    for(const q of runtime.places.nodes){
+      if(distance(q,base)>130)continue;
+      const room=closestStop(busy,q,best);
+      if(room<=best||!route(runtime,base,q))continue;
+      best=room;pick={...base,x:q.x,y:q.y};
+      if(room>=gap)break;
+    }
+    return pick;
+  }
+  function newDayPlan(s,d){
+    return {day:d,residents:profiles(s.seed).list,index:0,stop:0,plan:null,plans:new Map(),cells:new Map(),busy:[]};
+  }
+  // Ogni passo assegna una sosta. L'ordine delle soste e dei profili è invariato anche fra fotogrammi.
+  function planStep(runtime,job){
+    const p=job.residents[job.index];
+    if(!job.plan)job.plan=basePlan(p,runtime,job.day);
+    const {plan}=job,i=job.stop,list=plan.schedule,entry=list[i];
+    const from=entry.at,to=list[i+1]?.at??1440;
+    const point=assignStop(runtime,job,from,to,entry.point,p.planBias);
+    const cx=Math.floor(point.x/neighborRadius),cy=Math.floor(point.y/neighborRadius);
+    let row=job.cells.get(cy);
+    if(!row){row=new Map();job.cells.set(cy,row);}
+    let occupied=row.get(cx);
+    if(!occupied){occupied=[];row.set(cx,occupied);}
+    occupied.push({from,to,point});
+    if(point!==entry.point)list[i]={...entry,point};
+    job.stop++;
+    if(job.stop===list.length){
+      plan.home=list[0].point;
+      job.plans.set(p.id,plan);
+      job.index++;job.stop=0;job.plan=null;
+    }
+  }
+  const prewarmMinute=22*60,stopsPerFrame=8,prewarmMs=2;
+  function prepareNextDay(s,runtime,stamp){
+    const d=Math.floor(stamp/1440)+1;
+    if(runtime.nextPlans?.day===d)return;
+    if(runtime.preparing?.day!==d){
+      runtime.nextPlans=null;
+      runtime.preparing=newDayPlan(s,d);
+    }
+    const job=runtime.preparing,timer=window.performance,start=timer?.now();
+    for(let i=0;i<stopsPerFrame&&job.index<job.residents.length;i++){
+      planStep(runtime,job);
+      if(timer&&timer.now()-start>=prewarmMs)break;
+    }
+    if(job.index===job.residents.length){
+      runtime.nextPlans={day:d,plans:job.plans};
+      runtime.preparing=null;
+    }
+  }
+  function spread(s,runtime,d=day(s)){
+    if(runtime.plansDay===d)return runtime.plans;
+    if(runtime.nextPlans?.day===d)runtime.plans=runtime.nextPlans.plans;
+    else{
+      // Dopo sonno, ingresso o caricamento, completa subito il giorno richiesto con le stesse regole.
+      const job=runtime.preparing?.day===d?runtime.preparing:newDayPlan(s,d);
+      while(job.index<job.residents.length)planStep(runtime,job);
+      runtime.plans=job.plans;
+    }
+    if(runtime.nextPlans?.day<=d)runtime.nextPlans=null;
+    if(runtime.preparing?.day<=d)runtime.preparing=null;
+    runtime.plansDay=d;
+    return runtime.plans;
   }
   function dailyPlan(s,p,runtime){
-    return spread(s,runtime).get(p.id)||basePlan(s,p,runtime);
+    const d=day(s);
+    return spread(s,runtime,d).get(p.id)||basePlan(p,runtime,d);
   }
   function samplePlan(plan,now){
     const list=plan.schedule;
@@ -12788,7 +12852,7 @@ window.Lantern = (() => {
   }
   function straight(runtime,a,b){
     const d=distance(a,b),steps=Math.max(1,Math.ceil(d/3));
-    for(let i=0;i<=steps;i++)if(!checkPathPoint(runtime,{x:a.x+(b.x-a.x)*i/steps,y:a.y+(b.y-a.y)*i/steps}))return false;
+    for(let i=0;i<=steps;i++)if(!checkPathPoint(runtime,a.x+(b.x-a.x)*i/steps,a.y+(b.y-a.y)*i/steps))return false;
     return true;
   }
   function route(runtime,a,b){
@@ -12815,8 +12879,8 @@ window.Lantern = (() => {
   function direction(a,b){
     return Math.abs(b.x-a.x)>Math.abs(b.y-a.y)?b.x>a.x?'right':'left':b.y>a.y?'down':'up';
   }
-  function sampleStreet(s,p,plan,runtime){
-    const part=samplePlan(plan,minute(s)),a=part.previous.point,b=part.now.point;
+  function sampleStreet(s,p,plan,runtime,localMinute=minute(s)){
+    const part=samplePlan(plan,localMinute),a=part.previous.point,b=part.now.point;
     const progress=Math.max(0,(part.time-part.now.at)/minutePerSecond())*p.tempo;
     if(distance(a,b)<1)
       return {point:b,activity:part.now.label,moving:false,inside:part.now.inside,dir:'down'};
@@ -12845,20 +12909,22 @@ window.Lantern = (() => {
     if(!s?.urban||!present(s.region))return [];
     const runtime=useRuntime(s);
     if(!runtime)return [];
-    const region=s.region,kind=interiorKind(region),now=clock(s),near=runtime.near;
+    const region=s.region,kind=interiorKind(region),now=clock(s),near=runtime.near,d=Math.floor(now/1440);
+    const localMinute=((now%1440)+1440)%1440;
     const tag=kind||cityId;
-    if(!near||near.tag!==tag||Math.abs(near.at-now)>.6||distance(near,s.player)>98){
+    if(!near||near.tag!==tag||near.day!==d||Math.abs(near.at-now)>.6||distance(near,s.player)>98){
       const possible=[];
+      let plans;
       for(const p of profiles(s.seed).list){
         if(kind&&(!p.staff||p.workKind!==kind))continue;
-        const plan=dailyPlan(s,p,runtime),phase=samplePlan(plan,minute(s));
+        const plan=(plans??=spread(s,runtime,d)).get(p.id),phase=samplePlan(plan,localMinute);
         if(kind||distance(coarse(phase,p.tempo),s.player)<areaRadius+170)possible.push({p,plan});
       }
-      runtime.near={tag,at:now,x:s.player.x,y:s.player.y,possible};
+      runtime.near={tag,day:d,at:now,x:s.player.x,y:s.player.y,possible};
     }
     const out=[];
     for(const {p,plan} of runtime.near.possible){
-      const status=sampleStreet(s,p,plan,runtime);
+      const status=sampleStreet(s,p,plan,runtime,localMinute);
       let point=status.point;
       if(kind){
         if(status.inside!==kind||status.moving)continue;
@@ -12922,6 +12988,13 @@ window.Lantern = (() => {
   }
 
   function tick(s,delta,worldAccess){
+    if(delta>0&&s?.urban&&present(s.region)){
+      const stamp=clock(s);
+      if(stamp%1440>=prewarmMinute){
+        const runtime=useRuntime(s);
+        if(runtime)prepareNextDay(s,runtime,stamp);
+      }
+    }
     if(!s?.urban||s.urban.pulse>s.time)return [];
     const state=s.urban,city=state.city,now=day(s);
     state.pulse=s.time+3;

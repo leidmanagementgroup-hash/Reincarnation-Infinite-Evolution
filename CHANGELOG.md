@@ -2,6 +2,14 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-22] PERF-002, pianificazione delle routine di Velaris — Codex
+Branch `codex/perf-002-npc`, base `972e31c`.
+### Corretto
+- `urban-life.js` cerca le soste occupate in celle vicine, riusa gli scostamenti e prepara il piano successivo a piccoli passi dalla sera. Al cambio di giorno promuove il piano pronto e aggiorna subito le soste visibili. In caso di caricamento o salto di calendario completa a richiesta il giorno corrente.
+- Ricostruito l'HTML offline. Conservati l'ordine dei residenti e delle soste, le destinazioni e le verifiche dei percorsi. Le cache delle routine sono in memoria e non entrano in salvataggi o scorte.
+### Aggiunto
+- Sonde ripetibili in Node ed Edge e regressione con una build precedente. I profili sintetici da 20 a 500 residenti esistono solo nei test. Misure e limiti in `PROGRESS.md`.
+
 ## [2026-11-22] Integrazione: Santuario, statue, varchi e interni di Velaris da Claude e Codex — Claude
 Branch `claude/integrazione-santuario-interni` da `main` `ec03eeb`: fast-forward su `claude/world-art-santuario` (`3bd7f6d`), commit di prova `scatti-mondo` per più build, poi merge di `codex/world-art-interni-santuario` (`e9f1146`) con scelta parte per parte (commit di merge `4d3d4c7`). Branch originali non modificati. **Unito a `main` per fast-forward il 2026-11-22 (`ec03eeb` → `ae2b5c7`) su approvazione dell'utente**; dopo l'unione HTML identico ai sorgenti e alla build combinata (SHA-256 `fd4bc3c8…`), sistemi urbani ed economici invariati, test Node e prove nel browser rieseguiti su `main` con esito positivo (verifica-integrazione, economia 158 e 147, percorsi 0 bloccati su 41 040, residenti 0, collisioni identiche a `ec03eeb`, browser 10/10, 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7, interni 12/12).
 ### Provenienza degli elementi

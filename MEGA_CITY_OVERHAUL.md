@@ -624,6 +624,8 @@ Il riferimento artistico e tecnico per la resa di materiali, architetture, luci,
 
 ## Passaggio di consegne
 
+PERF-002 introduce la preparazione scaglionata delle soste di Velaris. Le [sonde](PROGRESS.md#perf-002--routine-npc) distinguono il cambio del giorno, il recupero dopo un salto e il costo separato di simulazione, percorsi e Canvas. Le popolazioni sintetiche usano la planimetria attuale. Prima di aumentare la popolazione di una nuova città, ripetere le misure sui suoi distretti, controllare la capacità di strade e piazze e misurare percorsi e residenti visibili separatamente.
+
 1. Partire dall’ultimo `main` verificato. Aprire un branch dedicato per ogni intervento secondo [AGENTS.md](AGENTS.md). Assegnare un solo autore a ciascun file durante il lavoro in parallelo.
 2. Registrare in `PROGRESS.md` base Git, obiettivo giocabile, file in corso e dipendenze. Riutilizzare identificatori di regioni, porte e servizi quando una modifica è solo visiva. Per nuovi dati persistenti definire valori predefiniti, migrazione e un caso di prova di ricaricamento.
 3. Eseguire `node --check` sui moduli toccati, `node tests/verifica-integrazione.cjs` e `python build.py Reincarnation.html`. In browser provare la modifica, una partita precedente e almeno il percorso urbano o il sistema direttamente coinvolto. Registrare anche i test rimasti aperti.

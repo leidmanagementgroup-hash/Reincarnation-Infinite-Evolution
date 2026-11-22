@@ -18,7 +18,7 @@
 - [x] **Economia urbana, Fase 3 (due unità)**: flussi di produzione, consumo, rotte e prezzi, registro delle merci, API per negozi futuri, profili per nuove città. Unita a `main` il 2026-11-21 (`4763426`).
 - [ ] Economia, passi successivi (da approvare): lista dinamica dei mercati in `Economy` (ECO-002), interfaccia di tendenze e merci in viaggio (ECO-003), mestieri dei residenti collegati a `MarketFlows.activity`, profondità dei mercati per dimensione (ECO-001), eventi e leggi come modificatori di `traits`/`routes` (Fase 4).
 - [x] **PERF-001**: `path()` medio da 5,9 a 0,78 ms e p95 da 21 a 2 ms, percorsi identici (unito a `main` il 2026-11-21, `a1e4c54`).
-- [ ] PERF-002: distribuire su più fotogrammi la pianificazione dei residenti al cambio di giorno (55–63 ms in un fotogramma, una volta per giorno di gioco).
+- [x] **PERF-002**: assegnazione locale delle soste e preparazione distribuita dalle 22:00, verificata su `codex/perf-002-npc` fino a 500 residenti di prova. Integrazione su approvazione. Rimane sincrono il primo utilizzo di un giorno saltato o caricato senza un piano pronto, vedi [misure](PROGRESS.md#perf-002--routine-npc).
 - [ ] **Fase successiva —** Generatore Procedurale Urbano 2.0: generalizzare lotti, vie, confini e oggetti dell'annesso (oggi a coordinate fisse) partendo da `settlementTypes`, cache per settori e routine per quartiere.
 - [x] BUG-011: risolto e unito a `main` (2026-11-21).
 - [ ] Verificare in partita il bilanciamento dei danni ai compagni (quanto spesso scendono in stato critico).
