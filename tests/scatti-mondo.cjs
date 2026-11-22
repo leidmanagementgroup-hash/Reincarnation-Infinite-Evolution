@@ -8,7 +8,7 @@
 // BENCH=1: invece degli scatti misura, per scena e ora, il costo dell'ingresso nella regione (primo disegno incluso)
 // e il tempo CPU di un fotogramma completo e del solo disegno del mondo (mediana/p95/massimo, FRAMES fotogrammi, default 240),
 // alternando le build ROUNDS volte (default 2).
-// Usare PW_HEADED=1 per Edge a finestra visibile con GPU.
+// Usare PW_HEADED=1 per Edge a finestra visibile con GPU. RACE=skeleton FORM=3: stirpe e forma del personaggio negli scatti.
 const fs = require('node:fs');
 const crypto = require('node:crypto');
 const path = require('node:path');
@@ -35,7 +35,8 @@ const SPOTS = {
   'azheryon-calis': ['dune-port', 454, 404], 'azheryon-damar': ['sunken-dunes', 850, 300],
   'cava': ['quarry', 558, 540], 'cava-ingresso': ['quarry', 300, 560], 'cava-forgia': ['quarry', 840, 430],
   'fenditura': ['rift', 731, 470], 'fenditura-osservatorio': ['rift', 425, 560], 'fenditura-cuore': ['rift', 1068, 300],
-  'cripta': ['ardel-crypt', 694, 500],
+  'cripta': ['ardel-crypt', 694, 500], 'cripta-anticamera': ['ardel-crypt', 200, 540],
+  'cripta-nomi': ['ardel-crypt', 675, 245], 'cripta-soglia': ['ardel-crypt', 1090, 270],
   // Santuario della Marea Muta: esiste solo in alcuni mondi, usare SEED=1116 (ingresso nel Passo dei Larici).
   'santuario-ingresso': ['frost-pass', 877, 330], 'santuario-soglia': ['nadir-vault', 190, 560],
   'santuario-deposito': ['nadir-vault', 547, 540], 'santuario-chiostro': ['nadir-vault', 570, 230],
@@ -49,7 +50,10 @@ const SPOTS = {
   'varco-vaelthoria': ['ancient-valley', 704, 150], 'varco-nordharyn': ['frost-pass', 1150, 470],
   'varco-myrathen': ['verdant-canopy', 1150, 470], 'varco-voryndhal': ['golden-savanna', 1150, 470],
   'varco-azheryon': ['dune-port', 1150, 470], 'varco-valle': ['valley', 1220, 650],
-  'velaris-piazza': ['city-velaris', 940, 740]
+  'velaris-piazza': ['city-velaris', 940, 740],
+  // Borghi delle famiglie architettoniche (fase 4 D): stessa pianta in ogni regione, con il centro a 454,404.
+  'nordharyn-hadrin': ['winter-citadel', 454, 404], 'myrathen-siderea': ['moon-grove', 454, 404],
+  'voryndhal-fronde': ['root-sanctuary', 454, 404], 'azheryon-damar-borgo': ['sunken-dunes', 454, 404]
 };
 const scenes = (sceneFilter ? sceneFilter.split(',') : Object.keys(SPOTS)).filter(k => SPOTS[k]);
 
@@ -77,12 +81,17 @@ async function shoot(file) {
     await page.locator('#dialog button[data-do="resume"]').first().waitFor({ state: 'visible', timeout: 8000 });
     await page.click('#dialog button[data-do="resume"]');
     if (process.env.BENCH) await page.evaluate(n => { window.__bench = n; }, Number(process.env.FRAMES || 240));
-    await page.evaluate(seed => {
+    await page.evaluate(([seed, race, form]) => {
       const r0 = Math.random; let n = 0; Math.random = () => n++ === 0 ? seed / 4294967296 : .24;
       try { Game.newGame(); } finally { Math.random = r0; }
       Game.s.campaign.stage = Math.max(Game.s.campaign.stage || 0, 5);
+      // RACE e FORM (facoltativi): stirpe e forma evolutiva del personaggio (0 base, 1-2 primo stadio, 3-4 secondo).
+      if (race) {
+        const p = Game.s.player; p.race = race;
+        if (form > 0) { p.evolutionStage = form <= 2 ? 1 : 2; p.form = (form - 1) % 2; } else p.form = null;
+      }
       __tick(3);
-    }, Number(process.env.SEED || 19425));
+    }, [Number(process.env.SEED || 19425), process.env.RACE || '', Number(process.env.FORM || 0)]);
     for (const label of scenes) {
       const [region, x, y] = SPOTS[label];
       const [reached, enterMs] = await page.evaluate(id => {

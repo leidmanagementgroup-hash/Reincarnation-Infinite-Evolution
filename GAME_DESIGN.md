@@ -34,44 +34,47 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 | 1 | `world-light.js` | `WorldLight` | Luce del mondo aperto (World Art Overhaul): tinte di crepuscolo e notte per continente, finestre accese, aloni precalcolati (massimo otto), particelle e ombre di nuvole per bioma; i moduli del mondo registrano le sorgenti con `WorldLight.provide` |
 | 2 | `world.js` | `World` | Valle di Vela (1600×1080 px logici): geografia, percorsi, scenario procedurale, collisioni, mappa |
 | 3 | `expansion-world.js` | `World` | Cava delle Braci, Fenditura Astrale, passaggi regionali; profondità di terrazze e pareti, lava, isole sospese, strato emissivo e sorgenti di luce per `WorldLight` |
-| 4 | `continents.js` | `World` | Cinque continenti, nove nuove regioni + Cripta delle Soglie, rotte, caricamento regione, monumenti; terreno, vegetazione, edifici e luci per bioma (sprite in cache) |
-| 5 | `sprites.js` | `ActorArt` | Sprite animati, forme evolute, icone, ritratti |
-| 6 | `expansion-species.js` | `EvolutionContent` | Stirpi aggiunte e rami evolutivi avanzati |
-| 7 | `expansion-art.js` | `ActorArt` | Arte delle nuove stirpi, creature, guardiani |
-| 8 | `continental-species.js` | `EvolutionContent`, `ContinentalBiology`, `ActorArt` | Otto stirpi aggiuntive e profili biologici |
-| 9 | `legendary-land.js` | `LegendaryLand`, `World` | Area del Santuario della Marea Muta (`nadir-vault`): bacino sommerso, piattaforme, colonne e rune in cache, strato emissivo e luci per `WorldLight` |
-| 10 | `urban-exterior.js` | `UrbanExterior` | Quartieri, edifici, canale, ponti e percorsi deterministici di Velaris (tratti verificati in modo esatto per il raggio del corpo); luce dal calendario, finestre, cristalli, riflessi, ombre e vegetazione animata (movimento ridotto rispettato) |
-| 11 | `urban-interiors.js` | `UrbanInteriors` | Sette interni visitabili e cache delle superfici |
-| 12 | `urban-world.js` | `UrbanWorld, World` | Collegamenti con la Selva degli Alambicchi, rotte, collisioni e accesso ai servizi |
-| 13 | `calendar.js` | `Calendar` | Calendario persistente unico (giorno = 1800 s reali = 1440 min di gioco) |
-| 14 | `inventory.js` | `Inventory` | Magazzino a pile, quantità esatte, deposito |
-| 15 | `lantern.js` | `Lantern` | Evento serale nel Bosco di Vetro |
-| 16 | `growth.js` | `Growth` | Biologia fantasy, predisposizioni, innata evolutiva, allenamento, metamorfosi |
-| 17 | `world-life.js` | `Life` | Mestieri, luoghi di lavoro, routine NPC, eventi, statue/rinascita |
-| 18 | `construction.js` | `Build` | Lotti, costruzioni (casa, fattoria, laboratorio…), collisioni, proprietà |
-| 19 | `society.js` | `Society` | Abitanti, memorie, commercio, accordi, famiglia |
-| 20 | `guild.js` | `Guild` | Registri pubblici, incarichi, rango F–S, compagni, gilda personale |
-| 21 | `trades-practice.js` | `GamePractice` | Minigiochi di mestiere (puri, senza DOM/Canvas) |
-| 22 | `tradecraft.js` | `Tradecraft` | Attività, raccolti, allevamento, ricette |
-| 23 | `daily-life.js` | `Daily` | Bisogni, incarichi facoltativi quotidiani |
-| 24 | `market-flows.js` | `MarketFlows` | Economia dinamica: produzione, consumo, rotte, prezzi, registro delle merci, profili per nuove città |
-| 25 | `trade-economy.js` | `Economy` | Mercati regionali, valute, banca |
-| 26 | `gear.js` | `Gear` | Equipaggiamento: rarità, durabilità, riparazioni, maestria, tempra, ascensione, incantamento |
-| 27 | `adaptive-combat.js` | `Adaptive` | Boss che riconoscono lo stile ripetuto (melee/projectile/field) e rispondono |
-| 28 | `legendary.js` | `Legendary` | Scoperta, bottino unico, successione del Santuario; Nadir, Arma Divina, Eco della Rinascita |
-| 29 | `npc-conflicts.js` | `Conflicts` | Pattuglie, ferite, soccorsi, morte permanente NPC, memoriali, rito della rinascita |
-| 30 | `reputation.js` | `Reputation` | Reputazione con insediamenti, regni, gilde, fazioni; titoli |
-| 31 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
-| 32 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
-| 33 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
-| 34 | `audio.js` | `Score` | Musica e suoni |
-| 35 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
-| 36 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
-| 37 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
-| 38 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
-| 39 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
-| 40 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
-| 41 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
+| 4 | `city-families.js` | `CityFamilies` | Famiglie architettoniche per continente: materiali, regole e componenti parametrici (case, botteghe, sale, banchi, pozzi, lampioni, elementi caratteristici) per i borghi e per il Generatore Procedurale Urbano 2.0 (§3.3) |
+| 5 | `continents.js` | `World` | Cinque continenti, nove nuove regioni + Cripta delle Soglie, rotte, caricamento regione, monumenti; terreno, vegetazione, edifici e luci per bioma (sprite in cache) |
+| 6 | `sprites.js` | `ActorArt` | Sprite animati, forme evolute, icone, ritratti |
+| 7 | `expansion-species.js` | `EvolutionContent` | Stirpi aggiunte e rami evolutivi avanzati |
+| 8 | `expansion-art.js` | `ActorArt` | Arte delle nuove stirpi, creature, guardiani |
+| 9 | `continental-species.js` | `EvolutionContent`, `ContinentalBiology`, `ActorArt` | Otto stirpi aggiuntive e profili biologici |
+| 10 | `creature-art.js` | `ActorArt` | Sprite dedicati di Scheletro errante, Orso dei larici e Viverna di brina: piano corporeo, viste, passo, attesa, attacco e cinque forme evolutive (metodo in §4.2) |
+| 11 | `legendary-land.js` | `LegendaryLand`, `World` | Area del Santuario della Marea Muta (`nadir-vault`): bacino sommerso, piattaforme, colonne e rune in cache, strato emissivo e luci per `WorldLight` |
+| 12 | `urban-exterior.js` | `UrbanExterior` | Quartieri, edifici, canale, ponti e percorsi deterministici di Velaris (tratti verificati in modo esatto per il raggio del corpo); luce dal calendario, finestre, cristalli, riflessi, ombre e vegetazione animata (movimento ridotto rispettato) |
+| 13 | `urban-interiors.js` | `UrbanInteriors` | Sette interni visitabili e cache delle superfici |
+| 14 | `urban-world.js` | `UrbanWorld, World` | Collegamenti con la Selva degli Alambicchi, rotte, collisioni e accesso ai servizi |
+| 15 | `calendar.js` | `Calendar` | Calendario persistente unico (giorno = 1800 s reali = 1440 min di gioco) |
+| 16 | `inventory.js` | `Inventory` | Magazzino a pile, quantità esatte, deposito |
+| 17 | `lantern.js` | `Lantern` | Evento serale nel Bosco di Vetro |
+| 18 | `growth.js` | `Growth` | Biologia fantasy, predisposizioni, innata evolutiva, allenamento, metamorfosi |
+| 19 | `world-life.js` | `Life` | Mestieri, luoghi di lavoro, routine NPC, eventi, statue/rinascita |
+| 20 | `construction.js` | `Build` | Lotti, costruzioni (casa, fattoria, laboratorio…), collisioni, proprietà |
+| 21 | `society.js` | `Society` | Abitanti, memorie, commercio, accordi, famiglia |
+| 22 | `guild.js` | `Guild` | Registri pubblici, incarichi, rango F–S, compagni, gilda personale |
+| 23 | `trades-practice.js` | `GamePractice` | Minigiochi di mestiere (puri, senza DOM/Canvas) |
+| 24 | `tradecraft.js` | `Tradecraft` | Attività, raccolti, allevamento, ricette |
+| 25 | `daily-life.js` | `Daily` | Bisogni, incarichi facoltativi quotidiani |
+| 26 | `market-flows.js` | `MarketFlows` | Economia dinamica: produzione, consumo, rotte, prezzi, registro delle merci, profili per nuove città |
+| 27 | `trade-economy.js` | `Economy` | Mercati regionali, valute, banca |
+| 28 | `gear.js` | `Gear` | Equipaggiamento: rarità, durabilità, riparazioni, maestria, tempra, ascensione, incantamento |
+| 29 | `adaptive-combat.js` | `Adaptive` | Boss che riconoscono lo stile ripetuto (melee/projectile/field) e rispondono |
+| 30 | `legendary.js` | `Legendary` | Scoperta, bottino unico, successione del Santuario; Nadir, Arma Divina, Eco della Rinascita |
+| 31 | `npc-conflicts.js` | `Conflicts` | Pattuglie, ferite, soccorsi, morte permanente NPC, memoriali, rito della rinascita |
+| 32 | `reputation.js` | `Reputation` | Reputazione con insediamenti, regni, gilde, fazioni; titoli |
+| 33 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
+| 34 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
+| 35 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
+| 36 | `combat-fx.js` | `CombatFX` | Effetti di combattimento per elemento (fisico, fuoco, acqua, ghiaccio, fulmine, oscurità, luce): impatti, proiettili, anelli, colpo forte, schivata, aure e trasformazioni dei boss, evoluzione, numeri; solo disegno (§4.3) |
+| 37 | `audio.js` | `Score` | Musica e suoni |
+| 38 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
+| 39 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
+| 40 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
+| 41 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
+| 42 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
+| 43 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
+| 44 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
 
 Nota: `World`, `ActorArt` ed `EvolutionContent` sono **estesi da più moduli** successivi (ciascuno incapsula e riassegna il globale precedente): l'ordine in `build.py` è vincolante.
 
@@ -109,7 +112,7 @@ Il formato v7 conserva `urban` (routine, scorte, memorie e commissioni), `cityWo
 
 ### 3.3 Paesaggi dei continenti (World Art Overhaul)
 
-`continents.js` disegna le otto regioni continentali diverse dalla Selva (che resta il pilota di Codex, §3.2) con lo stesso metodo: terreno a 2 px da rampe di colore per bioma (`groundArt`: suolo, prato umido, zona secca, margine, sentiero, lastricato), rumore su tre scale con retino ai confini, sentieri dal contorno irregolare con il centro consumato, dettagli con un seme proprio, rive a strati, piazza lastricata del borgo e pavimento radiale del monumento. Alberi, cespugli, rocce, cristalli, case, sale, banchi, pozzi, lampioni e rovine sono sprite disegnati una volta per regione (`area.sprites`) da `flora` e `masonry`: ogni continente ha sagome e materiali propri (Vaelthoria querce e travertino, Nordharyn larici, baite e rocca innevata, Myrathen cristalli, alberi velati e cupole, Voryndhal acacie, capanne e palafitte fra alberi a radici aeree, Azheryon palme, case bianche, pinnacoli d’arenaria, cactus e adobe). Le basi degli sprite coincidono con i punti d’appoggio e gli ingombri di collisione esistenti; la sequenza casuale che colloca oggetti solidi, risorse e varchi è invariata, quindi `canWalk`, varchi e rotte restano identici (verifica: `tests/confronto-mondo.cjs`). La Cripta delle Soglie ha pareti in mattoni, lastre smussate e rune, con le stesse sale.
+`continents.js` disegna le otto regioni continentali diverse dalla Selva (che resta il pilota di Codex, §3.2) con lo stesso metodo: terreno a 2 px da rampe di colore per bioma (`groundArt`: suolo, prato umido, zona secca, margine, sentiero, lastricato), rumore su tre scale con retino ai confini, sentieri dal contorno irregolare con il centro consumato, dettagli con un seme proprio, rive a strati, piazza lastricata del borgo e pavimento radiale del monumento. Alberi, cespugli, rocce, cristalli, case, sale, banchi, pozzi, lampioni e rovine sono sprite disegnati una volta per regione (`area.sprites`) da `flora` e `masonry`: ogni continente ha sagome e materiali propri (Vaelthoria querce e travertino, Nordharyn larici, baite e rocca innevata, Myrathen cristalli, alberi velati e cupole, Voryndhal acacie, capanne e palafitte fra alberi a radici aeree, Azheryon palme, case bianche, pinnacoli d’arenaria, cactus e adobe). Le basi degli sprite coincidono con i punti d’appoggio e gli ingombri di collisione esistenti; la sequenza casuale che colloca oggetti solidi, risorse e varchi è invariata, quindi `canWalk`, varchi e rotte restano identici (verifica: `tests/confronto-mondo.cjs`). La Cripta delle Soglie (fase 4) ha un materiale per sala: arenaria con sentiero consumato e mosaico del patto nell'Anticamera, mattoni a spina di pesce nei corridoi, scacchiera di basalto e marmo con la rosa delle otto chiavi nella Sala delle Chiavi, ardesia con un nome inciso per lastra e altare ad anello nella Camera dei Nomi, basalto con anelli e raggi d'oro e il cerchio della Soglia nell'Ultima Soglia; pareti d'arenaria con nicchie, urne, iscrizioni e porta sigillata, bracieri di bronzo sugli stessi punti delle lampade, rune e intarsi nello strato emissivo e penombra calda `crypt` in `world-light.js`. Sale, oggetti e punti sono quelli di prima. **Famiglie architettoniche (fase 4 D).** Gli edifici dei borghi continentali vengono da `city-families.js`: Vaelthoria (pietra chiara e legno caldo), Nordharyn (pietra robusta, tetti ripidi, miniera e fortificazioni; variante innevata della Rocca), Myrathen (legno scuro, vetro, rame ossidato, rampicanti, alchimia), Voryndhal (corteccia, radici monumentali, palafitte e passerelle; paglia nella Savana) e Azheryon (pietra calda, portici, cupole, tende; calce bianca e azzurro sulla costa). La seconda casa del borgo è la bottega della famiglia (fornaio, imbocco di miniera, laboratorio alchemico, capanna su palafitte, tintore con portico). Contratto per il Generatore 2.0: `CityFamilies.render(famiglia, variante, componente, {w, stories, variant, door})` restituisce una tela in memoria con il punto d'appoggio (`ax`, `ay`) al centro della base del fronte, l'impronta `{w, d}`, la soglia della porta `{x, y}`, i vetri da accendere di notte e, per i lampioni, la fiammella animata; stessa richiesta, stessi pixel (generatore con seme, cache con chiave). `CityFamilies.families` descrive materiali, regole (muri, tetti, aperture, piani, larghezze ammesse) e componenti di ogni famiglia senza funzioni; `CityFamilies.familyOf(tavolozza)` dà famiglia e variante; `CityFamilies.catalog(famiglia)` elenca i componenti con richieste d'esempio. Il modulo non genera città, non decide collisioni né lotti e non tocca percorsi, residenti o salvataggi: il Generatore 2.0 sceglie lotti e impronte in dati e chiede il disegno. La Selva degli Alambicchi conserva gli sprite di Codex.
 
 `world-light.js` (`WorldLight`) aggiunge al mondo aperto le tinte di crepuscolo e notte per continente (`skies`, notte fino a 0,42–0,52 di opacità), le finestre accese e fino a otto aloni precalcolati per lanterne, torce, fuochi, cristalli e monumenti; `interface.js` lo chiama in `atmosphere()` dopo il velo notturno. `WorldLight.ambient` sostituisce le particelle generiche fuori dalla Valle con quelle del bioma e, di giorno, con ombre di nuvole. I sotterranei (`under`, oggi la Cripta) hanno una penombra costante. Cava, Fenditura e Santuario restano con i valori precedenti. Nessun dato di salvataggio nuovo.
 
@@ -133,8 +136,10 @@ Nuova partita: estrae una delle **44 stirpi** (rarità da Comune a Leggendaria),
 ### 4.2 Evoluzione
 Le trasformazioni sono **automatiche e osservate** (albero con V). Secondo stadio: progressione della campagna oppure pratica di mestiere sufficiente. Esistono assimilazione, tratti, ascensione, fusioni di tecniche (cambiano forma alla maestria 4). Parametri in `engine.js` → `rules` (es. `evolutionLevel`, `evolutionEssence`, `ascensionLevel`, `fuseLevel`).
 
+**Sprite delle stirpi.** La forma disegnata è `spriteForm(p)`: 0 base, 1–2 primo stadio (ramo 0/1), 3–4 secondo stadio. `ActorArt` è una catena: `sprites.js` (nove stirpi originali), `expansion-art.js` (ventisette stirpi aggiunte, creature e guardiani; le forme 3–4 delle originali con ali, cresta e gemme comuni), `continental-species.js` (otto stirpi che prendono in prestito uno sprite esistente più un accento) e `creature-art.js` (sprite dedicati; oggi Scheletro errante, Orso dei larici, Viverna di brina, elencati in `ActorArt.dedicated`). Metodo per dare uno sprite proprio a una stirpe senza toccare le meccaniche: (1) **piano corporeo** per vista (fronte, spalle, lato; sinistra speculare) con coordinate intere ai piedi, asse di simmetria fra le colonne -1 e 0 e ingombro vicino a quello di prima; (2) **volto** leggibile a 1:1 (occhi a 1–2 px con un punto di luce, muso o mascella) solo nelle viste in cui si vede; (3) **forme**: il ramo offensivo aggiunge un'arma o una sagoma aggressiva con accento caldo, il ramo di sostegno un oggetto o un'aura con accento freddo, il secondo stadio ingrandisce la sagoma e aggiunge un elemento nuovo (elmo, corona, cristalli, ali a velo), sempre coerente con il nome della forma e la sua tecnica; (4) **pose**: passo a due tempi in movimento, due tempi lenti in attesa (dettagli, non le zampe), posa d'attacco, lampo del colpo; (5) contorno d'inchiostro, ombra e fotogrammi in memoria comuni; (6) verifica con `tests/scatti-creature.cjs` e `tests/prova-browser-creature.cjs`. Requisiti, statistiche, alberi, tecniche e tempi restano in `engine.js`, `growth.js` e nei dati delle stirpi.
+
 ### 4.3 Combattimento
-Attacco base concatenabile (J / clic), schivata, tre tecniche assegnabili (1-2-3), innata (R), pozione (Q). **Combinazioni magiche** (K): coppie di tecniche, fusioni assegnabili a un tasto. Boss con **fasi** e **combattimento adattivo** (`adaptive-combat.js`). Sconfitta → ritorno all'ultima statua attivata, recupero fino a 3 Scintille dal borsello; prima della prima attivazione, Nerea ti risveglia al borgo.
+Attacco base concatenabile (J / clic), schivata, tre tecniche assegnabili (1-2-3), innata (R), pozione (Q). **Combinazioni magiche** (K): coppie di tecniche, fusioni assegnabili a un tasto. Boss con **fasi** e **combattimento adattivo** (`adaptive-combat.js`). **Effetti per elemento** (`combat-fx.js`): ogni stirpe e ogni mostro ha uno dei sette elementi visivi (fisico, fuoco, acqua, ghiaccio, fulmine, oscurità, luce); `engine.js` copia un'etichetta solo visiva (`fxTag`, mai salvata) su effetti, proiettili e aree e segnala colpi, ferite, schivate, scatti, cambi di fase, sconfitte ed evoluzioni a `CombatFX`, che disegna con variazioni da una funzione hash (nessun `Math.random`). Ordine in `Game.drawFX`: decorazioni (aure, impatti, archi, anelli, scintille), poi avvisi di pericolo e aree, proiettili, compagno, numeri; ciò che tocca la figura del personaggio resta al 25%, i numeri che si toccano salgono di una riga. Il gioco non ha colpi critici casuali: il «colpo forte» visivo è il terzo colpo della combo (×1,25 già nel motore). Con effetti ridotti o `prefers-reduced-motion` restano solo forme ferme. Sconfitta → ritorno all'ultima statua attivata, recupero fino a 3 Scintille dal borsello; prima della prima attivazione, Nerea ti risveglia al borgo.
 
 ### 4.4 Mestieri e vita quotidiana
 Pesca, forgia, agricoltura, allevamento, cucina con minigiochi (tocco vs tenuto premuto); competenza e qualità; ricettario di combinazioni riuscite; piatti con benefici temporanei. Inventario senza limiti di slot/peso. Calendario: giorno = 30 min reali, stagione = 12 giorni, sonno → 06:00 con avanzamento di colture/animali/scorte; bisogni dipendenti dalla specie. Diario con incarichi facoltativi e richiesta del giorno degli abitanti.

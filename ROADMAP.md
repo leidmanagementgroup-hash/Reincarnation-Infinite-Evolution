@@ -48,7 +48,13 @@
 - [x] ART-001: lavoro non committato di Codex copiato e verificato, confrontato con `main` file per file e recuperato dove aggiunge qualcosa (branch `claude/world-art-cava-fenditura`, Claude, 2026-11-22).
 - [x] Cava delle Braci e Fenditura Astrale: profondità, lava, isole sospese, luce notturna (branch `claude/world-art-cava-fenditura`, unito a `main` il 2026-11-22, `8da2400`).
 - [x] Santuario della Marea Muta, statue, pilastri, varchi e otto interni di Velaris: integrazione di Claude e Codex sul branch `claude/integrazione-santuario-interni`, unita a `main` il 2026-11-22 (`ae2b5c7`).
-- [ ] Arredi narrativi della Cripta delle Soglie; sprite di creature, evoluzioni ed effetti di combattimento (passi 3–4 di `PIANO_GRAFICO.md`, da approvare).
+- [x] Cripta delle Soglie con materiali per sala, arredi narrativi, bracieri e penombra propria (fase 4 A, branch `claude/world-art-fase4`, unita a `main` il 2026-11-22).
+- [x] Sprite dedicati per un campione di stirpi (Scheletro errante, Orso dei larici, Viverna di brina) e metodo riutilizzabile (fase 4 B, stesso branch).
+- [ ] Estendere il metodo: Grifone, Fata ed Elementale; forme 3–4 delle nove stirpi originali (`advancedLegacy`); Umano e Nano per ultimi (aspetto dei residenti).
+- [x] Effetti di combattimento per elemento, colpo forte, schivata, impatti, boss e trasformazioni (fase 4 C, `combat-fx.js` ed etichetta visiva `fxTag` in `engine.js`, stesso branch, unita a `main`).
+- [ ] Seguiti della fase C: elemento per singola tecnica dove il nome lo chiede più della stirpe; suono per elemento.
+- [x] Famiglie architettoniche per continente come catalogo separato per il Generatore Procedurale Urbano 2.0 (fase 4 D, `city-families.js`, già nei borghi continentali, stesso branch, unita a `main`).
+- [ ] Seguiti della fase D: ruoli dedicati (locanda, magazzino, tempio), porta sul fianco, componenti caratteristici in partita (colonnato, torre di guardia, serra, passerella, molo) quando il generatore assegna i lotti.
 - [ ] Collegare materiali, vegetazione e famiglie architettoniche ai profili del Generatore Procedurale Urbano 2.0.
 
 ## Priorità Media — Contenuti ★

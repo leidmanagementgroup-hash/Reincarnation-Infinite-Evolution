@@ -154,6 +154,8 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
     canyon:{dusk:'238,128,72',night:'42,24,62',depth:.48},
     under:{dusk:'0,0,0',night:'12,16,34',depth:.34,under:true},
     // Cava delle Braci: crepuscolo di brace e notte rossastra; Fenditura Astrale: viola profondo.
+    // Cripta delle Soglie: penombra calda e violacea di un sepolcro antico, rischiarata dai bracieri.
+    crypt:{dusk:'0,0,0',night:'22,12,24',depth:.4,under:true},
     // Santuario della Marea Muta: penombra marina costante, come un sotterraneo.
     tide:{dusk:'0,0,0',night:'6,22,42',depth:.3,under:true},
     ember:{dusk:'240,120,70',night:'46,18,32',depth:.46},
@@ -251,6 +253,7 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
     shore:{n:14,day:'#ffffff',night:'#cfe3ff',streak:true,speed:[16,1]},
     canyon:{n:16,day:'#e7c08f',night:'#c99a75',streak:true,speed:[18,2]},
     under:{n:12,day:'#9aa7ad',night:'#9aa7ad',speed:[0,3]},
+    crypt:{n:18,day:'#e8c88a',night:'#e8c88a',twinkle:true,speed:[1,2]},
     tide:{n:22,day:'#9fe0d8',night:'#9fe0d8',twinkle:true,speed:[1,-6]}
   };
   const cloudImages=[];
@@ -1707,6 +1710,925 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
 
 
 
+// Famiglie architettoniche per continente (World Art Overhaul, fase 4 D).
+// Catalogo separato di componenti urbani in pixel art, pensato per il Generatore Procedurale Urbano 2.0
+// (MEGA_CITY_OVERHAUL.md): il generatore sceglie lotti e impronte in dati, questo modulo li disegna. Non genera
+// città, non decide collisioni e non tocca percorsi, residenti o salvataggi.
+// Contratto: ogni componente restituisce una tela in memoria con il punto d'appoggio (ax, ay) al centro della base
+// del fronte, l'impronta {w, d}, la soglia della porta {x, y} e i vetri da accendere di notte, tutti relativi
+// all'appoggio. Stessa richiesta, stessi pixel (nessun Math.random: generatore con seme).
+// Oggi lo usano i borghi dei continenti (`continents.js`) con le loro impronte di sempre.
+(() => {
+  'use strict';
+  const INK = '#1d232a', SHADE = '#14222660';
+  function random(seed) { seed >>>= 0; return () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; }; }
+  // Pennello in pixel interi con origine (ox, oy): rettangoli, ellissi e poligoni pieni senza sfumature.
+  function kit(g, ox, oy) {
+    const px = (c, x, y, w = 1, h = 1) => { w = Math.round(w); h = Math.round(h); if (w > 0 && h > 0) { g.fillStyle = c; g.fillRect(ox + Math.round(x), oy + Math.round(y), w, h); } };
+    const oval = (c, x, y, rx, ry) => {
+      rx = Math.max(0, Math.round(rx)); ry = Math.max(1, Math.round(ry));
+      for (let j = -ry; j <= ry; j++) { const d = Math.floor(rx * Math.sqrt(Math.max(0, 1 - j * j / (ry * ry)))); px(c, x - d, y + j, 2 * d + 1, 1); }
+    };
+    const poly = (c, pts) => {
+      const ys = pts.map(p => p[1]), y0 = Math.floor(Math.min(...ys)), y1 = Math.ceil(Math.max(...ys));
+      for (let y = y0; y < y1; y++) {
+        const cy = y + .5, xs = [];
+        for (let i = 0; i < pts.length; i++) {
+          const [ax, ay] = pts[i], [bx, by] = pts[(i + 1) % pts.length];
+          if ((ay <= cy && by > cy) || (by <= cy && ay > cy)) xs.push(ax + (cy - ay) / (by - ay) * (bx - ax));
+        }
+        xs.sort((a, b) => a - b);
+        for (let i = 0; i + 1 < xs.length; i += 2) { const a = Math.round(xs[i]), b = Math.round(xs[i + 1]); if (b > a) px(c, a, y, b - a, 1); }
+      }
+    };
+    const half = (c, x, y, rx, ry) => {
+      rx = Math.max(0, Math.round(rx)); ry = Math.max(1, Math.round(ry));
+      for (let j = -ry; j <= 0; j++) { const d = Math.floor(rx * Math.sqrt(Math.max(0, 1 - j * j / (ry * ry)))); px(c, x - d, y + j, 2 * d + 1, 1); }
+    };
+    const line = (c, x0, y0, x1, y1, w = 1) => {
+      const n = Math.max(1, Math.round(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))));
+      for (let i = 0; i <= n; i++) px(c, x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n, w, w);
+    };
+    return {px, oval, half, poly, line};
+  }
+
+  // ------------------------------------------------------------------ famiglie
+  // M: materiali (rampe dal più scuro al più chiaro). subs: varianti regionali che sostituiscono alcuni materiali.
+  const FAMILIES = {
+    vaelthoria: {
+      continent: 'Vaelthoria', name: 'Pietra chiara e legno caldo',
+      description: 'Borghi classici del Cuore del Mondo: travertino squadrato, piani alti a graticcio, coppi in cotto, persiane verde salvia, colonnati e pergolati.',
+      M: {stone: ['#6f6756', '#a99f86', '#cbc1a6', '#e2d9bf', '#f3ecd9'], wood: ['#43301f', '#6e4b31', '#94673f', '#ba8752'],
+        roof: ['#552a20', '#7e3a2a', '#a24e34', '#c46a44', '#df8d5f'], plaster: ['#b6a786', '#ddd2b6', '#f0e8d4'], glass: '#f1c879',
+        shutter: ['#2f4a40', '#5d7a6a'], cloth: ['#b9553b', '#efe2c2'], metal: ['#38352f', '#6b6658', '#a39a7f'], plant: ['#33502f', '#55753f', '#7f9f52'], bloom: ['#d9765f', '#f0d27a']},
+      subs: {valle: {}},
+      rules: {walls: 'pianterreno in pietra squadrata, piani alti a graticcio intonacato', roofs: 'coppi a due falde poco inclinate, frontone classico per le sale',
+        openings: 'finestre ad arco con persiane, porte ad arco con cornice', stories: [1, 3], widths: [28, 72]},
+      signature: ['colonnade', 'pergola', 'fountain']
+    },
+    nordharyn: {
+      continent: 'Nordharyn', name: 'Pietra robusta e tetti ripidi',
+      description: 'Villaggi di montagna e di miniera: granito a blocchi irregolari, legno scuro, tetti d’ardesia ripidissimi con neve, torri fortificate e castelletti di estrazione.',
+      M: {stone: ['#33383f', '#535b65', '#747e88', '#9aa3ab', '#c2c9ce'], wood: ['#271d17', '#45322a', '#664a36', '#8a6a4b'],
+        roof: ['#1b2029', '#28303c', '#374252', '#4c5a6a', '#6b7a89'], plaster: ['#7d7466', '#a39886', '#c4baa6'], glass: '#f0c070',
+        shutter: ['#5a2c26', '#8c4436'], cloth: ['#7a2f2a', '#c9b58a'], metal: ['#24262b', '#4c5058', '#7d838c'], plant: ['#263e3c', '#3d5d55', '#5d8070'], bloom: ['#c9a25a', '#e8d3a0'],
+        snow: ['#a9bcc6', '#d4e1e6', '#f2f7f8']},
+      subs: {filoni: {snowy: false}, rocca: {snowy: true}},
+      rules: {walls: 'zoccolo alto in granito, piano superiore in tavole scure', roofs: 'ardesia ripida a capanna verso la strada, neve sulle falde',
+        openings: 'finestre piccole con imposte rosse, porte di tavole con fasce di ferro', stories: [1, 3], widths: [28, 64]},
+      signature: ['headframe', 'watchtower', 'orecart']
+    },
+    myrathen: {
+      continent: 'Myrathen', name: 'Legno scuro, vetro e rame ossidato',
+      description: 'Città degli arcani: facciate di legno quasi nero, vetrate a piombo, coperture e cupole di rame verderame, rampicanti, serre e alambicchi.',
+      M: {stone: ['#2c2c36', '#45465a', '#626479', '#8a8ca0', '#b6b8c8'], wood: ['#1a1519', '#2e2428', '#46363a', '#5f4b4a'],
+        roof: ['#173d38', '#24594f', '#3b7d6c', '#5fa38c', '#94cdb6'], plaster: ['#4a4f5c', '#6a7080', '#8e95a5'], glass: '#e3bb79',
+        pane: ['#22394a', '#4f8aa3', '#94d3e3', '#e2fbff'], copper: ['#6d3a22', '#a8653a', '#d79a62'], shutter: ['#24594f', '#3b7d6c'],
+        cloth: ['#487775', '#bcd0ab'], metal: ['#2a2a30', '#5a5a66', '#a6a8b6'], plant: ['#21402f', '#336447', '#57905f', '#8bbf72'], bloom: ['#c96ad9', '#6ad9b4'],
+        potion: ['#c96ad9', '#6ad9b4', '#e8c050', '#e06a5a']},
+      subs: {siderea: {}, velaris: {}},
+      rules: {walls: 'zoccolo di pietra scura, tavole verticali di legno nero con coprifili chiari', roofs: 'rame verderame a giunti rilevati, cupole e lanterne di vetro',
+        openings: 'vetrate a piombo alte, porte a due ante con lunetta', stories: [1, 3], widths: [28, 72]},
+      signature: ['greenhouse', 'alembic', 'vinearch']
+    },
+    voryndhal: {
+      continent: 'Voryndhal', name: 'Architettura naturale fra le radici',
+      description: 'Case cresciute fra radici monumentali: pareti di corteccia e graticcio, porte e finestre tonde, tetti di foglie o di paglia, piattaforme e passerelle di corda.',
+      M: {stone: ['#3e4636', '#5d6650', '#7f8869', '#a3a986', '#c6c8a6'], wood: ['#2a1f17', '#46362a', '#65503b', '#86704f', '#a68e66'],
+        root: ['#33271e', '#54402f', '#775c41', '#9b7c56', '#bea07a'], roof: ['#1c3524', '#294a30', '#386139', '#4d7a48', '#6c9659'],
+        plaster: ['#7a6a4a', '#a08c62', '#c2ad7c'], glass: '#f2cf86', shutter: ['#46362a', '#65503b'], cloth: ['#3c6a43', '#c9b27a'],
+        metal: ['#3a3328', '#6a5c44', '#a08c62'], plant: ['#21402a', '#36603a', '#5a8a4a', '#86b35c'], bloom: ['#e0b04a', '#d9765f'], rope: ['#7a6440', '#b8a072'], moss: '#6f8f48', glow: '#c9ee9a'},
+      subs: {fronde: {}, savana: {roof: ['#4e3d1e', '#735d2c', '#98803d', '#bba152', '#d8c071']}},
+      rules: {walls: 'corteccia e graticcio fra radici vive, su palafitte nelle zone umide', roofs: 'foglie a strati o paglia a cono',
+        openings: 'porte e finestre tonde con cornice di legno', stories: [1, 2], widths: [28, 64]},
+      signature: ['rootarch', 'walkway', 'platform']
+    },
+    azheryon: {
+      continent: 'Azheryon', name: 'Pietra calda, portici e tende',
+      description: 'Città carovaniere e di costa: muri di pietra calda o calce bianca, tetti a terrazza con parapetto, cupole, portici ad archi, grate di legno, tende a strisce e moli.',
+      M: {stone: ['#7a5038', '#a5714f', '#c28c60', '#d9aa7b', '#edc99c'], wood: ['#3e2a1d', '#5c4130', '#7e5c40', '#a07c55'],
+        roof: ['#5e3b28', '#86543a', '#a96f4b', '#c68c62', '#e0ad80'], plaster: ['#b68a62', '#d2a87a', '#e9c99c'], glass: '#f5d38a',
+        shutter: ['#2f6f8e', '#4f93ad'], cloth: ['#a9472f', '#eab36d', '#2f6f8e', '#f4efe2'], metal: ['#4a3a2a', '#8a6a3a', '#d6a64e'],
+        plant: ['#2f4f33', '#4b6f43', '#7a9455'], bloom: ['#e06a4a', '#f0c050'], tile: ['#1f6f7e', '#3fa0ae', '#e8e2cf']},
+      subs: {deserto: {}, costa: {stone: ['#8f877a', '#c9c2b2', '#e4ddcc', '#f3efe4', '#ffffff'], roof: ['#1d475c', '#29607a', '#3b7c96', '#5c9cb3', '#93c4d1'],
+        plaster: ['#c9c2b2', '#e8e2d2', '#f8f5ec']}},
+      rules: {walls: 'pietra calda intonacata a calce, bianca sulla costa', roofs: 'terrazze con parapetto, cupole, travi sporgenti',
+        openings: 'archi, grate di legno, imposte azzurre sulla costa', stories: [1, 3], widths: [28, 72]},
+      signature: ['portico', 'tent', 'pier']
+    }
+  };
+  // Tavolozze delle regioni continentali → famiglia e variante.
+  const REGIONS = {ruin: ['vaelthoria', 'valle'], pine: ['nordharyn', 'filoni'], snow: ['nordharyn', 'rocca'], star: ['myrathen', 'siderea'],
+    fae: ['myrathen', 'velaris'], grass: ['voryndhal', 'savana'], root: ['voryndhal', 'fronde'], shore: ['azheryon', 'costa'], canyon: ['azheryon', 'deserto']};
+  const paletteOf = (fid, sub) => ({...FAMILIES[fid].M, ...(FAMILIES[fid].subs[sub] || {})});
+
+  // ------------------------------------------------------------------ materiali comuni
+  function ashlar(k, x, y, w, h, S, rnd, row = 4) {
+    k.px(S[2], x, y, w, h);
+    for (let r = 0, yy = y; yy < y + h; yy += row, r++) {
+      const rh = Math.min(row, y + h - yy);
+      for (let xx = x - (r % 2 ? 4 : 0); xx < x + w;) {
+        const bw = 6 + Math.floor(rnd() * 4), x0 = Math.max(x, xx), x1 = Math.min(x + w, xx + bw);
+        if (x1 - x0 > 1) {
+          const t = rnd();
+          if (t < .18) k.px(S[1], x0, yy, x1 - x0 - 1, rh - 1); else if (t > .82) k.px(S[3], x0, yy, x1 - x0 - 1, rh - 1);
+          k.px(S[3], x0, yy, x1 - x0 - 1, 1);
+        }
+        if (xx + bw < x + w) k.px(S[0], xx + bw - 1, yy, 1, rh);
+        xx += bw;
+      }
+      if (rh === row) k.px(S[1], x, yy + rh - 1, w, 1);
+    }
+  }
+  function rubble(k, x, y, w, h, S, rnd) {
+    k.px(S[0], x, y, w, h);
+    for (let yy = y, r = 0; yy < y + h; yy += 5, r++) {
+      for (let xx = x - (r % 2 ? 3 : 0); xx < x + w;) {
+        const bw = 5 + Math.floor(rnd() * 6), bh = Math.min(4, y + h - yy), x0 = Math.max(x, xx), x1 = Math.min(x + w, xx + bw - 1);
+        if (x1 - x0 > 0 && bh > 0) {
+          const tone = 1 + Math.floor(rnd() * 3);
+          k.px(S[tone], x0, yy, x1 - x0, bh); k.px(S[Math.min(4, tone + 1)], x0, yy, x1 - x0, 1);
+          if (x1 - x0 > 3) k.px(S[Math.max(0, tone - 1)], x0 + 1, yy + bh - 1, x1 - x0 - 1, 1);
+        }
+        xx += bw;
+      }
+    }
+  }
+  function planks(k, x, y, w, h, W, rnd, vertical = false, step = 3) {
+    k.px(W[1], x, y, w, h);
+    if (vertical) for (let xx = x; xx < x + w; xx += step) { k.px(W[0], xx, y, 1, h); k.px(W[2], xx + 1, y, 1, h); if (rnd() < .3) k.px(W[0], xx + 1, y + Math.floor(rnd() * h), 1, 1); }
+    else for (let yy = y; yy < y + h; yy += step) { k.px(W[0], x, yy + step - 1, w, 1); k.px(W[2], x, yy, w, 1); if (rnd() < .4) k.px(W[0], x + Math.floor(rnd() * w), yy + 1, 1, 1); }
+  }
+  function frame(k, x, y, w, h, P, rnd) {
+    // Graticcio: intonaco chiaro fra travi di legno caldo, con controventi alternati.
+    k.px(P.plaster[1], x, y, w, h); k.px(P.plaster[2], x + 1, y + 1, w - 2, 2);
+    k.px(P.wood[1], x, y, w, 2); k.px(P.wood[1], x, y + h - 2, w, 2);
+    const n = Math.max(2, Math.round(w / 10));
+    for (let i = 0; i <= n; i++) { const xx = Math.round(x + i * (w - 2) / n); k.px(P.wood[1], xx, y, 2, h); k.px(P.wood[2], xx, y, 1, h); }
+    for (let i = 0; i < n; i++) {
+      const a = Math.round(x + i * (w - 2) / n) + 2, b = Math.round(x + (i + 1) * (w - 2) / n);
+      if ((i + Math.floor(rnd() * 2)) % 2) k.line(P.wood[1], a, y + h - 3, b - 1, y + 2); else k.line(P.wood[1], a, y + 2, b - 1, y + h - 3);
+    }
+  }
+  function bark(k, x, y, w, h, B, rnd) {
+    k.px(B[2], x, y, w, h);
+    for (let xx = x + 1; xx < x + w - 1; xx += 3 + Math.floor(rnd() * 2)) {
+      let off = 0;
+      for (let yy = y; yy < y + h; yy++) { if (rnd() < .2) off += rnd() < .5 ? -1 : 1; off = Math.max(-1, Math.min(1, off)); k.px(B[1], xx + off, yy, 1, 1); if (rnd() < .3) k.px(B[3], xx + off + 1, yy, 1, 1); }
+    }
+    k.px(B[3], x, y, w, 1);
+  }
+  function lime(k, x, y, w, h, P, rnd) {
+    // Calce o pietra intonacata: superficie liscia con macchie e base sporca.
+    k.px(P.plaster[1], x, y, w, h); k.px(P.plaster[2], x + 1, y + 1, w - 2, Math.max(1, h - 4));
+    for (let i = 0; i < Math.round(w * h / 60); i++) k.px(P.plaster[0] + '99', x + 1 + Math.floor(rnd() * (w - 3)), y + 2 + Math.floor(rnd() * (h - 4)), 1 + Math.floor(rnd() * 3), 1);
+    k.px(P.plaster[0], x, y + h - 2, w, 2);
+  }
+  function wallShadow(k, x, y, w) { k.px('#00000033', x, y, w, 2); k.px('#00000018', x, y + 2, w, 1); }
+
+  // Finestre e porte (ogni vetro entra nella lista delle luci notturne).
+  function win(k, wins, x, y, w, h, style, P) {
+    const glass = style === 'leaded' || style === 'tall' ? P.pane : null;
+    k.px(INK, x - 1, y - 1, w + 2, h + 2);
+    if (glass) {
+      k.px(glass[1], x, y, w, h); k.px(glass[2], x, y, Math.max(1, w - 2), Math.max(1, Math.floor(h / 2)));
+      for (let xx = x + 2; xx < x + w; xx += 3) k.px(glass[0], xx, y, 1, h);
+      for (let yy = y + 2; yy < y + h; yy += 3) k.px(glass[0], x, yy, w, 1);
+      k.px(glass[3], x, y, 1, 1);
+    } else { k.px(P.glass, x, y, w, h); k.px('#ffffff55', x, y, w, 1); k.px(P.wood[0], x + Math.floor(w / 2), y, 1, h); }
+    wins.push({x, y, w, h});
+    if (style === 'arch' || style === 'tall') { k.px(INK, x, y - 2, w, 1); k.px(glass ? glass[2] : P.glass, x + 1, y - 1, w - 2, 1); }
+    if (style === 'arch' || style === 'shutters') {
+      for (const sx of [x - 3, x + w + 1]) { k.px(INK, sx - 1 + (sx < x ? 1 : 0), y - 1, 3, h + 2); k.px(P.shutter[1], sx + (sx < x ? 1 : 0), y, 2, h); k.px(P.shutter[0], sx + (sx < x ? 1 : 0), y + Math.floor(h / 2), 2, 1); }
+    }
+    if (style === 'round') { k.px(INK, x, y - 2, w, 1); k.px(INK, x, y + h + 1, w, 1); k.px(P.wood[2], x - 1, y - 1, 1, 1); k.px(P.wood[2], x + w, y + h, 1, 1); }
+    if (style === 'lattice') { for (let yy = y + 1; yy < y + h; yy += 2) k.px(P.wood[1], x, yy, w, 1); for (let xx = x + 1; xx < x + w; xx += 2) k.px(P.wood[1], xx, y, 1, h); }
+    k.px(P.stone ? P.stone[3] : P.wood[2], x - 1, y + h + 1, w + 2, 1);
+  }
+  function door(k, x, w, h, style, P, opts = {}) {
+    const x0 = x - Math.floor(w / 2);
+    if (style === 'round') { k.oval(INK, x, -h + Math.floor(w / 2), Math.floor(w / 2) + 1, Math.floor(w / 2) + 1); }
+    k.px(INK, x0 - 1, -h - 1, w + 2, h + 1);
+    k.px(P.wood[0], x0, -h, w, h); k.px(P.wood[1], x0 + 1, -h + 1, w - 2, h - 1);
+    if (style === 'arch' || style === 'round') { k.px(INK, x0, -h - 2, w, 1); k.px(P.wood[1], x0 + 1, -h - 1, w - 2, 1); }
+    if (style === 'round') { const r = Math.floor(w / 2); k.oval(P.wood[1], x, -h + r, r, r); k.px(P.wood[0], x, -h - r + 2, 1, h + r - 2); }
+    if (style === 'double') { k.px(P.wood[0], x, -h + 1, 1, h - 1); k.px(opts.glass || P.glass, x0 + 1, -h + 1, w - 2, 2); }
+    if (style === 'iron') { for (const yy of [-h + 2, -Math.floor(h / 2), -3]) k.px(P.metal[1], x0, yy, w, 1); }
+    if (style !== 'double') k.px(P.metal ? P.metal[2] : '#e3c27a', x0 + w - 3, -Math.round(h / 2), 1, 1);
+    k.px(opts.step || P.stone[1], x0 - 2, 0, w + 4, 1);
+  }
+  // Tetto a falde visto di fronte (gronda verso la strada): trapezio con file di coppi, ardesia, rame, foglie o paglia.
+  function slope(k, x0, x1, eave, ridge, inset, R, tex, rnd, over = 3) {
+    const pts = [[x0 - over, eave], [x1 + over, eave], [x1 - inset, ridge], [x0 + inset, ridge]];
+    k.poly(INK, [[x0 - over - 1, eave + 1], [x1 + over + 1, eave + 1], [x1 - inset + 1, ridge - 1], [x0 + inset - 1, ridge - 1]]);
+    k.poly(R[2], pts);
+    if (inset > 2) { k.poly(R[1], [[x0 - over, eave], [x0 + inset, ridge], [x0 + inset + 2, ridge], [x0 - over + 4, eave]]); k.poly(R[3], [[x1 + over - 4, eave], [x1 - inset - 2, ridge], [x1 - inset, ridge], [x1 + over, eave]]); }
+    const rows = eave - ridge;
+    for (let y = ridge + 2; y < eave; y++) {
+      const t = (y - ridge) / rows, l = Math.round(x0 + inset - (inset + over) * t), r = Math.round(x1 - inset + (inset + over) * t);
+      if (tex === 'tiles' && (y - ridge) % 3 === 0) { k.px(R[1], l + 1, y, r - l - 1, 1); for (let x = l + 2 + ((y / 3) % 2 ? 2 : 0); x < r - 1; x += 4) k.px(R[3], x, y - 1, 2, 1); }
+      if (tex === 'slate' && (y - ridge) % 2 === 0) { k.px(R[1], l + 1, y, r - l - 1, 1); for (let x = l + 1 + ((y / 2) % 2 ? 2 : 0); x < r - 1; x += 4) k.px(R[0], x, y - 1, 1, 1); }
+      if (tex === 'copper' && y === ridge + 2) for (let x = Math.round(x0) + 1; x < x1; x += 4) k.line(R[3], x, ridge + 1, Math.round(x + (x - (x0 + x1) / 2) * .12), eave - 1);
+      if (tex === 'leaf' && (y - ridge) % 3 === 1) for (let x = l + ((y / 3) % 2 ? 0 : 2); x < r; x += 4) { k.px(R[1], x, y + 1, 3, 1); k.px(R[3], x + 1, y - 1, 2, 1); k.px(R[4], x + 1, y - 1, 1, 1); }
+      if (tex === 'thatch' && (y - ridge) % 2 === 0) for (let x = l + 1; x < r; x += 2 + Math.floor(rnd() * 2)) k.px(rnd() < .5 ? R[1] : R[3], x, y, 1, 2);
+    }
+    k.px(R[0], x0 - over, eave - 1, x1 - x0 + 2 * over, 2);
+    k.px(R[4], x0 + inset, ridge, x1 - x0 - 2 * inset, 1); k.px(R[1], x0 + inset, ridge + 1, x1 - x0 - 2 * inset, 1);
+  }
+  function dome(k, cx, base, r, ry, R, ribs = 3) {
+    k.half(INK, cx, base, r + 1, ry + 1); k.px(INK, cx - r - 1, base, 2 * r + 3, 2);
+    k.half(R[2], cx, base, r, ry);
+    k.half(R[1], cx + Math.round(r * .45), base, Math.round(r * .55), Math.round(ry * .8));
+    k.oval(R[3], cx - Math.round(r * .35), base - Math.round(ry * .5), Math.max(1, Math.round(r * .35)), Math.max(1, Math.round(ry * .3)));
+    k.oval(R[4], cx - Math.round(r * .45), base - Math.round(ry * .65), Math.max(1, Math.round(r * .15)), Math.max(1, Math.round(ry * .12)));
+    for (let i = 1; i <= ribs; i++) { const dx = Math.round(r * (i / (ribs + 1) * 2 - 1)); k.line(R[0], cx + dx, base - 1, cx + Math.round(dx * .25), base - ry + 1); }
+    k.px(R[0], cx - r, base - 1, 2 * r + 1, 2);
+  }
+  function chimney(k, x, top, h, S, smoke = false) {
+    k.px(INK, x - 1, top - 1, 6, h + 1); k.px(S[2], x, top, 4, h); k.px(S[3], x, top, 1, h); k.px(S[1], x, top, 4, 1);
+    k.px(INK, x - 2, top - 2, 8, 2); k.px(S[1], x - 1, top - 2, 6, 1);
+    if (smoke) { k.oval('#c8c8c870', x + 2, top - 6, 3, 2); k.oval('#d8d8d855', x + 4, top - 11, 4, 2); }
+  }
+  function planter(k, x, P, wide = 6) {
+    k.px(INK, x - 1, -5, wide + 2, 5); k.px(P.wood[1], x, -4, wide, 4); k.px(P.wood[2], x, -4, wide, 1);
+    for (let i = 0; i < wide; i += 2) { k.px(P.plant[1], x + i, -8, 2, 4); k.px(P.plant[2], x + i, -9, 1, 2); }
+    if (P.bloom) { k.px(P.bloom[0], x + 1, -9, 1, 1); k.px(P.bloom[1], x + wide - 2, -8, 1, 1); }
+  }
+  function vines(k, x, y0, h, P, rnd) {
+    let xx = x;
+    for (let y = y0; y > y0 - h; y--) { if (rnd() < .3) xx += rnd() < .5 ? -1 : 1; k.px(P.plant[1], xx, y, 1, 1); if (rnd() < .35) { k.px(P.plant[2], xx + 1, y, 2, 1); k.px(P.plant[3] || P.plant[2], xx + 1, y - 1, 1, 1); } }
+  }
+
+  // ------------------------------------------------------------------ Vaelthoria
+  const vaelthoria = {
+    house(k, P, s, rnd, wins) {
+      const hw = s.w / 2, st = s.stories, H = 12 + (st - 1) * 10;
+      k.oval(SHADE, 3, 1, hw + 5, 5);
+      k.px(INK, -hw - 1, -H - 1, s.w + 2, H + 1);
+      ashlar(k, -hw, -12, s.w, 12, P.stone, rnd);
+      if (st > 1) frame(k, -hw, -H, s.w, H - 12, P, rnd);
+      for (const qx of [-hw, hw - 3]) for (let y = -12; y < 0; y += 4) k.px(y % 8 ? P.stone[3] : P.stone[4], qx + (y % 8 ? 0 : 0), y, 3, 3);
+      k.px(P.stone[1], -hw, -2, s.w, 2);
+      if (st > 1) { k.px(P.wood[0], -hw - 1, -13, s.w + 2, 2); k.px(P.wood[3], -hw, -13, s.w, 1); }
+      door(k, s.door || 0, 8, 11, 'arch', P);
+      const gx = [-hw + 4, hw - 10].filter(x => Math.abs(x + 3 - (s.door || 0)) > 7);
+      for (const x of gx) win(k, wins, x, -9, 6, 5, 'arch', P);
+      if (st > 1) for (let i = 0; i < Math.max(2, Math.round(s.w / 18)); i++) {
+        const n = Math.max(2, Math.round(s.w / 18)), x = Math.round(-hw + 6 + i * (s.w - 18) / (n - 1));
+        win(k, wins, x, -H + 3, 6, 6, 'shutters', P);
+        if (s.v % 2 === 0) { k.px(INK, x - 1, -H + 10, 8, 2); k.px(P.wood[2], x, -H + 10, 6, 1); k.px(P.bloom[0], x, -H + 9, 2, 1); k.px(P.plant[2], x + 2, -H + 9, 2, 1); k.px(P.bloom[1], x + 4, -H + 9, 2, 1); }
+      }
+      wallShadow(k, -hw, -H, s.w);
+      slope(k, -hw, hw, -H, -H - Math.round(8 + s.w / 6), Math.round(s.w / 8), P.roof, 'tiles', rnd);
+      if (s.v % 3 !== 1) chimney(k, hw - 10, -H - Math.round(8 + s.w / 6) - 2, 7, P.stone, s.v % 3 === 2);
+      return {door: {x: s.door || 0, y: 0}};
+    },
+    workshop(k, P, s, rnd, wins) {
+      // Bottega del fornaio: pergolato di vite davanti al banco, forno a cupola sul fianco, insegna.
+      const meta = vaelthoria.house(k, P, {...s, stories: 1, door: -Math.round(s.w / 4)}, rnd, wins), hw = s.w / 2;
+      const ox = hw - 8;
+      k.oval(INK, ox, -4, 7, 6); k.oval(P.stone[2], ox, -4, 6, 5); k.oval(P.stone[3], ox - 2, -6, 3, 2); k.px(INK, ox - 3, -4, 6, 4); k.px('#e0782e', ox - 2, -3, 4, 3); k.px('#f7c35a', ox - 1, -2, 2, 2);
+      const ax0 = -Math.round(hw / 4) + 5, ax1 = hw - 16;
+      k.poly(INK, [[ax0 - 1, -12], [ax1 + 1, -12], [ax1 + 3, -6], [ax0 - 3, -6]]);
+      for (let x = ax0, i = 0; x < ax1; x += 3, i++) k.poly(i % 2 ? P.cloth[1] : P.cloth[0], [[x, -11], [x + 3, -11], [x + 3 + (x + 3 > (ax0 + ax1) / 2 ? 1 : 0), -7], [x - (x < (ax0 + ax1) / 2 ? 1 : 0), -7]]);
+      k.px(INK, ax0 - 1, -5, ax1 - ax0 + 2, 5); k.px(P.wood[2], ax0, -5, ax1 - ax0, 2); k.px(P.wood[1], ax0, -3, ax1 - ax0, 3);
+      for (let x = ax0 + 1; x < ax1 - 1; x += 3) { k.oval(INK, x + 1, -6, 2, 1); k.oval('#c98a3a', x + 1, -6, 1, 1); }
+      k.px(INK, -hw - 3, -11, 5, 1); k.px(INK, -hw - 4, -10, 7, 6); k.px(P.wood[3], -hw - 3, -9, 5, 4); k.oval('#9a5a2a', -hw - 1, -7, 1, 1);
+      return meta;
+    },
+    hall(k, P, s, rnd, wins) {
+      // Sala civica classica: stilobate a gradini, colonne con capitello, frontone con fregio, coppi dietro.
+      const hw = s.w / 2, H = 24;
+      k.oval(SHADE, 3, 1, hw + 7, 6);
+      k.px(INK, -hw - 3, -3, s.w + 6, 4); k.px(P.stone[2], -hw - 2, -3, s.w + 4, 3); k.px(P.stone[4], -hw - 2, -3, s.w + 4, 1);
+      k.px(INK, -hw - 1, -5, s.w + 2, 2); k.px(P.stone[3], -hw, -5, s.w, 1);
+      k.px(INK, -hw + 2, -H, s.w - 4, H - 5); ashlar(k, -hw + 3, -H + 1, s.w - 6, H - 6, [P.stone[1], P.stone[1], P.stone[2], P.stone[3], P.stone[4]], rnd, 3);
+      door(k, 0, 10, 14, 'double', P, {step: P.stone[3], glass: P.metal[2]});
+      k.px(P.metal[2], -3, -12, 1, 6); k.px(P.metal[2], 2, -12, 1, 6);
+      const cols = Math.max(4, Math.round(s.w / 12));
+      for (let i = 0; i < cols; i++) {
+        const x = Math.round(-hw + 2 + i * (s.w - 7) / (cols - 1));
+        if (Math.abs(x + 2) < 8) continue;
+        k.px(INK, x - 1, -H - 1, 6, H - 3); k.px(P.stone[3], x, -H, 4, H - 5); k.px(P.stone[4], x, -H, 1, H - 5); k.px(P.stone[1], x + 3, -H, 1, H - 5);
+        k.px(INK, x - 2, -H - 2, 8, 2); k.px(P.stone[4], x - 1, -H - 2, 6, 1); k.px(P.stone[2], x - 1, -7, 6, 2);
+      }
+      for (const x of [-hw + 8, hw - 14]) win(k, wins, x + (x < 0 ? 0 : 0), -H + 6, 5, 7, 'arch', {...P, shutter: [P.stone[1], P.stone[2]]});
+      k.px(INK, -hw - 3, -H - 6, s.w + 6, 5); k.px(P.stone[3], -hw - 2, -H - 6, s.w + 4, 3); k.px(P.stone[1], -hw - 2, -H - 3, s.w + 4, 1);
+      for (let x = -hw; x < hw; x += 4) k.px(P.stone[1], x, -H - 5, 2, 1);
+      const peak = Math.round(9 + s.w / 10);
+      k.poly(INK, [[-hw - 4, -H - 5], [0, -H - 6 - peak - 1], [hw + 4, -H - 5]]);
+      k.poly(P.stone[3], [[-hw - 2, -H - 6], [0, -H - 6 - peak + 1], [hw + 2, -H - 6]]);
+      k.poly(P.stone[2], [[-hw + 6, -H - 7], [0, -H - 6 - peak + 5], [hw - 6, -H - 7]]);
+      k.oval(P.metal[2], 0, -H - 9, 2, 1); k.px(P.metal[1], -1, -H - 9, 3, 1);
+      for (const x of [-hw - 4, hw + 2]) { k.px(INK, x, -H - 9, 3, 3); k.px(P.stone[4], x + 1, -H - 8, 1, 1); }
+      k.px(INK, -2, -H - 9 - peak, 5, 3); k.px(P.stone[4], -1, -H - 8 - peak, 3, 1);
+      k.px(P.roof[2], -hw - 2, -H - 5, s.w + 4, 1);
+      return {door: {x: 0, y: 0}};
+    },
+    stall(k, P, s, rnd) {
+      k.oval(SHADE, 2, 1, 19, 4);
+      for (const x of [-17, 14]) { k.px(INK, x, -24, 3, 24); k.px(P.wood[2], x + 1, -23, 1, 23); }
+      k.px(INK, -18, -10, 36, 7); k.px(P.wood[1], -17, -10, 34, 6); k.px(P.wood[3], -17, -10, 34, 2);
+      const goods = ['#e0a050', '#c8553a', '#7f9f52', '#f0d27a'];
+      for (let i = 0; i < 6; i++) { const x = -15 + i * 5; k.oval(INK, x + 2, -12, 2, 2); k.oval(goods[(i + s.v) % 4], x + 2, -12, 1, 1); }
+      k.poly(INK, [[-21, -20], [-18, -31], [18, -31], [21, -20]]);
+      for (let x = -19, i = 0; x < 19; x += 6, i++) k.poly(i % 2 ? P.cloth[1] : P.cloth[0], [[x, -21], [x + 1, -30], [x + 7, -30], [x + 6, -21]]);
+      for (let x = -20, i = 0; x < 20; x += 6, i++) { k.px(i % 2 ? P.cloth[1] : P.cloth[0], x, -21, 6, 3); k.oval(i % 2 ? P.cloth[1] : P.cloth[0], x + 3, -18, 2, 1); }
+      return {};
+    },
+    well(k, P) {
+      // Fontana: vasca ottagonale, colonnina con mascherone e getto.
+      k.oval(SHADE, 2, 1, 14, 4);
+      k.oval(INK, 0, -3, 13, 6); k.oval(P.stone[2], 0, -4, 12, 5); k.oval(P.stone[3], 0, -5, 11, 3); k.oval('#3f7f8f', 0, -5, 9, 2); k.oval('#7fc0c8', -2, -6, 4, 1);
+      k.px(INK, -3, -20, 6, 16); k.px(P.stone[3], -2, -19, 4, 14); k.px(P.stone[4], -2, -19, 1, 14);
+      k.px(INK, -4, -22, 8, 3); k.px(P.stone[4], -3, -22, 6, 2); k.oval(P.metal[2], 0, -15, 1, 1);
+      k.px('#9fd8e0', 2, -14, 1, 1); k.px('#9fd8e0', 3, -12, 1, 2); k.px('#9fd8e0', 4, -9, 1, 3);
+      return {};
+    },
+    lamp(k, P) {
+      k.oval(SHADE, 1, 1, 5, 2);
+      k.px(INK, -3, -4, 7, 4); k.px(P.stone[3], -2, -4, 5, 3);
+      k.px(INK, -1, -18, 3, 15); k.px(P.metal[1], 0, -18, 1, 15);
+      k.px(INK, -3, -24, 7, 7); k.px(P.metal[0], -2, -23, 5, 5); k.px(P.metal[2], -2, -24, 5, 1); k.px(INK, -1, -26, 3, 2);
+      return {flame: [-1, -22, 3, 3]};
+    },
+    colonnade(k, P, s, rnd) {
+      // Portico a colonne con trabeazione: segmento ripetibile lungo le vie.
+      const hw = s.w / 2;
+      k.oval(SHADE, 2, 1, hw + 3, 4);
+      k.px(INK, -hw - 1, -2, s.w + 2, 3); k.px(P.stone[3], -hw, -2, s.w, 2);
+      const n = Math.max(2, Math.round(s.w / 12) + 1);
+      for (let i = 0; i < n; i++) { const x = Math.round(-hw + 1 + i * (s.w - 6) / (n - 1)); k.px(INK, x - 1, -22, 6, 21); k.px(P.stone[3], x, -21, 4, 19); k.px(P.stone[4], x, -21, 1, 19); k.px(P.stone[1], x + 3, -21, 1, 19); k.px(INK, x - 2, -23, 8, 2); k.px(P.stone[4], x - 1, -23, 6, 1); }
+      k.px(INK, -hw - 2, -28, s.w + 4, 6); k.px(P.stone[3], -hw - 1, -28, s.w + 2, 4); k.px(P.stone[1], -hw - 1, -24, s.w + 2, 1);
+      for (let x = -hw; x < hw; x += 5) k.px(P.stone[2], x, -27, 3, 2);
+      k.px(P.roof[2], -hw - 1, -31, s.w + 2, 3); k.px(P.roof[3], -hw - 1, -31, s.w + 2, 1); k.px(INK, -hw - 2, -32, s.w + 4, 1);
+      return {};
+    },
+    pergola(k, P, s, rnd) {
+      const hw = s.w / 2;
+      k.oval(SHADE, 2, 1, hw + 2, 4);
+      for (const x of [-hw + 1, hw - 3]) { k.px(INK, x - 1, -21, 4, 21); k.px(P.wood[2], x, -20, 2, 20); }
+      k.px(INK, -hw - 2, -23, s.w + 4, 3); k.px(P.wood[2], -hw - 1, -23, s.w + 2, 1);
+      for (let x = -hw; x < hw; x += 4) { k.px(INK, x, -25, 2, 5); k.px(P.wood[3], x, -25, 1, 4); }
+      for (let x = -hw - 1; x < hw + 1; x += 2) { k.px(P.plant[1], x, -27 + (x % 4 ? 0 : 1), 3, 3); k.px(P.plant[2], x + 1, -28, 1, 1); if (rnd() < .3) { k.px('#5a2f4a', x, -22, 1, 2); k.px('#7a4a6a', x + 1, -22, 1, 1); } }
+      vines(k, -hw + 1, -1, 20, P, rnd); vines(k, hw - 2, -1, 20, P, rnd);
+      k.px(INK, -6, -8, 12, 4); k.px(P.wood[2], -5, -8, 10, 2); k.px(P.wood[1], -4, -6, 1, 6); k.px(P.wood[1], 3, -6, 1, 6);
+      return {};
+    },
+    fountain(k, P, s, rnd) {
+      k.oval(SHADE, 2, 1, 20, 5);
+      k.oval(INK, 0, -3, 19, 8); k.oval(P.stone[2], 0, -4, 18, 7); k.oval(P.stone[3], 0, -5, 17, 5); k.oval('#3f7f8f', 0, -5, 15, 4); k.oval('#5fa0ab', -3, -6, 8, 2);
+      k.oval(INK, 0, -14, 7, 3); k.oval(P.stone[3], 0, -15, 6, 2); k.oval('#5fa0ab', 0, -15, 4, 1);
+      k.px(INK, -2, -14, 4, 10); k.px(P.stone[3], -1, -13, 2, 9);
+      k.px(INK, -3, -26, 6, 12); k.px(P.stone[4], -2, -25, 4, 10); k.oval(INK, 0, -28, 3, 3); k.oval(P.stone[4], 0, -28, 2, 2);
+      for (const [x, y] of [[-4, -17], [4, -17], [-6, -10], [6, -10]]) k.px('#a8e0e8', x, y, 1, 2);
+      return {};
+    }
+  };
+
+  // ------------------------------------------------------------------ Nordharyn
+  const snowCap = (k, P, pts, lit = 1) => { k.poly(P.snow[lit ? 1 : 0], pts); };
+  const nordharyn = {
+    house(k, P, s, rnd, wins) {
+      // Zoccolo alto di granito, piano di tavole scure, frontone ripido verso la strada con neve sulle falde.
+      const hw = s.w / 2, st = s.stories, H = 11 + (st - 1) * 9, peak = Math.round(hw * 1.05 + 6);
+      k.oval(SHADE, 3, 1, hw + 5, 5);
+      k.px(INK, -hw - 1, -H - 1, s.w + 2, H + 1);
+      rubble(k, -hw, -Math.min(H, 13), s.w, Math.min(H, 13), P.stone, rnd);
+      if (H > 13) planks(k, -hw, -H, s.w, H - 13, P.wood, rnd, true);
+      k.px(P.wood[0], -hw, -13, s.w, 1);
+      // Frontone in tavole e falde d'ardesia spesse
+      k.poly(INK, [[-hw - 1, -H], [0, -H - peak - 1], [hw + 1, -H]]);
+      const gableTop = -H - peak;
+      k.poly(P.wood[1], [[-hw + 3, -H], [0, gableTop + 4], [hw - 3, -H]]);
+      for (let x = -hw + 4; x < hw - 3; x += 3) k.px(P.wood[0], x, Math.round(-H - (hw - Math.abs(x)) * peak / hw) + 5, 1, Math.round((hw - Math.abs(x)) * peak / hw) - 5);
+      for (const side of [-1, 1]) {
+        const band = [[side * (hw + 4), -H + 1], [0, gableTop - 2], [0, gableTop + 3], [side * (hw - 2), -H + 1]];
+        k.poly(INK, band.map(([x, y]) => [x + side, y + 1]));
+        k.poly(side < 0 ? P.roof[2] : P.roof[1], band);
+        for (let i = 1; i < 6; i++) { const t = i / 6; k.px(P.roof[side < 0 ? 3 : 0], Math.round(side * (hw + 1) * (1 - t)), Math.round(-H + 1 + (gableTop - 1 + H - 1) * t), 2, 1); }
+        if (P.snowy) {
+          snowCap(k, P, [[side * (hw + 4), -H + 1], [0, gableTop - 3], [0, gableTop + 3], [side * (hw - 1), -H + 1]], side < 0 ? 1 : 0);
+          k.line(P.snow[2], side * (hw + 3), -H, 0, gableTop - 2);
+        }
+      }
+      if (P.snowy) { k.px(P.snow[2], -2, gableTop - 3, 4, 2); for (let x = -hw - 3; x < hw + 3; x += 3) k.px(P.snow[2], x, -H + 2, 1, 2 + ((x / 3) & 1)); }
+      win(k, wins, -2, gableTop + Math.round(peak * .45), 4, 4, 'plain', P);
+      door(k, s.door || 0, 8, 11, 'iron', P, {step: P.stone[1]});
+      k.px(INK, (s.door || 0) - 7, -14, 14, 2); k.px(P.wood[2], (s.door || 0) - 6, -14, 12, 1);
+      for (const x of [-hw + 3, hw - 9].filter(x => Math.abs(x + 3 - (s.door || 0)) > 8)) win(k, wins, x, H > 13 ? -H + 3 : -10, 5, 5, 'shutters', P);
+      if (s.v % 2 === 0) chimney(k, hw - 8, gableTop + Math.round(peak * .35), 9, P.stone, true);
+      for (let y = -2; y > -8; y -= 2) for (let x = -hw - 6; x < -hw; x += 3) { k.px(INK, x, y - 1, 3, 2); k.px(P.wood[2], x, y - 1, 2, 1); }
+      return {door: {x: s.door || 0, y: 0}};
+    },
+    workshop(k, P, s, rnd, wins) {
+      // Imbocco di miniera: castelletto di legno con ruota sopra un capanno di pietra, binario e carrello di minerale.
+      const hw = s.w / 2;
+      k.oval(SHADE, 3, 1, hw + 5, 5);
+      for (const x of [-hw + 2, hw - 4]) k.line(INK, x, -2, 0, -54, 3);
+      for (const x of [-hw + 2, hw - 4]) k.line(P.wood[2], x + 1, -2, 0, -53, 1);
+      for (const y of [-20, -34]) { const half = Math.round((hw - 2) * (1 - (-y) / 54)); k.px(INK, -half - 1, y - 1, half * 2 + 2, 3); k.px(P.wood[2], -half, y, half * 2, 1); }
+      k.oval(INK, 0, -54, 7, 7); k.oval(P.metal[1], 0, -54, 6, 6); k.oval(INK, 0, -54, 4, 4); k.oval(P.metal[2], 0, -54, 1, 1);
+      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; k.line(P.metal[2], Math.round(Math.cos(a) * 2), -54 + Math.round(Math.sin(a) * 2), Math.round(Math.cos(a) * 5), -54 + Math.round(Math.sin(a) * 5)); }
+      k.line(P.cloth[1], 4, -54, 4, -18);
+      k.px(INK, -hw - 1, -15, s.w + 2, 16); rubble(k, -hw, -14, s.w, 14, P.stone, rnd);
+      k.px(INK, -hw - 3, -18, s.w + 6, 4); k.px(P.roof[2], -hw - 2, -18, s.w + 4, 3); k.px(P.roof[3], -hw - 2, -18, s.w + 4, 1);
+      if (P.snowy) { k.px(P.snow[1], -hw - 2, -20, s.w + 4, 3); k.px(P.snow[2], -hw - 2, -20, s.w + 4, 1); }
+      k.px(INK, -6, -12, 12, 12); k.px('#141416', -5, -11, 10, 11); k.px(P.wood[2], -6, -12, 1, 12); k.px(P.wood[2], 5, -12, 1, 12); k.px(P.wood[2], -6, -12, 12, 1);
+      k.px('#e0a050', -2, -6, 2, 2); wins.push({x: -2, y: -6, w: 2, h: 2});
+      k.px(P.metal[1], -8, -1, 16, 1); k.px(P.metal[1], -8, 1, 16, 1); for (let x = -7; x < 8; x += 3) k.px(P.wood[1], x, -1, 1, 3);
+      nordharyn.orecart(k, P, {x: hw - 6}, rnd);
+      win(k, wins, -hw + 3, -10, 4, 4, 'plain', P);
+      return {door: {x: 0, y: 0}};
+    },
+    hall(k, P, s, rnd, wins) {
+      // Casaforte: torre quadrata con merli, feritoie, ballatoio di legno, stendardo e tetto a piramide.
+      const hw = s.w / 2, tw = Math.round(hw * .62), H = 40;
+      k.oval(SHADE, 3, 1, hw + 6, 6);
+      k.px(INK, -hw - 1, -15, s.w + 2, 16); rubble(k, -hw, -14, s.w, 14, P.stone, rnd);
+      k.px(INK, -tw - 1, -H - 1, tw * 2 + 2, H - 13); rubble(k, -tw, -H, tw * 2, H - 14, P.stone, rnd);
+      for (let x = -tw - 1; x < tw; x += 5) { k.px(INK, x, -H - 5, 4, 5); k.px(P.stone[3], x + 1, -H - 4, 2, 4); if (P.snowy) k.px(P.snow[2], x, -H - 5, 4, 1); }
+      k.px(INK, -tw - 3, -H + 12, tw * 2 + 6, 3); k.px(P.wood[2], -tw - 2, -H + 12, tw * 2 + 4, 1); for (let x = -tw - 2; x < tw + 2; x += 3) k.px(P.wood[1], x, -H + 14, 1, 3);
+      for (const x of [-tw + 3, tw - 5]) { k.px(INK, x, -H + 3, 2, 6); win(k, wins, x, -H + 4, 1, 4, 'plain', P); }
+      win(k, wins, -2, -H + 18, 4, 5, 'arch', {...P, shutter: P.wood});
+      k.px(INK, -tw - 3, -H - 12, 1, 9); k.px(P.cloth[0], -tw - 2, -H - 12, 5, 4); k.px(P.cloth[1], -tw - 1, -H - 11, 2, 2);
+      const r = tw + 3;
+      k.poly(INK, [[-r - 1, -H - 4], [0, -H - 4 - r - 3], [r + 1, -H - 4]]); k.poly(P.roof[2], [[-r, -H - 5], [0, -H - 4 - r - 1], [r, -H - 5]]); k.poly(P.roof[1], [[0, -H - 4 - r - 1], [r, -H - 5], [2, -H - 5]]);
+      if (P.snowy) { k.poly(P.snow[1], [[-r, -H - 5], [0, -H - 4 - r - 1], [1, -H - 5]]); k.poly(P.snow[0], [[0, -H - 4 - r - 1], [r, -H - 5], [Math.round(r * .4), -H - 5]]); k.line(P.snow[2], -r, -H - 5, 0, -H - 4 - r); }
+      k.px(P.metal[2], 0, -H - 4 - r - 5, 1, 4);
+      door(k, 0, 10, 13, 'iron', P, {step: P.stone[1]});
+      k.px(INK, -hw - 3, -18, s.w + 6, 4); k.px(P.roof[2], -hw - 2, -18, Math.round(hw - tw), 3); k.px(P.roof[2], tw + 2, -18, Math.round(hw - tw), 3);
+      if (P.snowy) { k.px(P.snow[1], -hw - 2, -19, Math.round(hw - tw), 3); k.px(P.snow[1], tw + 2, -19, Math.round(hw - tw), 3); k.px(P.snow[2], -hw - 2, -19, Math.round(hw - tw), 1); k.px(P.snow[2], tw + 2, -19, Math.round(hw - tw), 1); }
+      for (const x of [-hw + 3, hw - 8]) win(k, wins, x, -11, 4, 4, 'shutters', P);
+      return {door: {x: 0, y: 0}};
+    },
+    stall(k, P, s, rnd) {
+      k.oval(SHADE, 2, 1, 19, 4);
+      for (const x of [-17, 14]) { k.px(INK, x, -26, 3, 26); k.px(P.wood[2], x + 1, -25, 1, 25); }
+      k.px(INK, -18, -10, 36, 7); planks(k, -17, -10, 34, 6, P.wood, rnd);
+      for (let i = 0; i < 5; i++) { const x = -15 + i * 6; k.px(INK, x, -15, 5, 5); k.px(i % 2 ? '#c9a25a' : '#8a7a6a', x + 1, -14, 3, 3); k.px('#ffffff55', x + 1, -14, 1, 1); }
+      k.px('#b8a080', -14, -22, 8, 6); k.px('#8a7050', -13, -22, 6, 1); k.px('#d8c8a8', 6, -21, 7, 5);
+      k.poly(INK, [[-22, -24], [0, -36], [22, -24]]); k.poly(P.roof[2], [[-20, -25], [0, -35], [20, -25]]); k.poly(P.roof[1], [[0, -35], [20, -25], [2, -25]]);
+      if (P.snowy) { k.poly(P.snow[1], [[-20, -25], [0, -35], [1, -25]]); k.poly(P.snow[0], [[0, -35], [20, -25], [8, -25]]); }
+      return {};
+    },
+    well(k, P, s, rnd) {
+      k.oval(SHADE, 2, 1, 13, 4);
+      k.oval(INK, 0, -4, 11, 6); k.oval(P.stone[2], 0, -5, 10, 5); k.oval('#1f2a33', 0, -7, 7, 2);
+      for (let x = -9; x < 10; x += 4) k.px(P.stone[1], x, -6, 1, 4);
+      for (const x of [-10, 8]) { k.px(INK, x - 1, -24, 4, 19); k.px(P.wood[2], x, -23, 2, 17); }
+      k.px(INK, -11, -18, 23, 3); k.px(P.wood[2], -10, -18, 21, 1); k.oval(INK, 0, -17, 3, 3); k.oval(P.wood[1], 0, -17, 2, 2);
+      k.px(P.cloth[1], 0, -14, 1, 6); k.px(INK, -2, -9, 5, 3); k.px(P.wood[1], -1, -9, 3, 2);
+      k.poly(INK, [[-14, -22], [0, -32], [14, -22]]); k.poly(P.roof[2], [[-13, -23], [0, -31], [13, -23]]);
+      if (P.snowy) { k.poly(P.snow[1], [[-13, -23], [0, -31], [1, -23]]); k.poly(P.snow[0], [[0, -31], [13, -23], [6, -23]]); }
+      return {};
+    },
+    lamp(k, P) {
+      k.oval(SHADE, 1, 1, 6, 2);
+      k.px(INK, -3, -6, 7, 6); rubble(k, -2, -5, 5, 5, P.stone, random(3));
+      k.px(INK, -1, -22, 3, 17); k.px(P.wood[2], 0, -22, 1, 17);
+      k.px(INK, -1, -23, 8, 2); k.px(P.wood[2], 0, -23, 6, 1);
+      k.px(INK, 3, -21, 6, 6); k.px(P.metal[0], 4, -20, 4, 4); k.px(P.metal[2], 4, -21, 4, 1);
+      return {flame: [4, -19, 3, 3]};
+    },
+    orecart(k, P, s) {
+      const x = s.x || 0;
+      k.px(INK, x - 6, -8, 12, 6); k.px(P.metal[1], x - 5, -7, 10, 4); k.px(P.metal[2], x - 5, -7, 10, 1);
+      for (let i = 0; i < 4; i++) k.oval(i % 2 ? '#c9a25a' : P.stone[2], x - 3 + i * 2, -9, 1, 1);
+      for (const dx of [-4, 3]) { k.oval(INK, x + dx, -1, 2, 2); k.oval(P.metal[0], x + dx, -1, 1, 1); }
+      return {};
+    },
+    headframe(k, P, s, rnd) { return nordharyn.workshop(k, P, {...s, w: 40}, rnd, []); },
+    watchtower(k, P, s, rnd) {
+      // Torre di guardia di tronchi su zoccolo di pietra, con piattaforma, parapetto e tettuccio ripido.
+      k.oval(SHADE, 2, 1, 12, 4);
+      k.px(INK, -9, -9, 18, 9); rubble(k, -8, -8, 16, 8, P.stone, rnd);
+      for (const x of [-7, 5]) { k.px(INK, x - 1, -40, 4, 32); k.px(P.wood[2], x, -39, 2, 31); }
+      k.line(P.wood[1], -6, -12, 5, -28); k.line(P.wood[1], 5, -12, -6, -28);
+      k.px(INK, -11, -42, 22, 3); planks(k, -10, -42, 20, 2, P.wood, rnd);
+      k.px(INK, -10, -48, 20, 6); planks(k, -9, -47, 18, 5, P.wood, rnd, true);
+      k.poly(INK, [[-13, -48], [0, -60], [13, -48]]); k.poly(P.roof[2], [[-12, -49], [0, -59], [12, -49]]); k.poly(P.roof[1], [[0, -59], [12, -49], [2, -49]]);
+      if (P.snowy) k.poly(P.snow[1], [[-12, -49], [0, -59], [-8, -51]]);
+      k.px(P.cloth[0], 1, -66, 5, 3); k.px(INK, 0, -67, 1, 8);
+      return {};
+    }
+  };
+
+  // ------------------------------------------------------------------ Myrathen
+  const myrathen = {
+    house(k, P, s, rnd, wins) {
+      // Zoccolo scuro, tavole verticali nere con coprifili, vetrate a piombo, tetto di rame con lucernario e rampicante.
+      const hw = s.w / 2, st = s.stories, H = 12 + (st - 1) * 10;
+      k.oval(SHADE, 3, 1, hw + 5, 5);
+      k.px(INK, -hw - 1, -H - 1, s.w + 2, H + 1);
+      planks(k, -hw, -H, s.w, H, P.wood, rnd, true, 4);
+      for (let x = -hw + 3; x < hw; x += 8) k.px(P.wood[3], x, -H, 1, H);
+      ashlar(k, -hw, -4, s.w, 4, P.stone, rnd, 4);
+      if (st > 1) { k.px(P.copper[0], -hw - 1, -13, s.w + 2, 2); k.px(P.copper[2], -hw, -13, s.w, 1); }
+      door(k, s.door || 0, 8, 12, 'double', P, {glass: P.pane[2], step: P.stone[2]});
+      k.oval(INK, s.door || 0, -13, 4, 2); k.oval(P.pane[2], s.door || 0, -13, 3, 1);
+      for (const x of [-hw + 3, hw - 10].filter(x => Math.abs(x + 3 - (s.door || 0)) > 8)) win(k, wins, x, -11, 7, 8, 'leaded', P);
+      if (st > 1) for (let i = 0, n = Math.max(2, Math.round(s.w / 16)); i < n; i++) win(k, wins, Math.round(-hw + 4 + i * (s.w - 14) / (n - 1)), -H + 3, 6, 7, 'tall', P);
+      wallShadow(k, -hw, -H, s.w);
+      const ridge = -H - Math.round(7 + s.w / 7);
+      slope(k, -hw, hw, -H, ridge, Math.round(s.w / 10), P.roof, 'copper', rnd);
+      // Lucernario a cupoletta di rame e vetro
+      const cx = Math.round(-hw / 3) * (s.v % 2 ? -1 : 1);
+      k.px(INK, cx - 4, ridge - 4, 9, 6); k.px(P.pane[1], cx - 3, ridge - 3, 7, 4); k.px(P.pane[2], cx - 3, ridge - 3, 3, 2); wins.push({x: cx - 3, y: ridge - 3, w: 7, h: 4});
+      dome(k, cx, ridge - 4, 4, 3, P.roof, 1);
+      k.px(P.copper[2], cx, ridge - 10, 1, 3);
+      vines(k, -hw - 1, -1, Math.round(H * .9), P, rnd); if (s.v % 2) vines(k, hw, -1, Math.round(H * .7), P, rnd);
+      planter(k, (s.door || 0) + 6, P, 4);
+      return {door: {x: s.door || 0, y: 0}};
+    },
+    workshop(k, P, s, rnd, wins) {
+      // Laboratorio alchemico: serra di vetro sul fianco, alambicco di rame con serpentina, fiale colorate, fumo tinto.
+      const meta = myrathen.house(k, P, {...s, stories: 1, door: -Math.round(s.w / 5)}, rnd, wins), hw = s.w / 2;
+      const gx = Math.round(hw - 9);
+      k.px(INK, gx - 7, -15, 16, 15); k.px(P.pane[0], gx - 6, -14, 14, 13);
+      for (let x = gx - 6; x < gx + 8; x += 3) k.px(P.pane[2], x, -14, 1, 13);
+      k.px(P.pane[3], gx - 6, -14, 14, 1); k.px(P.plant[2], gx - 5, -6, 4, 5); k.px(P.plant[3], gx - 4, -7, 2, 2); k.px(P.plant[1], gx + 2, -5, 4, 4);
+      k.poly(INK, [[gx - 8, -15], [gx + 1, -22], [gx + 10, -15]]); k.poly(P.pane[1], [[gx - 6, -16], [gx + 1, -21], [gx + 8, -16]]); k.line(P.pane[3], gx - 4, -17, gx + 1, -20);
+      wins.push({x: gx - 6, y: -14, w: 14, h: 13});
+      myrathen.alembic(k, P, {x: -hw + 6}, rnd);
+      k.oval('#c96ad955', -hw + 10, -H(s) - 22, 3, 2); k.oval('#6ad9b444', -hw + 13, -H(s) - 27, 4, 2);
+      return meta;
+    },
+    hall(k, P, s, rnd, wins) {
+      // Accademia: facciata nera con alte vetrate, cupola costolonata di rame con lanterna di vetro e cannocchiale.
+      const hw = s.w / 2, H = 24;
+      k.oval(SHADE, 3, 1, hw + 6, 6);
+      k.px(INK, -hw - 1, -H - 1, s.w + 2, H + 1);
+      planks(k, -hw, -H, s.w, H, P.wood, rnd, true, 4);
+      ashlar(k, -hw, -5, s.w, 5, P.stone, rnd, 5);
+      for (const x of [-hw, hw - 4]) { k.px(P.stone[2], x, -H, 4, H); k.px(P.stone[3], x, -H, 1, H); }
+      const n = Math.max(3, Math.round(s.w / 14));
+      for (let i = 0; i < n; i++) { const x = Math.round(-hw + 6 + i * (s.w - 18) / (n - 1)); if (Math.abs(x + 3) < 7) continue; win(k, wins, x, -H + 4, 6, 12, 'tall', P); }
+      door(k, 0, 10, 15, 'double', P, {glass: P.pane[2], step: P.stone[2]});
+      k.oval(INK, 0, -16, 5, 3); k.oval(P.pane[2], 0, -16, 4, 2); k.px(P.pane[0], 0, -18, 1, 3);
+      k.px(INK, -hw - 3, -H - 3, s.w + 6, 3); k.px(P.copper[1], -hw - 2, -H - 3, s.w + 4, 2); k.px(P.copper[2], -hw - 2, -H - 3, s.w + 4, 1);
+      const r = Math.round(hw * .7);
+      dome(k, 0, -H - 3, r, Math.round(r * .8), P.roof, 4);
+      k.px(INK, -4, -H - 3 - Math.round(r * .8) - 7, 9, 8); k.px(P.pane[1], -3, -H - 3 - Math.round(r * .8) - 6, 7, 6); k.px(P.pane[2], -3, -H - 3 - Math.round(r * .8) - 6, 3, 3);
+      wins.push({x: -3, y: -H - 3 - Math.round(r * .8) - 6, w: 7, h: 6});
+      dome(k, 0, -H - 3 - Math.round(r * .8) - 7, 4, 3, P.roof, 1); k.px(P.copper[2], 0, -H - 3 - Math.round(r * .8) - 13, 1, 3);
+      k.line(INK, Math.round(r * .5), -H - 6, Math.round(r * .5) + 9, -H - 15, 3); k.line(P.copper[2], Math.round(r * .5), -H - 6, Math.round(r * .5) + 9, -H - 15, 1);
+      vines(k, -hw - 1, -1, 18, P, rnd); vines(k, hw, -1, 14, P, rnd);
+      return {door: {x: 0, y: 0}};
+    },
+    stall(k, P, s, rnd) {
+      k.oval(SHADE, 2, 1, 19, 4);
+      for (const x of [-17, 14]) { k.px(INK, x, -25, 3, 25); k.px(P.copper[1], x + 1, -24, 1, 24); }
+      k.px(INK, -18, -10, 36, 7); planks(k, -17, -10, 34, 6, P.wood, rnd, true);
+      for (let i = 0; i < 7; i++) { const x = -15 + i * 4, c = P.potion[(i + s.v) % 4]; k.px(INK, x, -16, 3, 6); k.px(c, x + 1, -14, 1, 3); k.px(P.pane[3], x + 1, -15, 1, 1); }
+      k.px(INK, -20, -28, 40, 5); k.px(P.pane[1], -19, -27, 38, 3); for (let x = -19; x < 19; x += 4) k.px(P.pane[3], x, -27, 1, 3);
+      k.px(P.roof[2], -21, -29, 42, 2); k.px(P.roof[3], -21, -29, 42, 1);
+      return {};
+    },
+    well(k, P, s, rnd) {
+      // Fontanella di rame: vasca di pietra scura, pompa a leva verderame, lume di vetro.
+      k.oval(SHADE, 2, 1, 13, 4);
+      k.oval(INK, 0, -3, 12, 5); k.oval(P.stone[2], 0, -4, 11, 4); k.oval('#2f6f7f', 0, -5, 8, 2); k.oval('#6fc0c8', -2, -5, 3, 1);
+      k.px(INK, -3, -22, 6, 18); k.px(P.roof[2], -2, -21, 4, 16); k.px(P.roof[4], -2, -21, 1, 16);
+      k.px(INK, 1, -17, 7, 3); k.px(P.roof[3], 2, -16, 5, 1); k.px(P.roof[2], 6, -15, 1, 3);
+      k.line(INK, -2, -21, -9, -25, 2); k.oval(INK, -10, -26, 2, 2); k.oval(P.copper[2], -10, -26, 1, 1);
+      k.oval(INK, 0, -24, 3, 3); k.oval(P.pane[2], 0, -24, 2, 2);
+      return {};
+    },
+    lamp(k, P) {
+      k.oval(SHADE, 1, 1, 5, 2);
+      k.px(INK, -3, -3, 7, 3); k.px(P.stone[2], -2, -3, 5, 2);
+      k.px(INK, -1, -18, 3, 16); k.px(P.roof[2], 0, -18, 1, 16); k.px(P.roof[4], 0, -12, 1, 2);
+      k.oval(INK, 0, -21, 4, 4); k.oval(P.pane[1], 0, -21, 3, 3); k.oval(P.pane[2], -1, -22, 1, 1);
+      k.px(INK, -2, -26, 5, 2); k.px(P.roof[3], -1, -26, 3, 1);
+      return {flame: [-1, -22, 3, 3], glow: 'crystal'};
+    },
+    greenhouse(k, P, s, rnd) {
+      const hw = s.w / 2;
+      k.oval(SHADE, 2, 1, hw + 3, 4);
+      k.px(INK, -hw - 1, -5, s.w + 2, 6); ashlar(k, -hw, -4, s.w, 4, P.stone, rnd, 4);
+      k.px(INK, -hw - 1, -20, s.w + 2, 16); k.px(P.pane[0], -hw, -19, s.w, 15);
+      for (let x = -hw; x < hw; x += 4) { k.px(P.roof[2], x, -19, 1, 15); k.px(P.pane[2], x + 1, -19, 1, 3); }
+      for (let i = 0; i < s.w; i += 5) { k.px(P.plant[1 + (i % 3)], -hw + i + 1, -10, 3, 6); k.px(P.plant[3], -hw + i + 2, -11, 1, 2); if (i % 2) k.px(P.bloom[i % 2], -hw + i + 1, -12, 1, 1); }
+      k.poly(INK, [[-hw - 2, -20], [-hw + 6, -32], [hw - 6, -32], [hw + 2, -20]]); k.poly(P.pane[1], [[-hw, -21], [-hw + 7, -31], [hw - 7, -31], [hw, -21]]);
+      for (let x = -hw + 4; x < hw - 2; x += 5) k.line(P.roof[3], x, -21, Math.round(x * .75), -31);
+      k.line(P.pane[3], -hw + 3, -22, -hw + 8, -30); k.px(P.roof[3], -hw + 7, -32, s.w - 14, 1);
+      return {};
+    },
+    alembic(k, P, s, rnd) {
+      const x = s.x || 0;
+      k.oval(SHADE, x + 2, 1, 9, 3);
+      k.px(INK, x - 6, -6, 12, 6); k.px(P.stone[2], x - 5, -5, 10, 5); k.px('#e0782e', x - 2, -4, 4, 2);
+      k.oval(INK, x, -12, 6, 6); k.oval(P.copper[1], x, -12, 5, 5); k.oval(P.copper[2], x - 2, -14, 2, 2);
+      k.px(INK, x - 2, -21, 4, 5); k.px(P.copper[1], x - 1, -20, 2, 4);
+      k.line(INK, x + 1, -20, x + 9, -16, 2); k.line(P.copper[2], x + 1, -20, x + 9, -16, 1);
+      for (let y = -15; y < -5; y += 3) { k.px(INK, x + 7, y, 5, 2); k.px(P.copper[1], x + 8, y, 3, 1); }
+      k.px(INK, x + 8, -5, 4, 5); k.px(P.potion[1], x + 9, -4, 2, 3); k.px(P.pane[3], x + 9, -5, 1, 1);
+      return {};
+    },
+    vinearch(k, P, s, rnd) {
+      k.oval(SHADE, 2, 1, 16, 4);
+      for (const x of [-13, 11]) { k.px(INK, x - 1, -24, 4, 24); k.px(P.wood[2], x, -23, 2, 23); }
+      for (let i = 0; i <= 12; i++) { const a = Math.PI * i / 12, x = Math.round(-12 * Math.cos(a)), y = Math.round(-24 - 8 * Math.sin(a)); k.px(INK, x - 1, y - 1, 3, 3); k.px(P.copper[1], x, y, 1, 1); }
+      for (let i = 0; i < 26; i++) { const a = Math.PI * rnd(), r = 11 + rnd() * 3, x = Math.round(-r * Math.cos(a)), y = Math.round(-24 - (r - 4) * Math.sin(a)); k.px(P.plant[1 + Math.floor(rnd() * 3)], x, y, 2, 2); if (rnd() < .2) k.px(P.bloom[Math.floor(rnd() * 2)], x, y, 1, 1); }
+      vines(k, -12, -1, 22, P, rnd); vines(k, 12, -1, 22, P, rnd);
+      return {};
+    }
+  };
+  const H = s => 12 + (s.stories - 1) * 10;
+
+  // ------------------------------------------------------------------ Voryndhal
+  const rootArc = (k, P, x0, x1, base, top, thick) => {
+    // Radice ad arco: tronco curvo con lato in luce e lato in ombra.
+    const pts = [];
+    for (let i = 0, n = Math.max(24, Math.round(Math.abs(x1 - x0) + Math.abs(base - top) * 1.5)); i <= n; i++) {
+      const t = i / n, w = Math.max(2, thick * (1 - Math.abs(t - .5) * .7) * (t < .08 || t > .92 ? 1.5 : 1));
+      pts.push([x0 + (x1 - x0) * t, base - (base - top) * Math.sin(Math.PI * t), w / 2]);
+    }
+    for (const [x, y, r] of pts) k.oval(INK, x, y, r + 1, r + 1);
+    for (const [x, y, r] of pts) k.oval(P.root[2], x, y, r, r);
+    for (const [x, y, r] of pts) { k.px(P.root[3], x - Math.floor(r) + 1, y - Math.round(r), Math.max(1, Math.round(r)), 1); if (r > 1.5) k.px(P.root[1], x - Math.floor(r) + 1, y + Math.round(r), Math.max(1, Math.round(r * 1.5)), 1); }
+    for (let i = 3; i < pts.length - 3; i += 7) { const [x, y, r] = pts[i]; if (r > 2) k.px(P.root[1], x, y - 1, 1, 2); }
+  };
+  const voryndhal = {
+    house(k, P, s, rnd, wins) {
+      // Casa fra le radici: muro di corteccia arrotondato, porta e finestre tonde, tetto di foglie o di paglia a cupola.
+      const hw = s.w / 2, st = s.stories, H = 11 + (st - 1) * 9;
+      k.oval(SHADE, 3, 1, hw + 6, 5);
+      k.px(INK, -hw - 1, -H - 1, s.w + 2, H + 1); bark(k, -hw, -H, s.w, H, P.wood, rnd);
+      k.px(P.wood[0], -hw, -H, 2, H); k.px(P.wood[3], hw - 2, -H, 2, H);
+      k.px(P.moss, -hw, -3, s.w, 2); for (let x = -hw; x < hw; x += 3) k.px(P.plant[2], x, -4, 2, 1);
+      door(k, s.door || 0, 8, 12, 'round', P, {step: P.root[2]});
+      for (const x of [-hw + 4, hw - 9].filter(x => Math.abs(x + 2 - (s.door || 0)) > 8)) { k.oval(INK, x + 2, -H + 6, 3, 3); k.oval(P.glass, x + 2, -H + 6, 2, 2); k.px(P.wood[1], x + 2, -H + 4, 1, 5); wins.push({x: x, y: -H + 4, w: 5, h: 5}); }
+      wallShadow(k, -hw, -H, s.w);
+      const R = P.roof, ry = Math.round(hw * .75) + 4, base = -H + 3, top = base - ry;
+      k.half(INK, 0, base, hw + 6, ry + 1); k.half(R[1], 0, base, hw + 5, ry);
+      for (let row = 0; row < 6; row++) {
+        const y = base - Math.round(row * ry / 6), half = Math.round((hw + 5) * Math.sqrt(Math.max(0, 1 - (row / 6) ** 2)));
+        for (let x = -half + (row % 2) * 2; x < half - 1; x += 4) { k.px(R[row > 3 ? 3 : 2], x, y - 3, 4, 3); k.px(R[4], x + 1, y - 4, 2, 1); k.px(R[0], x, y, 4, 1); }
+      }
+      for (let x = -hw - 5; x < hw + 5; x += 3) k.px(R[1], x, base, 2, 1 + ((x / 3) & 1));
+      k.px(R[4], -1, top - 1, 3, 2);
+      rootArc(k, P, -hw - 5, -hw + 6, 0, -H - 6, 3);
+      if (s.v % 2 === 0) rootArc(k, P, hw - 4, hw + 6, 0, -H + 2, 3);
+      k.oval(P.glow, -hw - 2, -2, 1, 1); k.oval(P.glow, hw + 3, -1, 1, 1);
+      return {door: {x: s.door || 0, y: 0}};
+    },
+    workshop(k, P, s, rnd, wins) {
+      // Capanna su piattaforma con scaletta e passerella di corda.
+      const hw = s.w / 2, lift = 9;
+      k.oval(SHADE, 3, 1, hw + 6, 5);
+      for (const x of [-hw + 2, -2, hw - 5]) { k.px(INK, x - 1, -lift - 1, 4, lift + 1); k.px(P.root[2], x, -lift, 2, lift); k.px(P.root[3], x, -lift, 1, lift); }
+      k.px(INK, -hw - 3, -lift - 3, s.w + 6, 4); planks(k, -hw - 2, -lift - 3, s.w + 4, 3, P.wood, rnd);
+      const H = 14;
+      k.px(INK, -hw + 1, -lift - H - 3, s.w - 2, H); bark(k, -hw + 2, -lift - H - 2, s.w - 4, H - 1, P.wood, rnd);
+      k.oval(INK, 0, -lift - 9, 4, 5); k.oval('#1a1410', 0, -lift - 9, 3, 4);
+      k.oval(INK, -hw + 7, -lift - 11, 3, 3); k.oval(P.glass, -hw + 7, -lift - 11, 2, 2); wins.push({x: -hw + 5, y: -lift - 13, w: 5, h: 5});
+      for (let y = -lift; y < 0; y += 3) { k.px(INK, -3, y, 7, 1); k.px(P.wood[3], -2, y, 5, 1); } k.px(P.wood[2], -3, -lift, 1, lift); k.px(P.wood[2], 3, -lift, 1, lift);
+      const top = -lift - H - 3;
+      k.poly(INK, [[-hw - 4, top + 1], [0, top - 15], [hw + 4, top + 1]]); k.poly(P.roof[2], [[-hw - 3, top], [0, top - 14], [hw + 3, top]]); k.poly(P.roof[1], [[0, top - 14], [hw + 3, top], [1, top]]);
+      for (let i = 1; i < 4; i++) { const y = top - 14 + i * 4, half = Math.round((hw + 3) * i * 4 / 14); for (let x = -half; x < half; x += 3) k.px(P.roof[3], x, y, 2, 1); }
+      k.px(INK, hw + 1, -lift - 4, 1, 4); k.line(P.rope[1], hw + 2, -lift - 4, hw + 12, -lift + 1); k.line(P.rope[1], hw + 2, -lift - 1, hw + 12, -lift + 4);
+      for (let x = hw + 3; x < hw + 12; x += 2) k.px(P.wood[2], x, Math.round(-lift - 1 + (x - hw - 2) * .5), 2, 1);
+      k.px(P.cloth[0], -hw, -lift - 6, 6, 3); k.px(P.cloth[1], -hw + 2, -lift - 6, 2, 3);
+      return {door: {x: 0, y: 0}};
+    },
+    hall(k, P, s, rnd, wins) {
+      // Loggia sotto la grande radice: due radici monumentali si incontrano sopra una sala di corteccia con lanterne.
+      const hw = s.w / 2, H = 18;
+      k.oval(SHADE, 3, 1, hw + 9, 6);
+      k.px(INK, -hw - 1, -H - 1, s.w + 2, H + 1); bark(k, -hw, -H, s.w, H, P.wood, rnd); k.px(P.moss, -hw, -3, s.w, 2);
+      k.oval(INK, 0, -10, 6, 8); k.oval('#1a1410', 0, -10, 5, 7); k.px('#1a1410', -5, -10, 11, 10); k.px(P.root[2], -6, -1, 13, 1);
+      for (const x of [-hw + 5, hw - 10]) { k.oval(INK, x + 2, -11, 3, 3); k.oval(P.glass, x + 2, -11, 2, 2); wins.push({x, y: -13, w: 5, h: 5}); }
+      const top = -H - 3;
+      k.px(INK, -hw - 4, top, s.w + 8, 4); for (let x = -hw - 3; x < hw + 3; x += 4) { k.px(P.roof[2], x, top - 1, 4, 4); k.px(P.roof[4], x + 1, top - 2, 2, 1); }
+      rootArc(k, P, -hw - 8, hw + 8, 1, top - 24, 6);
+      rootArc(k, P, -hw - 2, hw + 2, 0, top - 14, 3);
+      for (const x of [-Math.round(hw / 2), Math.round(hw / 2)]) { k.px(P.rope[0], x, top - 16 + Math.round(Math.abs(x) / 3), 1, 6); k.px(INK, x - 2, top - 10 + Math.round(Math.abs(x) / 3), 5, 5); k.px(P.glass, x - 1, top - 9 + Math.round(Math.abs(x) / 3), 3, 3); wins.push({x: x - 1, y: top - 9 + Math.round(Math.abs(x) / 3), w: 3, h: 3}); }
+      for (let i = 0; i < 18; i++) { const a = Math.PI * (.15 + .7 * rnd()), x = Math.round(-(hw + 6) * Math.cos(a)), y = Math.round(top - 22 * Math.sin(a)); k.px(P.plant[1 + Math.floor(rnd() * 3)], x, y - 3, 3, 2); }
+      return {door: {x: 0, y: 0}};
+    },
+    stall(k, P, s, rnd) {
+      k.oval(SHADE, 2, 1, 19, 4);
+      for (const x of [-16, 14]) { k.px(INK, x - 1, -24, 4, 24); k.px(P.root[2], x, -23, 2, 23); }
+      k.px(INK, -18, -10, 36, 7); bark(k, -17, -10, 34, 6, P.wood, rnd);
+      for (let i = 0; i < 6; i++) { const x = -15 + i * 5; k.oval(INK, x + 2, -12, 2, 2); k.oval(i % 2 ? '#e0b04a' : '#8fb35a', x + 2, -12, 1, 1); }
+      k.oval(INK, 0, -26, 23, 6); k.oval(P.roof[2], 0, -27, 22, 5); for (let x = -20; x < 20; x += 4) { k.px(P.roof[3], x, -29, 3, 2); k.px(P.roof[1], x + 1, -24, 3, 1); }
+      return {};
+    },
+    well(k, P, s, rnd) {
+      // Sorgente fra le radici: pozza tonda, sassi, radici che la cingono e una zucca per attingere.
+      k.oval(SHADE, 2, 1, 14, 4);
+      k.oval(INK, 0, -3, 13, 6); k.oval(P.stone[2], 0, -4, 12, 5); k.oval('#2f6f6a', 0, -5, 10, 3); k.oval('#7fc0b0', -3, -6, 4, 1);
+      for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; k.oval(P.stone[3], Math.round(Math.cos(a) * 11), -4 + Math.round(Math.sin(a) * 4), 2, 1); }
+      rootArc(k, P, -14, 4, -2, -20, 3); rootArc(k, P, -2, 14, -2, -16, 2);
+      k.oval(INK, 9, -8, 3, 3); k.oval('#c9a24a', 9, -8, 2, 2);
+      return {};
+    },
+    lamp(k, P) {
+      k.oval(SHADE, 1, 1, 5, 2);
+      k.px(INK, -1, -24, 3, 24); k.px(P.root[2], 0, -24, 1, 24);
+      k.line(INK, 0, -24, 5, -28, 2); k.px(P.rope[1], 5, -27, 1, 3);
+      k.px(INK, 3, -24, 5, 6); k.px(P.glass, 4, -23, 3, 4); k.px(P.wood[1], 3, -25, 5, 1);
+      return {flame: [4, -23, 3, 3], glow: 'fire'};
+    },
+    rootarch(k, P, s, rnd) {
+      const hw = s.w / 2;
+      k.oval(SHADE, 2, 1, hw + 4, 5);
+      rootArc(k, P, -hw, hw, 0, -40, 7); rootArc(k, P, -hw + 6, hw - 4, 0, -28, 3);
+      for (let i = 0; i < 14; i++) { const x = Math.round(-hw + 4 + rnd() * (s.w - 8)); k.px(P.moss, x, -Math.round(30 + rnd() * 8), 3, 1); }
+      for (const x of [-hw - 2, hw - 3]) { k.oval(INK, x + 2, -1, 4, 2); k.oval(P.root[1], x + 2, -1, 3, 1); }
+      k.px(P.rope[0], -4, -34, 1, 8); k.px(INK, -6, -27, 5, 5); k.px(P.glass, -5, -26, 3, 3);
+      return {};
+    },
+    walkway(k, P, s, rnd) {
+      // Passerella sospesa fra due pali: assi, corrimano di corda e lanterna.
+      const hw = s.w / 2;
+      k.oval(SHADE, 2, 1, hw + 2, 3);
+      for (const x of [-hw, hw - 3]) { k.px(INK, x - 1, -26, 5, 26); k.px(P.root[2], x, -25, 3, 25); k.px(P.root[3], x, -25, 1, 25); }
+      for (let x = -hw + 3; x < hw - 3; x += 2) { const sag = Math.round(4 * Math.sin(Math.PI * (x + hw) / s.w)); k.px(INK, x, -16 + sag, 2, 3); k.px(P.wood[3], x, -16 + sag, 1, 2); }
+      for (const yo of [-23, -20]) for (let x = -hw + 3; x < hw - 3; x++) k.px(P.rope[1], x, yo + Math.round(3 * Math.sin(Math.PI * (x + hw) / s.w)), 1, 1);
+      k.px(INK, -1, -16, 3, 3); k.px(P.glass, 0, -15, 1, 1);
+      return {};
+    },
+    platform(k, P, s, rnd) {
+      k.oval(SHADE, 2, 1, 14, 4);
+      for (const x of [-10, 8]) { k.px(INK, x - 1, -30, 4, 30); k.px(P.root[2], x, -29, 2, 29); }
+      k.px(INK, -14, -32, 28, 4); planks(k, -13, -32, 26, 3, P.wood, rnd);
+      for (let x = -13; x < 14; x += 4) k.px(P.rope[1], x, -37, 1, 5); k.px(P.rope[0], -13, -37, 27, 1);
+      for (let y = -29; y < 0; y += 3) { k.px(INK, -4, y, 8, 1); k.px(P.wood[3], -3, y, 6, 1); }
+      k.oval(INK, 0, -42, 12, 5); k.oval(P.roof[2], 0, -43, 11, 4); k.oval(P.roof[3], -3, -44, 5, 2);
+      return {};
+    }
+  };
+
+  // ------------------------------------------------------------------ Azheryon
+  const azheryon = {
+    house(k, P, s, rnd, wins) {
+      // Casa a terrazza: muro di pietra calda o calce, travi sporgenti, grate di legno, parapetto e cupoletta.
+      const hw = s.w / 2, st = s.stories, H = 12 + (st - 1) * 10, coast = P.stone[4] === '#ffffff';
+      k.oval(SHADE, 3, 1, hw + 5, 5);
+      k.px(INK, -hw - 1, -H - 1, s.w + 2, H + 1);
+      lime(k, -hw, -H, s.w, H, P, rnd);
+      if (!coast) for (let x = -hw + 3; x < hw - 2; x += 6) { k.px(INK, x - 1, -H + 1, 3, 3); k.px(P.wood[2], x, -H + 2, 2, 1); }
+      door(k, s.door || 0, 8, 12, 'arch', {...P, wood: coast ? [P.shutter[0], P.shutter[1], P.shutter[1], P.shutter[1]] : P.wood}, {step: P.stone[1]});
+      k.px(INK, (s.door || 0) - 6, -15, 12, 1); k.px(P.stone[3], (s.door || 0) - 5, -16, 10, 1);
+      for (const x of [-hw + 4, hw - 10].filter(x => Math.abs(x + 3 - (s.door || 0)) > 8)) {
+        if (coast) win(k, wins, x, -10, 6, 6, 'shutters', P); else win(k, wins, x, -10, 6, 6, 'lattice', P);
+      }
+      if (st > 1) { for (let i = 0, n = Math.max(2, Math.round(s.w / 18)); i < n; i++) win(k, wins, Math.round(-hw + 5 + i * (s.w - 16) / (n - 1)), -H + 4, 5, 6, coast ? 'shutters' : 'lattice', P); k.px(P.tile[0], -hw, -13, s.w, 1); for (let x = -hw; x < hw; x += 3) k.px(P.tile[1], x, -13, 1, 1); }
+      // Terrazza: parapetto, cuscini di tetto e cupoletta in un angolo
+      k.px(INK, -hw - 2, -H - 4, s.w + 4, 4); k.px(P.plaster[2], -hw - 1, -H - 4, s.w + 2, 2); k.px(P.plaster[0], -hw - 1, -H - 2, s.w + 2, 1);
+      const cx = s.v % 2 ? Math.round(hw / 2) : -Math.round(hw / 2);
+      if (s.v % 3 !== 2) dome(k, cx, -H - 4, Math.round(hw / 2.6), Math.round(hw / 3), P.roof, 2);
+      else { k.px(INK, cx - 8, -H - 14, 1, 10); k.px(INK, cx + 8, -H - 14, 1, 10); k.poly(P.cloth[0], [[cx - 9, -H - 15], [cx + 9, -H - 15], [cx + 7, -H - 11], [cx - 7, -H - 11]]); for (let x = cx - 7; x < cx + 8; x += 4) k.px(P.cloth[1], x, -H - 14, 2, 3); }
+      if (s.v % 2 === 0) { k.px(P.cloth[2], -hw + 1, -H - 6, 6, 1); k.px(P.cloth[3], -hw + 2, -H - 6, 3, 1); }
+      return {door: {x: s.door || 0, y: 0}};
+    },
+    workshop(k, P, s, rnd, wins) {
+      // Bottega del tintore: portico a due archi sul fronte, matasse colorate stese ad asciugare.
+      const meta = azheryon.house(k, P, {...s, stories: 2}, rnd, wins), hw = s.w / 2;
+      azheryon.portico(k, P, {w: s.w - 4, arches: 2, h: 13, front: true}, rnd);
+      k.px(INK, -hw - 4, -34, s.w + 8, 1);
+      for (let i = 0; i < 6; i++) { const x = -hw - 2 + i * Math.round((s.w + 4) / 6); k.px(P.cloth[i % 4], x, -33, 3, 6 + (i % 2) * 2); }
+      return meta;
+    },
+    hall(k, P, s, rnd, wins) {
+      // Caravanserraglio: portico a tre archi, cupola centrale su tamburo, fregio di piastrelle smaltate.
+      const hw = s.w / 2, H = 24;
+      k.oval(SHADE, 3, 1, hw + 6, 6);
+      k.px(INK, -hw - 1, -H - 1, s.w + 2, H + 1); lime(k, -hw, -H, s.w, H, P, rnd);
+      k.px(P.tile[0], -hw, -H + 2, s.w, 3); for (let x = -hw; x < hw; x += 4) { k.px(P.tile[1], x, -H + 2, 2, 1); k.px(P.tile[2], x + 1, -H + 3, 1, 1); }
+      azheryon.portico(k, P, {w: s.w, arches: 3, h: 16, front: true}, rnd);
+      for (const x of [-hw + 4, hw - 9]) win(k, wins, x, -H + 7, 5, 5, 'lattice', P);
+      wins.push({x: -3, y: -12, w: 6, h: 8});
+      k.px(INK, -hw - 2, -H - 3, s.w + 4, 3); k.px(P.plaster[2], -hw - 1, -H - 3, s.w + 2, 2);
+      const r = Math.round(hw * .55);
+      k.px(INK, -r - 1, -H - 9, r * 2 + 3, 7); lime(k, -r, -H - 8, r * 2 + 1, 6, P, rnd); for (let x = -r + 2; x < r; x += 4) { k.px(INK, x, -H - 7, 2, 3); k.px(P.glass, x, -H - 7, 2, 2); }
+      dome(k, 0, -H - 9, r, Math.round(r * .9), P.roof, 3);
+      k.px(P.metal[2], 0, -H - 9 - Math.round(r * .9) - 5, 1, 5); k.oval(P.metal[2], 0, -H - 9 - Math.round(r * .9) - 6, 1, 1);
+      for (const x of [-hw - 1, hw - 3]) { k.px(INK, x - 1, -H - 10, 5, 10); k.px(P.plaster[2], x, -H - 9, 3, 9); k.oval(P.roof[3], x + 1, -H - 10, 2, 2); }
+      return {door: {x: 0, y: 0}};
+    },
+    stall(k, P, s, rnd) {
+      // Banco carovaniero: tenda a strisce su pali, tappeti arrotolati, spezie in ceste.
+      k.oval(SHADE, 2, 1, 20, 4);
+      for (const x of [-18, 16]) { k.px(INK, x - 1, -26, 3, 26); k.px(P.wood[2], x, -25, 1, 25); }
+      k.px(INK, -19, -9, 38, 6); k.px(P.wood[1], -18, -9, 36, 5); k.px(P.wood[3], -18, -9, 36, 1);
+      const sp = ['#d9a24e', '#a84b3a', '#e7c88a', '#7a9455'];
+      for (let i = 0; i < 5; i++) { const x = -15 + i * 7; k.oval(INK, x + 2, -11, 3, 2); k.oval(P.wood[2], x + 2, -11, 2, 1); k.oval(sp[(i + s.v) % 4], x + 2, -13, 2, 1); }
+      for (let i = 0; i < 3; i++) { k.px(INK, -16 + i * 4, -17, 4, 4); k.px(P.cloth[i % 4], -15 + i * 4, -16, 2, 2); }
+      k.poly(INK, [[-23, -20], [-14, -33], [14, -33], [23, -20]]);
+      for (let x = -22, i = 0; x < 22; x += 5, i++) k.poly(i % 2 ? P.cloth[1] : P.cloth[0], [[x, -21], [Math.round(x * .62), -32], [Math.round((x + 5) * .62), -32], [x + 5, -21]]);
+      for (let x = -22, i = 0; x < 22; x += 5, i++) k.px(i % 2 ? P.cloth[1] : P.cloth[0], x, -21, 5, 3);
+      return {};
+    },
+    well(k, P, s, rnd) {
+      // Pozzo della cisterna: parapetto quadrato, arco di pietra con carrucola, giara.
+      k.oval(SHADE, 2, 1, 13, 4);
+      k.px(INK, -11, -9, 22, 9); lime(k, -10, -8, 20, 8, P, rnd); k.px('#1f2a33', -8, -9, 16, 2);
+      k.px(INK, -10, -26, 4, 18); k.px(P.plaster[2], -9, -25, 2, 16); k.px(INK, 6, -26, 4, 18); k.px(P.plaster[2], 7, -25, 2, 16);
+      for (let i = 0; i <= 10; i++) { const a = Math.PI * i / 10, x = Math.round(-8 * Math.cos(a)), y = Math.round(-25 - 5 * Math.sin(a)); k.px(INK, x - 1, y - 1, 3, 3); k.px(P.plaster[2], x, y, 1, 1); }
+      k.oval(INK, 0, -27, 2, 2); k.oval(P.metal[2], 0, -27, 1, 1); k.px(P.cloth[3], 0, -25, 1, 12);
+      k.oval(INK, 13, -4, 4, 4); k.oval(P.roof[2], 13, -4, 3, 3); k.px(INK, 12, -9, 3, 2);
+      return {};
+    },
+    lamp(k, P) {
+      k.oval(SHADE, 1, 1, 5, 2);
+      k.px(INK, -2, -4, 5, 4); k.px(P.stone[2], -1, -4, 3, 3);
+      k.px(INK, -1, -20, 3, 17); k.px(P.wood[2], 0, -20, 1, 17);
+      k.oval(INK, 0, -23, 3, 4); k.oval(P.metal[2], 0, -23, 2, 3); k.px(INK, -1, -24, 3, 3); k.px(INK, 0, -28, 1, 2);
+      return {flame: [-1, -24, 3, 3]};
+    },
+    portico(k, P, s, rnd) {
+      // Arcata: pilastri e archi a tutto sesto, ripetibile in serie; con `front` copre il piano terra di un edificio.
+      const w = s.w, hw = w / 2, n = s.arches || Math.max(2, Math.round(w / 14)), h = s.h || 18, span = w / n;
+      if (!s.front) { k.oval(SHADE, 2, 1, hw + 3, 4); }
+      k.px(INK, -hw - 1, -h - 4, w + 2, 5); lime(k, -hw, -h - 3, w, 4, P, rnd);
+      k.px(INK, -hw - 1, -h, w + 2, h); lime(k, -hw, -h, w, h, P, rnd);
+      for (let i = 0; i < n; i++) {
+        const cx = Math.round(-hw + span * (i + .5)), r = Math.max(3, Math.floor(span / 2) - 3), spring = -h + r + 2;
+        k.half(INK, cx, spring, r + 1, r + 1); k.px(INK, cx - r - 1, spring, 2 * r + 3, -spring);
+        k.half('#3a2a22', cx, spring, r, r); k.px('#3a2a22', cx - r, spring, 2 * r + 1, -spring);
+        k.half('#5a4334', cx, spring, r - 1, r - 1); k.px('#5a4334', cx - r + 1, spring, 2 * r - 1, 2);
+        k.px(P.stone[1], cx - r, -1, 2 * r + 1, 1);
+        k.px(P.plaster[2], cx - r - 1, spring - 1, 1, 1); k.px(P.plaster[2], cx + r + 1, spring - 1, 1, 1);
+      }
+      k.px(P.stone[1], -hw, -1, w, 1);
+      return {};
+    },
+    tent(k, P, s, rnd) {
+      const hw = s.w / 2;
+      k.oval(SHADE, 2, 1, hw + 3, 5);
+      k.poly(INK, [[-hw - 1, 0], [0, -30], [hw + 1, 0]]);
+      for (let i = 0; i < 6; i++) { const x0 = -hw + i * s.w / 6, x1 = -hw + (i + 1) * s.w / 6; k.poly(P.cloth[i % 2 ? 1 : 0], [[x0, 0], [x0 * .1, -29], [x1 * .1, -29], [x1, 0]]); }
+      k.poly('#1a1410', [[-5, 0], [0, -13], [5, 0]]); k.poly(P.cloth[2], [[-6, 0], [-1, -13], [-3, 0]]);
+      k.px(INK, 0, -35, 1, 6); k.px(P.cloth[2], 1, -35, 5, 3);
+      for (const x of [-hw - 4, hw + 3]) { k.line(P.cloth[3], x, 0, Math.round(x * .5), -18); k.px(INK, x, -1, 2, 2); }
+      return {};
+    },
+    pier(k, P, s, rnd) {
+      // Molo di legno: assi su pali piantati nell'acqua, bitte, cima arrotolata e lanterna.
+      const hw = s.w / 2;
+      k.px('#2f5f7a', -hw - 4, -2, s.w + 8, 6); for (let x = -hw - 3; x < hw + 3; x += 5) k.px('#7fb0c0', x, 0, 3, 1);
+      for (let x = -hw; x < hw; x += 8) { k.px(INK, x - 1, -6, 4, 9); k.px(P.wood[1], x, -5, 2, 8); }
+      k.px(INK, -hw - 1, -9, s.w + 2, 5); planks(k, -hw, -8, s.w, 4, P.wood, rnd, true, 3);
+      for (const x of [-hw + 2, hw - 4]) { k.px(INK, x - 1, -15, 4, 7); k.px(P.wood[3], x, -14, 2, 6); }
+      k.oval(INK, -hw + 10, -11, 3, 2); k.oval(P.cloth[3], -hw + 10, -11, 2, 1);
+      k.px(INK, hw - 4, -24, 1, 10); k.px(INK, hw - 6, -27, 5, 4); k.px(P.glass, hw - 5, -26, 3, 2);
+      return {};
+    }
+  };
+
+  const PAINT = {vaelthoria, nordharyn, myrathen, voryndhal, azheryon};
+  const BUILDINGS = ['house', 'workshop', 'hall'], PROPS = ['stall', 'well', 'lamp'];
+
+  // ------------------------------------------------------------------ API
+  const cache = new Map();
+  let built = 0;
+  const clampW = (f, w) => { const [a, b] = FAMILIES[f].rules.widths; return Math.max(a, Math.min(b, Math.round((w || 40) / 2) * 2)); };
+  function render(fid, sub, kind, spec = {}) {
+    if (!PAINT[fid]?.[kind]) return null;
+    const F = FAMILIES[fid], building = BUILDINGS.includes(kind);
+    const s = {w: clampW(fid, spec.w || (kind === 'hall' ? 50 : 40)), stories: Math.max(F.rules.stories[0], Math.min(F.rules.stories[1], spec.stories || (kind === 'house' ? 2 : 1))),
+      v: (spec.variant | 0) >>> 0, door: spec.door || 0};
+    const key = [fid, sub, kind, s.w, s.stories, s.v, s.door].join('/');
+    let out = cache.get(key);
+    if (out) return out;
+    const cw = s.w + 48, ch = 120, ax = cw >> 1, ay = ch - 10;
+    const image = document.createElement('canvas'); image.width = cw; image.height = ch;
+    const g = image.getContext('2d'), k = kit(g, ax, ay), wins = [], P = paletteOf(fid, sub);
+    const meta = PAINT[fid][kind](k, P, s, random(9001 + s.v * 7919 + s.w * 31 + kind.length * 131 + fid.length * 17), wins) || {};
+    out = {image, ax, ay, kind, family: fid, sub, footprint: {w: building ? s.w : 0, d: building ? Math.round(s.w * .45) : 0}, door: meta.door || null, windows: wins,
+      flame: meta.flame || null, glow: meta.glow || null, spec: s};
+    image.ax = ax; image.ay = ay; image.windows = wins;
+    cache.set(key, out); built++;
+    if (cache.size > 400) cache.delete(cache.keys().next().value);
+    return out;
+  }
+  const familyOf = palette => REGIONS[palette] || null;
+  // Catalogo: ogni componente con la richiesta di esempio, per le tavole di prova e per il generatore.
+  function catalog(fid) {
+    const out = [];
+    for (const kind of BUILDINGS) for (const spec of kind === 'house' ? [{w: 32, stories: 1}, {w: 40, stories: 2}, {w: 52, stories: 2, variant: 1}] : kind === 'hall' ? [{w: 50}, {w: 64, variant: 1}] : [{w: 40}])
+      out.push({kind, spec});
+    for (const kind of PROPS) out.push({kind, spec: {}});
+    for (const kind of FAMILIES[fid].signature) out.push({kind, spec: {w: kind === 'walkway' || kind === 'colonnade' || kind === 'portico' || kind === 'pergola' || kind === 'greenhouse' ? 44 : 36}});
+    return out;
+  }
+  // Descrizioni senza funzioni (per il generatore e per i pannelli): materiali, regole, componenti.
+  const describe = () => Object.fromEntries(Object.entries(FAMILIES).map(([id, F]) => [id, {id, continent: F.continent, name: F.name, description: F.description,
+    rules: F.rules, variants: Object.keys(F.subs), buildings: BUILDINGS.slice(), props: PROPS.slice(), signature: F.signature.slice(),
+    materials: Object.fromEntries(Object.entries(F.M).map(([k2, v]) => [k2, Array.isArray(v) ? v.slice() : v]))}]));
+
+  window.CityFamilies = Object.freeze({
+    families: Object.freeze(describe()), regions: Object.freeze({...REGIONS}), familyOf, catalog,
+    // Richiesta per il generatore: CityFamilies.render('nordharyn', 'filoni', 'house', {w: 36, stories: 2, variant: 3, door: -6}).
+    render, stats: () => ({built, cached: cache.size}), clear: () => { cache.clear(); }
+  });
+})();
+
+
 /* Additional territories. The original Lùmora renderer remains the owner of its three maps. */
 (() => {
   'use strict';
@@ -2082,46 +3004,168 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
   function insideCrypt(r,x,y,margin){
     return r.rooms.some(([a,b,rw,rh])=>x>=a+margin&&x<=a+rw-margin&&y>=b+margin&&y<=b+rh-margin);
   }
+  // Cripta delle Soglie (World Art Overhaul, fase 4): arenaria calda, basalto, intarsi d'oro e rune viola-ambra,
+  // distinta dal Santuario della Marea Muta (freddo e acquatico). Le sale, gli oggetti e i punti non cambiano:
+  // la percorribilità resta «dentro una sala» (insideCrypt) e gli arredi stanno sulle pareti o a filo del pavimento.
+  const cryptRoomStyle=['ante','corridor','keys','corridor','names','corridor','threshold'];
   function makeCrypt(r,seed){
     const image=makeCanvas(w,h),c=image.getContext('2d'),objects=[],palette=formats.star;
-    // Roccia scura intorno alle sale, bordi e pareti in mattoni con profondità; le sale non cambiano forma.
-    tile(c,'#10181e',0,0,w,h);
-    const rock=random(seed^0x6c8e9cf5);
-    for(let i=0;i<6000;i++){const x=Math.floor(rock()*w),y=Math.floor(rock()*h),q=rock();tile(c,q<.5?'#18232a':'#0b1216',x,y,1+Math.floor(q*3),1);}
-    for(const [x,y,rw,rh] of r.rooms){tile(c,'#1c2429',x-6,y-11,rw+12,rh+18);tile(c,'#2d373d',x-4,y-9,rw+8,rh+14);}
-    for(const [x,y,rw,rh] of r.rooms)tile(c,'#575f62',x,y,rw,rh);
+    const glow=makeCanvas(w,h),gl=glow.getContext('2d');
     const floor=(x,y)=>insideCrypt(r,x,y,0);
-    for(const [x,y,rw,rh] of r.rooms){
-      for(let yy=y-9;yy<y;yy++)for(let xx=x-4;xx<x+rw+4;xx++){
+    const rnd=random(seed^0x51ac2d7);
+    // 1. Roccia viva: basalto bruno con venature calde.
+    tile(c,'#130f13',0,0,w,h);
+    const rock=random(seed^0x6c8e9cf5);
+    for(let i=0;i<6000;i++){const x=Math.floor(rock()*w),y=Math.floor(rock()*h),q=rock();tile(c,q<.5?'#1c161a':'#0c090c',x,y,1+Math.floor(q*3),1);}
+    for(let i=0;i<220;i++){const x=Math.floor(rock()*w),y=Math.floor(rock()*h);for(let k=0;k<10;k++)tile(c,'#2a1f1c',x+k,y+Math.round(Math.sin(k*.7+x)*2),1,1);}
+    // 2. Bordi e pareti: arenaria in blocchi, pareti alte 20 px sopra ogni sala, lati e soglia anteriore.
+    for(const [x,y,rw,rh] of r.rooms){tile(c,'#1d1619',x-7,y-23,rw+14,rh+31);tile(c,'#2c2224',x-5,y-21,rw+10,rh+27);}
+    for(const [x,y,rw,rh] of r.rooms)tile(c,'#6d6052',x,y,rw,rh);
+    for(const [i,[x,y,rw,rh]] of r.rooms.entries()){
+      for(let yy=y-20;yy<y;yy++)for(let xx=x-5;xx<x+rw+5;xx++){
         if(floor(xx,yy))continue;
-        const row=yy-(y-9),brick=Math.floor((xx+(Math.floor(row/3)%2)*4)/8);
-        const col=row===0?'#6f787b':row%3===2||(xx+(Math.floor(row/3)%2)*4)%8===0?'#262e33':hash(brick,Math.floor(row/3)+y,seed)<.5?'#4a5358':'#535c61';
+        const row=yy-(y-20),course=Math.floor(row/4),off=(course%2)*5,brick=Math.floor((xx+off)/10);
+        const joint=row%4===3||(xx+off)%10===0;
+        const q=hash(brick,course+y,seed+11);
+        let col=joint?'#3b2e2a':q<.33?'#7d6a57':q<.66?'#88745f':'#927e67';
+        if(row===0)col='#a8957a';if(row===19)col='#3a2c28';
         tile(c,col,xx,yy);
       }
-      for(let xx=x;xx<x+rw;xx++)if(floor(xx,y+1)&&!floor(xx,y-1)){tile(c,'#1d242833',xx,y,1,4);tile(c,'#1d242822',xx,y+4,1,2);}
-    }
-    for(let y=104;y<638;y+=12)for(let x=84;x<1192;x+=16){
-      if(!insideCrypt(r,x+8,y+6,8))continue;
-      const q=hash(x,y,seed),q2=hash(y,x,seed+3);
-      tile(c,q<.13?'#606963':q<.56?'#6c7470':'#758079',x,y,15,11);
-      tile(c,'#8a8e7e77',x+1,y,7+q*7,1);tile(c,'#4b535633',x,y+10,15,1);tile(c,'#4b535622',x+14,y,1,11);
-      if(q>.96)tile(c,'#b0a98b',x+4,y+4,2,2);
-      if(q2>.95){const cx=x+3+Math.floor(q*8),dir=q>.5?1:-1;tile(c,'#454d4f',cx,y+2,1,3);tile(c,'#454d4f',cx+dir,y+5,1,2);tile(c,'#454d4f',cx+dir*2,y+7,2,1);if(q2>.98)tile(c,'#454d4f',cx-dir*2,y+3,2,1);}
-      if(!insideCrypt(r,x+8,y+6,22)&&q2<.22){tile(c,'#4f6b5a',x+2+Math.floor(q*9),y+3,3,1);tile(c,'#6f8f6a',x+3+Math.floor(q*9),y+2,1,1);}
-    }
-    for(const pt of r.marks){
-      disc(c,'#3e4848',pt.x,pt.y,30,22);disc(c,'#515d5c',pt.x,pt.y,29,21);disc(c,'#798780',pt.x,pt.y,25,18);
-      disc(c,'#5f6d69',pt.x,pt.y,19,13);disc(c,'#798780',pt.x,pt.y,17,12);
-      for(let k=0;k<12;k++){const a=k*Math.PI/6;tile(c,k%3?'#5fa59c':'#9fe0d4',pt.x+Math.cos(a)*22-1,pt.y+Math.sin(a)*15-1,2,2);}
-      for(const angle of [0,Math.PI/2,Math.PI,Math.PI*1.5]){
-        tile(c,'#bfaa7b',pt.x+Math.cos(angle)*16-2,pt.y+Math.sin(angle)*11-2,4,4);
+      // Nicchie con urne, iscrizioni e (nell'Ultima Soglia) la porta sigillata in rilievo.
+      const style=cryptRoomStyle[i];
+      if(style!=='corridor'){
+        for(let xx=x+14;xx<x+rw-18;xx+=34){
+          const q=hash(xx,y,seed+23);
+          if(q<.5){
+            tile(c,'#1f1716',xx,y-17,9,13);tile(c,'#2b201d',xx+1,y-16,7,12);tile(c,'#a8957a',xx-1,y-18,11,1);
+            tile(c,'#8a6f4d',xx+2,y-9,5,5);tile(c,'#b8946a',xx+3,y-10,3,1);tile(c,'#5d4a36',xx+2,y-5,5,1);
+          }else{
+            tile(c,'#5e4e40',xx-1,y-16,13,10);tile(c,'#b2a184',xx,y-15,11,8);
+            for(let k=0;k<3;k++){const len=3+Math.floor(hash(xx,k,seed)*6);tile(c,'#5e4e40',xx+1,y-13+k*2,len,1);tile(c,'#5e4e40',xx+len+2,y-13+k*2,7-len,1);}
+          }
+        }
       }
-      objects.push({x:pt.x-30,y:pt.y+5,type:'pillar',variant:0,radius:0},{x:pt.x+30,y:pt.y+5,type:'pillar',variant:0,radius:0});
+      if(style==='threshold'){
+        const cx=x+rw/2|0;
+        tile(c,'#2a1f1c',cx-17,y-20,34,20);tile(c,'#8e7a62',cx-15,y-19,30,19);
+        tile(c,'#1a1214',cx-10,y-16,20,16);tile(c,'#3a2a3a',cx-9,y-15,18,15);
+        for(let k=0;k<5;k++){tile(c,'#d9b45c',cx-1,y-14+k*3,2,1);tile(gl,'#b48a3a',cx-1,y-14+k*3,2,1);}
+        tile(c,'#c9a55a',cx-12,y-20,24,2);tile(gl,'#7a5a2a',cx-12,y-20,24,2);
+        for(const d of [-1,1]){tile(c,'#a68a6a',cx+d*14-1,y-19,3,19);}
+      }
+      // Ombra di contatto della parete sul pavimento.
+      for(let xx=x;xx<x+rw;xx++)if(floor(xx,y+1)&&!floor(xx,y-1)){tile(c,'#1a121233',xx,y,1,5);tile(c,'#1a121222',xx,y+5,1,3);}
     }
+    // 3. Pavimenti per sala.
+    const cellIn=(px,py,m)=>insideCrypt(r,px,py,m);
+    // Prima i corridoi, poi le sale: gli ingressi restano delle sale; ogni pavimento è ritagliato sul proprio perimetro.
+    const order=[...r.rooms.keys()].sort((a,b)=>(cryptRoomStyle[a]==='corridor'?0:1)-(cryptRoomStyle[b]==='corridor'?0:1));
+    for(const i of order){
+      const [rx,ry,rw,rh]=r.rooms[i],style=cryptRoomStyle[i];
+      c.save();c.beginPath();c.rect(rx,ry,rw,rh);c.clip();
+      paintCryptFloor(style,rx,ry,rw,rh);
+      c.restore();
+    }
+    function paintCryptFloor(style,rx,ry,rw,rh){
+      if(style==='corridor'){
+        // Mattoni a spina di pesce con una passatoia di lastre al centro.
+        for(let y=ry;y<ry+rh;y+=4)for(let x=rx;x<rx+rw;x+=8){
+          const q=hash(x,y,seed+31),hz=((x/8|0)+(y/4|0))%2;
+          tile(c,q<.5?'#5d4740':'#68514a',x,y,hz?8:4,hz?4:8);tile(c,'#3c2c28',x,y+(hz?3:7),hz?8:4,1);
+        }
+        const vertical=rh>rw;
+        if(vertical){const cx=rx+rw/2|0;for(let y=ry;y<ry+rh;y+=10){tile(c,'#3a2d28',cx-9,y,18,10);tile(c,'#8f7c66',cx-8,y,16,9);tile(c,'#a28d74',cx-8,y,16,1);}}
+        else{const cy=ry+rh/2|0;for(let x=rx;x<rx+rw;x+=12){tile(c,'#3a2d28',x,cy-8,12,16);tile(c,'#8f7c66',x,cy-7,11,14);tile(c,'#a28d74',x,cy-7,11,1);}}
+        return;
+      }
+      if(style==='ante'){
+        for(let y=ry;y<ry+rh;y+=13)for(let x=rx-((y/13|0)%2)*10;x<rx+rw;x+=20){
+          const q=hash(x,y,seed+41);
+          tile(c,'#4a3e33',x,y,20,13);tile(c,q<.3?'#75675a':q<.7?'#7f705f':'#8a7a67',x+1,y+1,18,11);tile(c,'#9a8a74',x+1,y+1,18,1);
+          if(q>.9){tile(c,'#4a3e33',x+6,y+4,1,4);tile(c,'#4a3e33',x+7,y+7,3,1);}
+        }
+        // Sentiero consumato dal varco verso il corridoio.
+        for(let x=rx;x<rx+rw;x+=2)for(let k=-9;k<=9;k+=2)if(hash(x,k,seed+43)<.35)tile(c,'#9b8b73',x,ry+84+k,2,1);
+        return;
+      }
+      if(style==='keys'){
+        for(let y=ry;y<ry+rh;y+=12)for(let x=rx;x<rx+rw;x+=12){
+          const dark=((x-rx)/12+(y-ry)/12)%2===0,q=hash(x,y,seed+47);
+          // Contrasto contenuto: mostri ed effetti restano leggibili sopra la scacchiera.
+          tile(c,dark?'#4a4147':'#7f7466',x,y,12,12);tile(c,dark?'#554b52':'#8d8273',x+1,y+1,10,1);
+          if(!dark&&q>.85)tile(c,'#8a7f6b',x+3,y+6,5,1);
+        }
+        return;
+      }
+      if(style==='names'){
+        for(let y=ry;y<ry+rh;y+=11)for(let x=rx-((y/11|0)%2)*8;x<rx+rw;x+=16){
+          const q=hash(x,y,seed+53);
+          tile(c,'#3a3a40',x,y,16,11);tile(c,q<.5?'#5b5c63':'#64656c',x+1,y+1,14,9);tile(c,'#74757b',x+1,y+1,14,1);
+          // Ogni lastra porta un nome inciso: brevi tratti scuri.
+          const parts=1+Math.floor(q*3);let px=x+3;for(let k=0;k<parts&&px<x+13;k++){const len=1+Math.floor(hash(x,k,seed)*4);tile(c,'#3e3f46',px,y+5,len,1);px+=len+1;}
+        }
+        return;
+      }
+      // Ultima Soglia: basalto levigato con riflessi.
+      for(let y=ry;y<ry+rh;y+=14)for(let x=rx-((y/14|0)%2)*12;x<rx+rw;x+=24){
+        const q=hash(x,y,seed+59);
+        tile(c,'#2a2230',x,y,24,14);tile(c,q<.5?'#3a3042':'#41354a',x+1,y+1,22,12);tile(c,'#5a4a62',x+1,y+1,22,1);
+        if(q>.7)tile(c,'#6a5a72',x+4,y+3,5,1);
+      }
+      // Anelli d'oro intarsiati che conducono lo sguardo verso il cerchio della Soglia.
+      const last=r.marks[2];
+      for(const [rad,n] of [[62,44],[90,60]])for(let k=0;k<n;k++){const a=k*Math.PI*2/n,px=last.x+Math.cos(a)*rad,py=last.y+Math.sin(a)*rad*.68;if(k%2===0){tile(c,'#9a7a3a',px,py,3,1);tile(gl,'#5a3a1a',px,py,3,1);}}
+      for(let k=0;k<8;k++){const a=k*Math.PI/4+Math.PI/8;for(let t=50;t<96;t+=3)tile(c,'#7a5f34',last.x+Math.cos(a)*t,last.y+Math.sin(a)*t*.68,1,1);}
+    }
+    // 4. Pezzi centrali delle tre sale (i vecchi segni), mosaico del patto e candele.
+    const ring=(cx,cy,rx,ry,n,col,gcol,size=2)=>{for(let k=0;k<n;k++){const a=k*Math.PI*2/n;const px=cx+Math.cos(a)*rx,py=cy+Math.sin(a)*ry;tile(c,col,px-1,py-1,size,size);if(gcol)tile(gl,gcol,px-1,py-1,size,size);}};
+    const [keys,names,last]=r.marks;
+    // Sala delle Chiavi: rosa di otto chiavi d'oro attorno a una serratura.
+    disc(c,'#2a2228',keys.x,keys.y+1,34,24);disc(c,'#c9a55a',keys.x,keys.y,32,22);disc(c,'#3a3238',keys.x,keys.y,29,20);disc(c,'#4a4048',keys.x,keys.y,24,16);
+    for(let k=0;k<8;k++){
+      const a=k*Math.PI/4,ux=Math.cos(a),uy=Math.sin(a)*.68;
+      for(let t=8;t<22;t++)tile(c,'#d9b45c',keys.x+ux*t,keys.y+uy*t,1,1);
+      tile(c,'#d9b45c',keys.x+ux*22-2,keys.y+uy*22-2,4,4);tile(c,'#3a3238',keys.x+ux*22-1,keys.y+uy*22-1,2,2);
+      tile(c,'#d9b45c',keys.x+ux*12+uy*3,keys.y+uy*12-ux*2,2,1);
+      tile(gl,'#7a5a2a',keys.x+ux*22-2,keys.y+uy*22-2,4,4);
+    }
+    disc(c,'#c9a55a',keys.x,keys.y,6,4);tile(c,'#2a2228',keys.x-1,keys.y-2,2,3);tile(c,'#2a2228',keys.x-2,keys.y+1,4,1);disc(gl,'#8a6a32',keys.x,keys.y,6,4);
+    // Camera dei Nomi: altare ad anello con il libro dei nomi e candele.
+    disc(c,'#2c2c32',names.x,names.y+1,34,24);disc(c,'#7c7d84',names.x,names.y,32,22);disc(c,'#4a4b52',names.x,names.y,28,19);
+    ring(names.x,names.y,30,20,24,'#a08ad0','#6a5aa0');
+    tile(c,'#2a2a30',names.x-12,names.y-6,24,12);tile(c,'#c8b896',names.x-11,names.y-5,10,10);tile(c,'#d8caa8',names.x+1,names.y-5,10,10);tile(c,'#5a4a3a',names.x,names.y-5,1,10);
+    for(let k=0;k<4;k++){tile(c,'#7a6a52',names.x-9,names.y-3+k*2,7,1);tile(c,'#7a6a52',names.x+3,names.y-3+k*2,7,1);}
+    for(let k=0;k<8;k++){const a=k*Math.PI/4+Math.PI/8,px=names.x+Math.cos(a)*24,py=names.y+Math.sin(a)*16;tile(c,'#e8dcc0',px,py-3,2,3);tile(c,'#ffd27a',px,py-5,2,2);tile(gl,'#c8902a',px,py-5,2,2);}
+    // Ultima Soglia: cerchio della soglia con due archi che si cercano (il patto) e rune viola e oro.
+    disc(c,'#160f16',last.x,last.y+2,46,32);disc(c,'#c9a55a',last.x,last.y,44,30);disc(c,'#241b26',last.x,last.y,41,28);
+    ring(last.x,last.y,37,25,32,'#b48ad8','#7a4aa8');disc(c,'#c9a55a',last.x,last.y,30,20);disc(c,'#2d2232',last.x,last.y,28,18);
+    for(const d of [-1,1])for(let t=-12;t<=12;t++){const px=last.x+d*(12-Math.abs(t)*.5)*1.2,py=last.y+t*.9;tile(c,'#d9b45c',px,py,2,1);tile(gl,'#9a7a3a',px,py,2,1);}
+    disc(c,'#e3c8ff',last.x,last.y,4,3);disc(gl,'#9a6ad0',last.x,last.y,5,4);
+    for(let k=0;k<6;k++){const a=k*Math.PI/3;tile(c,'#d9b45c',last.x+Math.cos(a)*48-1,last.y+Math.sin(a)*33-1,3,3);}
+    // Anticamera: mosaico del patto, due mani tese verso un'anima, sul pavimento davanti all'ingresso.
+    const mx=226,my=578;
+    disc(c,'#3a2e26',mx,my,34,15);disc(c,'#8a7a62',mx,my,32,13);disc(c,'#6a5a48',mx,my,29,11);
+    for(const d of [-1,1]){for(let k=0;k<12;k++)tile(c,'#c9a55a',mx+d*(26-k),my+Math.round(Math.sin(k*.3)*2),2,2);tile(c,'#c9a55a',mx+d*13,my-3,2,6);tile(c,'#c9a55a',mx+d*11,my-4,2,7);}
+    disc(c,'#e8dcc0',mx,my-1,4,3);disc(c,'#ffffff',mx,my-2,2,1);disc(gl,'#b49a6a',mx,my-1,4,3);
+    // 5. Oggetti invariati: pilastri accanto ai segni, lampade, varchi.
+    for(const pt of r.marks)objects.push({x:pt.x-30,y:pt.y+5,type:'pillar',variant:0,radius:0},{x:pt.x+30,y:pt.y+5,type:'pillar',variant:0,radius:0});
     for(const [x,y] of [[192,485],[509,539],[722,464],[594,303],[789,219],[990,201],[1137,310]])objects.push({x,y,type:'lamp',variant:0,radius:0});
     for(const g of r.points.gates)objects.push({...g,type:'gate',variant:0,radius:0});
     const chart=makeCanvas(324,204);chart.getContext('2d').drawImage(image,0,0,324,204);
-    return {r,palette,image,objects,cells:new Map(),chart};
+    return {r,palette,image,objects,cells:new Map(),chart,glow,crypt:true};
+  }
+  // Braciere della Cripta: treppiede di bronzo con coppa (sprite 24x30, base a y=26); la fiamma è animata a parte.
+  let cryptBrazier=null;
+  function paintCryptLamp(c,o,t){
+    if(!cryptBrazier){
+      cryptBrazier=makeCanvas(24,30);const g=cryptBrazier.getContext('2d');
+      disc(g,'#0c080a88',12,27,7,2);
+      for(const [x0,x1] of [[6,10],[18,14],[12,12]])for(let y=26;y>14;y--){const k=(26-y)/12;tile(g,'#5a3f28',Math.round(x0+(x1-x0)*k),y,1,1);}
+      tile(g,'#2a1c14',5,13,14,4);tile(g,'#a07a45',6,12,12,3);tile(g,'#d0a868',6,12,12,1);tile(g,'#3a2a20',7,15,10,1);
+    }
+    c.drawImage(cryptBrazier,o.x-12,o.y-26);
+    const lit=Math.sin(t*5+o.x)>-.4;
+    tile(c,'#c85a28',o.x-3,o.y-17,6,3);tile(c,'#f2a046',o.x-2,o.y-19,4,3);if(lit)tile(c,'#ffe3a0',o.x-1,o.y-20,2,2);
   }
   function makeArea(r,seed){
     if(r.rooms)return makeCrypt(r,seed);
@@ -3011,6 +4055,8 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
   }
   // Posizione della fiamma rispetto alla base del lampione: [dx, dy, larghezza, altezza].
   function lampFlame(pal){
+    const fam=familySprite(pal,'lamp',0);
+    if(fam?.flame)return fam.flame;
     if(pal==='grass'||pal==='root')return [-1,-27,3,4];
     if(pal==='star'||pal==='fae')return [-1,-22,3,3];
     if(pal==='ruin')return [-1,-19,3,3];
@@ -3022,8 +4068,12 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
     const a=current,lights=[],windows=[];
     if(!a)return null;
     if(a.r.rooms){
-      for(const o of a.objects)if(o.type==='lamp')lights.push({x:o.x,y:o.y,kind:'fire',lift:25,core:[o.x-1,o.y-11,3,3,'#ffd890']});
-      return {lights,windows};
+      // Bracieri, pezzi centrali delle tre sale e mosaico del patto; rune e intarsi come strato emissivo.
+      for(const o of a.objects)if(o.type==='lamp')lights.push({x:o.x,y:o.y,kind:'fire',lift:32,core:[o.x-1,o.y-20,2,2,'#ffe3a0']});
+      const [keys,names,last]=a.r.marks;
+      lights.push({x:keys.x,y:keys.y,kind:'fire',lift:33,p:1},{x:names.x,y:names.y,kind:'spirit',lift:33,p:1},
+        {x:last.x,y:last.y,kind:'spirit',lift:33},{x:226,y:578,kind:'lamp',lift:33,p:1});
+      return {lights,windows,emissive:a.glow?{image:a.glow,alpha:.9}:null};
     }
     const pal=a.r.palette,glowKind=pal==='star'||pal==='fae'?'crystal':pal==='grass'||pal==='root'?'fire':'lamp',[dx,dy,fw,fh]=lampFlame(pal);
     for(const o of a.objects){
@@ -3041,11 +4091,30 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
     if(e&&l.discoveredAt!==null&&e.region===a.r.id)lights.push({x:e.x,y:e.y,kind:'spirit',lift:29});
     return {lights,windows};
   }
-  const biomeOf=rid=>advanced[rid]?.rooms?'under':advanced[rid]?.palette;
+  const biomeOf=rid=>advanced[rid]?.rooms?'crypt':advanced[rid]?.palette;
   window.WorldLight?.provide(rid=>!!advanced[rid]&&current?.r.id===rid,lightSources,biomeOf,biomeOf);
+  // Famiglie architettoniche per continente (city-families.js, fase 4 D): casa, bottega (seconda casa), sala, banchi,
+  // pozzo e lampioni dei borghi con le impronte di sempre; senza il modulo resta il disegno precedente.
+  // La Selva degli Alambicchi (tavolozza `fae`) resta il pilota di Codex con i suoi sprite, lampioni e pozzo compresi.
+  const familySpec=(type,v)=>type==='hall'?{w:50,variant:v}:type==='house'?{w:40,stories:v===2?1:2,variant:v}:{variant:v};
+  function familySprite(pal,type,v){
+    const fam=pal!=='fae'&&['house','hall','stall','well','lamp'].includes(type)&&window.CityFamilies?.familyOf(pal);
+    return fam?CityFamilies.render(fam[0],fam[1],type==='house'&&v===2?'workshop':type,familySpec(type,v)):null;
+  }
   function paintBiomeSprite(c,a,o,t){
     const pal=a.r.palette,type=o.type;
     let key=null,draw=null;
+    const fam=familySprite(pal,type,o.variant);
+    if(fam){
+      a.sprites.set(type==='lamp'?'lamp':type+'/'+o.variant,fam.image);
+      c.drawImage(fam.image,o.x-fam.ax,o.y-fam.ay);
+      if(type==='lamp'){
+        const lit=Math.sin(t*4+o.x)>-.6,[dx,dy,fw,fh]=lampFlame(pal);
+        const col=pal==='star'||pal==='fae'?['#9ff0ff','#e6ffff']:['#f2a046','#ffe3a0'];
+        tile(c,col[0],o.x+dx,o.y+dy,fw,fh);if(lit)tile(c,col[1],o.x+dx+1,o.y+dy+(fh>3?1:0),1,2);
+      }
+      return true;
+    }
     if(['leaf','pine','umbrella','palm','rock','shrub','stone'].includes(type)){
       const size=Math.floor(hash(o.x,o.y,7259)*3),v=o.variant%6;
       const kind=type==='shrub'||type==='stone'?type:pal==='star'&&type==='leaf'?'tree':'tree';
@@ -3073,6 +4142,7 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
   function paint(c,a,o,t){
     // Integrazione: Cripta (pilastri e varco) e statue di Nordharyn e Azheryon da Codex; il resto da Claude.
     if(a.r?.rooms&&(o.type==='gate'||o.type==='pillar')){paintRelic(c,a,o);return;}
+    if(a.r?.rooms&&o.type==='lamp'){paintCryptLamp(c,o,t);return;}
     if(o.type==='monument'&&(o.variant===1||o.variant===4)){paintRelic(c,a,o);return;}
     if(a.selvaSprites&&paintSelvaSprite(c,a,o))return;
     if(a.sprites&&paintBiomeSprite(c,a,o,t))return;
@@ -4493,6 +5563,491 @@ window.ActorArt = (() => {
   window.ActorArt={...art,draw,portrait};
 })();
 
+
+
+/* Sprite dedicati delle stirpi continentali: Scheletro errante, Orso dei larici e Viverna di brina.
+   Prima queste stirpi prendevano in prestito il disegno di altre specie (fuoco fatuo, lupo, drago) con qualche
+   rettangolo sopra. Qui ognuna ha un piano corporeo proprio (bipede d'ossa, quadrupede massiccio, rettile alato),
+   un volto leggibile, fronte/retro/lato, passo a due tempi, posa d'attacco, lampo del colpo e forme evolutive che
+   cambiano la sagoma oltre ai colori. Coordinate intere relative ai piedi; asse di simmetria fra le colonne -1 e 0.
+   Metodo riutilizzabile (vedi GAME_DESIGN.md, «Sprite delle stirpi»): piano corporeo per vista → forma (ramo A
+   offensivo, accento caldo; ramo B di sostegno, accento freddo; secondo stadio con sagoma più grande e un elemento
+   nuovo) → pose (passo, attesa, attacco) → contorno d'inchiostro e lampo del colpo comuni, fotogrammi in memoria. */
+(() => {
+  'use strict';
+  const base = window.ActorArt;
+  const SIZE = 96, AX = 48, AY = 88;
+  const R = Math.round;
+  let C = null;
+  function px(col, x, y, w = 1, h = 1) { C.fillStyle = col; C.fillRect(R(x), R(y), w, h); }
+  // Ovale di larghezza pari, simmetrico rispetto alla linea cx.
+  function ov(col, cx, cy, rx, ry) {
+    for (let j = -ry; j <= ry; j++) {
+      const dx = Math.max(1, R(rx * Math.sqrt(Math.max(0, 1 - (j / (ry + .5)) ** 2))));
+      px(col, cx - dx, cy + j, dx * 2, 1);
+    }
+  }
+  function ln(col, pts, w = 1) {
+    for (let k = 2; k < pts.length; k += 2) {
+      const x0 = pts[k - 2], y0 = pts[k - 1], dx = pts[k] - x0, dy = pts[k + 1] - y0, n = Math.max(Math.abs(dx), Math.abs(dy), 1);
+      for (let i = 0; i <= n; i++) px(col, Math.floor(x0 + dx * i / n), Math.floor(y0 + dy * i / n), w, w);
+    }
+  }
+  function poly(col, pts) {
+    let minY = Infinity, maxY = -Infinity;
+    for (let i = 1; i < pts.length; i += 2) { minY = Math.min(minY, pts[i]); maxY = Math.max(maxY, pts[i]); }
+    for (let y = Math.ceil(minY); y <= maxY; y++) {
+      const xs = [];
+      for (let i = 0, j = pts.length - 2; i < pts.length; j = i, i += 2) {
+        const ay = pts[j + 1], by = pts[i + 1];
+        if ((ay > y + .01) !== (by > y + .01)) xs.push(pts[j] + (y + .01 - ay) * (pts[i] - pts[j]) / (by - ay));
+      }
+      xs.sort((a, b) => a - b);
+      for (let i = 0; i + 1 < xs.length; i += 2) px(col, Math.ceil(xs[i]), y, Math.max(1, Math.floor(xs[i + 1]) - Math.ceil(xs[i]) + 1), 1);
+    }
+    ln(col, [...pts, pts[0], pts[1]]);
+  }
+  // Disegna una parte e la sua immagine speculare (vista di fronte o di spalle).
+  function sym(fn) { fn(1); C.save(); C.scale(-1, 1); fn(-1); C.restore(); }
+
+  /* ---------------------------------------------------------------- Scheletro errante */
+  const BONE = { d: '#7d7264', m: '#b8ad94', l: '#e2d8bd', h: '#fbf3da' }, HOLE = '#241d2c';
+  const RAG = ['#463b4f', '#62566c'];
+  const STEEL = { d: '#4f5866', m: '#7d8895', l: '#aab5bd', h: '#d8e0e3' }, RUST = '#a5603e', WOOD = '#5b3e2e';
+  const HOOD = { d: '#2f2a40', m: '#4a4362', l: '#6c6488' }, ROPE = '#b59a62', BRONZE = '#8a6a3a';
+  const KNIGHT = { d: '#8a8375', m: '#cfc7b1', l: '#efe8d4', h: '#fffaea' }, GOLD = '#d6a548', GOLDL = '#ffe08a', CAPE = ['#5f2b39', '#843f4e'];
+  const VIGIL = { d: '#28243e', m: '#433d66', l: '#665d92' }, TRIM = '#d9c58a', WAX = '#ebe0c6';
+  function skull(view, glow, small) {
+    const B = BONE;
+    if (view === 'side') {
+      ov(B.m, 1, -22, small ? 4 : 5, small ? 3 : 4); ov(B.l, 1, -23, small ? 3 : 4, small ? 2 : 3);
+      px(B.d, small ? -3 : -4, -24, 1, 4); px(HOLE, 2, -22, 3, 2); px(glow, 3, -22);
+      px(HOLE, 5, -20); px(B.d, 1, -20, 2, 1); px(B.l, 1, -18, 5, 1); px(HOLE, 3, -18); px(B.m, 1, -17, 4, 1);
+      return;
+    }
+    if (small) { ov(B.l, 0, -21, 4, 3); px(B.m, -3, -19, 6, 1); }
+    else { ov(B.m, 0, -22, 5, 4); ov(B.l, 0, -23, 4, 3); px(B.h, -3, -25, 3, 1); }
+    if (view === 'back') {
+      px(B.d, 1, -25, 1, 2); px(B.d, 2, -23, 1, 2); px(B.d, 1, -21); px(B.d, -2, -19, 4, 1);
+      return;
+    }
+    if (small) { px(HOLE, -3, -22, 2, 2); px(HOLE, 1, -22, 2, 2); px(glow, -2, -22); px(glow, 1, -22); px(HOLE, -1, -20, 2, 1); px(B.m, -2, -18, 4, 1); return; }
+    px(HOLE, -4, -22, 3, 2); px(HOLE, 1, -22, 3, 2); px(glow, -3, -22); px(glow, 2, -22);
+    px(HOLE, -1, -20, 2, 1);
+    px(B.l, -3, -18, 6, 1); px(HOLE, -2, -18); px(HOLE, 1, -18); px(B.m, -2, -17, 4, 1);
+  }
+  function skeleton(view, form, step, attack, flick) {
+    const B = BONE, warm = form === 1 || form === 3;
+    const glow = flick ? (warm ? '#fff0b8' : '#e4fff6') : (warm ? '#ffb54f' : '#6fe8cf');
+    const walk = step < 2, lA = walk && step === 0 ? 1 : 0, rA = walk && step === 1 ? 1 : 0, sw = walk ? (step ? 1 : -1) : 0;
+    const robe = form === 2 || form === 4, knight = form === 3;
+    if (view === 'side') {
+      const nf = walk ? (step === 0 ? 2 : -2) : 1, ff = walk ? -nf : -1;
+      if (knight) poly(CAPE[0], [-3, -16, 0, -16, -2, -4, -6, -3]);
+      if (form === 4) {
+        for (const [x, y] of [[-8, -22], [-7, -27], [-3, -30], [2, -31]]) { px(WAX, x, y, 1, 2); px(flick ? '#fff1bf' : '#ffcf6a', x, y - 1); }
+        ln('#6b5038', [6, -1, 6, -30]); px(GOLD, 4, -35, 4, 1); px(GOLD, 4, -32, 4, 1); px(GOLD, 4, -34, 1, 2); px(GOLD, 7, -34, 1, 2); px(glow, 5, -34, 2, 2);
+      }
+      if (robe) {
+        const P = form === 2 ? HOOD : VIGIL;
+        poly(P.m, form === 2 ? [-3, -17, 2, -17, 4, -3, -4, -2] : [-3, -17, 2, -17, 5, -1, -5, -1]);
+        px(P.d, -2, -12, 1, 10); px(P.l, 1, -16, 1, 13);
+        px(B.m, nf, -1, 2, 1);
+        if (form === 2) { px(ROPE, -3, -11, 6, 1); px(ROPE, -3, -10, 1, 3); }
+        else { px(TRIM, 2, -16, 1, 14); px(TRIM, -4, -3, 2, 1); px(TRIM, 0, -3, 2, 1); px(VIGIL.d, -5, -2, 10, 1); }
+      } else {
+        const L = knight ? KNIGHT : B;
+        ln(knight ? KNIGHT.d : B.d, [0, -9, ff, -2], 2); px(knight ? KNIGHT.d : B.d, ff, -1, 3, 1);
+        ln(L.l, [0, -9, nf, -2], 2); px(knight ? GOLD : B.h, R(nf / 2), -5, 2, 1); px(L.m, nf, -1, 3, 1);
+        if (knight) { px(KNIGHT.d, -2, -11, 5, 3); px(GOLD, -2, -11, 5, 1); }
+        else { px(B.m, -2, -10, 4, 2); px(RAG[0], -2, -10, 4, 3); px(RAG[1], -1, -10, 2, 2); px(RAG[0], 1, -7); }
+      }
+      if (!robe) {
+        if (form === 1) { poly(STEEL.m, [-2, -16, 3, -16, 4, -12, 2, -10, -2, -10]); px(STEEL.l, 1, -15, 2, 2); px(RUST, 0, -12); }
+        else if (knight) { poly(KNIGHT.m, [-2, -17, 3, -17, 4, -13, 2, -10, -2, -10]); px(GOLD, 2, -16, 1, 6); px(KNIGHT.l, -1, -16, 2, 2); }
+        else { px(B.d, -2, -16, 1, 7); px(B.l, -1, -15, 4, 1); px(B.l, -1, -13, 4, 1); px(B.m, -1, -11, 3, 1); px(B.m, 3, -15, 1, 3); }
+      }
+      const ax = attack ? 7 : walk ? -sw * 2 : 0;
+      if (knight) {
+        // Scudo sul braccio lontano, spada nel braccio vicino.
+        poly(KNIGHT.l, [-5, -16, -1, -16, -1, -9, -3, -6, -5, -9]); px(GOLD, -4, -13, 2, 2); ln(GOLD, [-5, -16, -1, -16]);
+      }
+      if (attack) {
+        ln(robe ? (form === 2 ? HOOD.m : VIGIL.m) : B.l, [0, -15, 4, -16, 6, -18], robe ? 2 : 1); px(B.m, 6, -20, 2, 2);
+        if (form === 1) { poly(STEEL.l, [7, -21, 12, -26, 14, -24, 9, -19]); ln(STEEL.h, [12, -26, 14, -24]); px(WOOD, 6, -20, 2, 2); }
+        else if (knight) { ln('#dfe8ec', [8, -20, 15, -27], 2); ln(GOLD, [6, -22, 9, -19]); }
+        else if (form === 2) { px(BRONZE, 7, -23, 3, 4); px(flick ? '#fff3c4' : '#ffd27a', 8, -22, 1, 2); px('#ffe9a8', 10, -24); px('#ffe9a8', 11, -21); }
+        else if (form === 4) { px(TRIM, 7, -22, 3, 3); px(glow, 8, -21); px(glow, 10, -24); px(glow, 11, -20); }
+        else { px(B.h, 8, -21); px(B.h, 9, -20); px(B.h, 8, -19); }
+      } else {
+        if (robe) { const P = form === 2 ? HOOD : VIGIL; px(P.m, 0, -16, 2, 5); px(B.m, ax, -11, 2, 2); }
+        else { ln(B.l, [0, -15, ax, -10]); px(B.m, ax, -9, 2, 2); }
+        if (form === 1) { poly(STEEL.l, [ax + 1, -9, ax + 3, -9, ax + 4, -2, ax + 1, -1]); px(STEEL.h, ax + 3, -8, 1, 5); px(WOOD, ax, -11, 2, 2); }
+        else if (knight) { px('#dfe8ec', ax + 1, -25, 2, 14); px('#9fb0b8', ax + 2, -25, 1, 14); px(GOLD, ax - 1, -11, 6, 1); px(GOLDL, ax + 1, -9, 2, 1); }
+        else if (form === 2) { px('#6b5a40', ax + 1, -9, 1, 2); px(BRONZE, ax, -7, 3, 4); px(flick ? '#fff3c4' : '#ffd27a', ax + 1, -6, 1, 2); }
+      }
+      if (knight) {
+        ov(KNIGHT.m, 1, -22, 5, 5); px(KNIGHT.l, -1, -26, 5, 2); px(HOLE, 2, -22, 5, 1); px(glow, 4, -22);
+        px(KNIGHT.d, -4, -24, 1, 5); poly(BONE.l, [-3, -27, -7, -30, -4, -32, 0, -33, 3, -27]); px(BONE.h, -1, -31, 2, 1); px(BONE.m, -5, -29, 2, 1); px(GOLD, -2, -27, 5, 1);
+      } else if (robe) {
+        const P = form === 2 ? HOOD : VIGIL;
+        ov(P.m, 0, -22, 6, 5); if (form === 4) poly(P.m, [-4, -25, -2, -31, 2, -25]); else px(P.m, -5, -27, 3, 2);
+        ov(BONE.l, 2, -21, 3, 3); px(HOLE, 3, -22, 2, 2); px(glow, 4, -22); px(BONE.m, 2, -18, 3, 1);
+        px(P.l, 0, -26, 6, 1); px(P.d, 1, -25, 5, 1);
+      } else {
+        skull('side', glow);
+        if (form === 1) { px(STEEL.d, -5, -24, 13, 1); px(STEEL.m, -4, -25, 11, 1); ov(STEEL.m, 1, -27, 4, 2); px(STEEL.l, -1, -28, 3, 1); px(RUST, 4, -25); }
+      }
+      if (form === 2) { const b = step % 2; px('#ffcf6a', -8, -26 + b, 3, 2); px('#fff3c4', -7, -27 + b); px('#e9dcc0', -8, -24 + b, 3, 1); }
+      return;
+    }
+    const back = view === 'back';
+    // Dietro il corpo: mantello del cavaliere, aureola di candele e bastone della veglia.
+    if (knight) { poly(CAPE[0], [-6, -16, 5, -16, 7, -3, -7, -3]); if (back) { px(CAPE[1], -4, -15, 1, 11); px(CAPE[1], 2, -14, 1, 10); } }
+    if (form === 4) {
+      for (const [x, y] of [[-9, -21], [-8, -26], [-4, -30], [3, -30], [7, -26], [8, -21]]) { px(WAX, x, y, 1, 2); px(flick ? '#fff1bf' : '#ffcf6a', x, y - 1); }
+      const sx = back ? 8 : -9;
+      ln('#6b5038', [sx, -1, sx, -30]);
+      px(GOLD, sx - 2, -35, 4, 1); px(GOLD, sx - 2, -32, 4, 1); px(GOLD, sx - 2, -34, 1, 2); px(GOLD, sx + 1, -34, 1, 2); px(glow, sx - 1, -34, 2, 2);
+    }
+    // Gambe e bacino.
+    if (robe) {
+      const P = form === 2 ? HOOD : VIGIL;
+      if (form === 2) sym(() => poly(P.m, [0, -17, 4, -17, 5, -11, 6, -3, 4, -2, 2, -3, 0, -2]));
+      else sym(() => poly(P.m, [0, -17, 4, -17, 6, -6, 7, -1, 0, -1]));
+      px(P.d, -3, -10, 1, 7); px(P.d, 2, -10, 1, 7); px(P.l, -1, -16, 2, back ? 4 : 13);
+      px(B.m, -4, -1 - lA, 2, 1); px(B.m, 2, -1 - rA, 2, 1);
+      if (form === 2) { px(ROPE, -5, -11, 10, 1); if (!back) px(ROPE, 2, -10, 1, 3); }
+      else { sym(() => px(TRIM, 2, -16, 1, 12)); px(VIGIL.d, -7, -2, 14, 1); for (const [x, w] of [[-6, 2], [-3, 1], [0, 2], [4, 1]]) px(TRIM, x, -3, w, 1); }
+    } else {
+      const L = knight ? KNIGHT : B;
+      for (const [x, l] of [[-3, lA], [1, rA]]) { px(L.d, x, -8 - l, 2, 7); px(L.l, x, -8 - l, 1, 7); px(knight ? GOLD : B.h, x, -5 - l, 2, 1); }
+      px(knight ? KNIGHT.d : B.m, -4, -1 - lA, 3, 1); px(knight ? KNIGHT.d : B.m, 1, -1 - rA, 3, 1);
+      if (knight) { px(KNIGHT.d, -4, -10, 8, 2); px(KNIGHT.m, -4, -10, 8, 1); px(GOLD, -1, -10, 2, 2); }
+      else {
+        px(B.m, -3, -10, 6, 2); px(B.l, -3, -10, 6, 1); px(HOLE, -1, -9, 2, 1);
+        px(RAG[0], -3, -9, 6, 2); px(RAG[1], -2, -9, 4, 1); px(RAG[0], -2, -7); px(RAG[0], 1, -7);
+      }
+    }
+    // Busto.
+    if (form === 1) {
+      sym(() => poly(STEEL.m, [0, -16, 4, -16, 5, -13, 3, -10, 0, -10]));
+      if (!back) { px(STEEL.l, -3, -15, 2, 2); px(STEEL.d, 1, -13, 2, 1); px(RUST, -3, -12); px(RUST, 2, -11); }
+      else { px(STEEL.d, -1, -15, 2, 5); px(RUST, 2, -13); }
+      ov(STEEL.m, back ? 6 : -6, -16, 3, 2); px(STEEL.l, back ? 5 : -7, -17, 3, 1);
+    } else if (knight) {
+      sym(() => poly(KNIGHT.m, [0, -17, 5, -17, 5, -13, 3, -10, 0, -10]));
+      if (!back) { px(KNIGHT.l, -4, -16, 3, 2); px(GOLD, -1, -16, 2, 6); px(GOLDL, -1, -14, 2, 1); }
+      sym(() => { ov(KNIGHT.l, 6, -16, 3, 2); px(GOLD, 4, -15, 5, 1); });
+    } else if (!robe) {
+      px(B.d, -1, -16, 2, 6);
+      if (back) { px(B.l, -1, -16, 2, 7); for (const y of [-15, -13, -11]) px(B.d, -1, y, 2, 1); sym(() => { px(B.m, 1, -15, 3, 2); px(B.d, 1, -12, 3, 1); }); }
+      else {
+        sym(() => { px(B.l, 0, -15, 4, 1); px(B.m, 3, -14); px(B.l, 0, -13, 4, 1); px(B.m, 3, -12); px(B.m, 0, -11, 3, 1); });
+        px(B.m, -1, -15, 2, 5); px(B.h, -1, -15, 2, 1);
+      }
+      sym(() => { px(B.l, 0, -16, 5, 1); px(B.h, 5, -16); });
+    }
+    px(B.d, -1, -17, 2, 1);
+    // Braccia: a sinistra dello schermo il braccio libero (o lo scudo), a destra quello armato; di spalle si scambiano.
+    const free = back ? 5 : -6, arm = back ? -6 : 5, dirA = back ? -1 : 1;
+    const sleeve = robe ? (form === 2 ? HOOD : VIGIL) : null;
+    if (sleeve) { px(sleeve.m, free - (back ? 0 : 1), -16, 2, 5); if (form !== 4) px(B.m, free - (back ? 0 : 1), -11 + sw, 2, 2); }
+    else { px(knight ? KNIGHT.m : B.l, free, -15, 1, 3); px(B.d, free, -12); px(knight ? KNIGHT.m : B.l, free, -11, 1, 3 + sw); px(knight ? KNIGHT.d : B.m, free - (back ? 0 : 1), -8 + sw, 2, 2); }
+    if (form === 4) { px(B.m, back ? 7 : -10, -13, 2, 2); }
+    if (knight && !back) {
+      poly(KNIGHT.l, [-12, -16, -7, -16, -7, -9, -9, -6, -10, -6, -12, -9]); ln(GOLD, [-12, -16, -7, -16]);
+      px(GOLDL, -10, -13, 2, 2); px(GOLD, -10, -15, 2, 1); px(GOLD, -10, -10, 2, 1);
+    }
+    if (attack) {
+      C.save(); if (back) C.scale(-1, 1);
+      if (sleeve) { ln(sleeve.m, [5, -15, 7, -18], 2); px(B.m, 8, -20, 2, 2); }
+      else { ln(knight ? KNIGHT.m : B.l, [5, -15, 7, -17, 8, -19]); px(knight ? KNIGHT.d : B.m, 8, -21, 2, 2); }
+      if (form === 1) { poly(STEEL.l, [9, -22, 14, -27, 16, -25, 11, -20]); ln(STEEL.h, [14, -27, 16, -25]); px(WOOD, 8, -22, 2, 2); }
+      else if (knight) { ln('#dfe8ec', [10, -22, 17, -29], 2); ln('#9fb0b8', [11, -21, 17, -27]); ln(GOLD, [8, -24, 11, -20]); }
+      else if (form === 2) { px(BRONZE, 8, -25, 3, 4); px(flick ? '#fff3c4' : '#ffd27a', 9, -24, 1, 2); px('#ffe9a8', 12, -26); px('#ffe9a8', 12, -22); px('#ffe9a8', 7, -27); }
+      else if (form === 4) { px(TRIM, 8, -24, 3, 3); px(glow, 9, -23); px(glow, 11, -27); px(glow, 13, -22); px(glow, 7, -27); }
+      else { px(B.h, 10, -22); px(B.h, 10, -20); px(B.h, 9, -23); }
+      C.restore();
+    } else {
+      C.save(); if (back) C.scale(-1, 1);
+      if (sleeve) { px(sleeve.m, 5, -16, 2, 5); px(B.m, 5, -11 - sw, 2, 2); }
+      else { px(knight ? KNIGHT.m : B.l, 5, -15, 1, 3); px(B.d, 5, -12); px(knight ? KNIGHT.m : B.l, 5, -11, 1, 3 - sw); px(knight ? KNIGHT.d : B.m, 5, -8 - sw, 2, 2); }
+      const hy = -8 - sw;
+      if (form === 1) { poly(STEEL.l, [6, hy - 1, 9, hy - 1, 10, hy + 6, 7, hy + 7, 6, hy + 4]); px(STEEL.h, 9, hy, 1, 6); px(STEEL.d, 10, hy + 3); px(WOOD, 5, hy - 3, 2, 3); }
+      else if (knight) { px('#dfe8ec', 7, -25, 2, 14); px('#9fb0b8', 8, -25, 1, 14); px('#dfe8ec', 7, -26); px(GOLD, 5, -11, 6, 1); px('#4a3328', 7, -10, 2, 2); px(GOLDL, 7, -8, 2, 1); }
+      else if (form === 2) { px('#6b5a40', 6, hy + 2, 1, 2); px(BRONZE, 5, hy + 4, 3, 4); px(BRONZE, 5, hy + 3, 3, 1); px(flick ? '#fff3c4' : '#ffd27a', 6, hy + 5, 1, 2); }
+      else if (form === 4) { px(TRIM, 6, -11, 3, 3); px(VIGIL.d, 7, -10); }
+      C.restore();
+    }
+    // Testa e copricapo.
+    if (robe) {
+      const P = form === 2 ? HOOD : VIGIL;
+      ov(P.m, 0, -22, 6, 5);
+      if (form === 4) poly(P.m, [-3, -26, 0, -31, 2, -26]); else px(P.m, -1, -28, 2, 1);
+      if (back) { px(P.l, -1, -26, 2, 6); px(P.d, -4, -18, 8, 1); }
+      else { skull('front', glow, true); px(P.l, -4, -26, 8, 1); px(P.d, -4, -25, 8, 1); sym(() => px(P.m, 4, -19, 3, 3)); }
+    } else if (knight) {
+      ov(KNIGHT.m, 0, -22, 5, 5); px(KNIGHT.l, -3, -26, 6, 2);
+      if (!back) { px(HOLE, -4, -22, 8, 1); px(glow, -3, -22); px(glow, 2, -22); px(HOLE, -2, -19); px(HOLE, 1, -19); }
+      else px(KNIGHT.d, -1, -24, 2, 6);
+      poly(BONE.l, [-1, -27, 0, -33, 1, -27]); sym(() => poly(BONE.l, [2, -26, 5, -31, 4, -25])); px(GOLD, -2, -27, 4, 1);
+    } else {
+      skull(back ? 'back' : 'front', glow);
+      if (form === 1) { px(STEEL.d, -7, -24, 14, 1); px(STEEL.m, -6, -25, 12, 1); ov(STEEL.m, 0, -27, 4, 2); px(STEEL.l, -2, -28, 3, 1); px(RUST, -3, -25); px(RUST, 3, -25); }
+    }
+    if (form === 2) { const b = step % 2, lx = back ? 8 : -10; px('#ffcf6a', lx, -26 + b, 3, 2); px('#fff3c4', lx + 1, -27 + b); px('#e9dcc0', lx, -24 + b, 3, 1); }
+  }
+
+  /* ---------------------------------------------------------------- Orso dei larici */
+  const BEAR = [
+    { d: '#3b2a24', m: '#5e4130', l: '#8a6346', h: '#b38a62' },
+    { d: '#2f2628', m: '#4f3d38', l: '#765a4a', h: '#9d7b61' },
+    { d: '#3f3a2c', m: '#6a5d3f', l: '#94845a', h: '#bcaa78' },
+    { d: '#3d4a5e', m: '#7d90a8', l: '#b8c9d8', h: '#e8f1f6' },
+    { d: '#3a3328', m: '#5f5236', l: '#877450', h: '#ae9a6c' }
+  ];
+  const MUZZLE = ['#d9c099', '#a88e6c'], NOSE = '#231c22', CLAW = '#efe2c4', LARCH = ['#c9a04a', '#e7c36a'];
+  const STONE = ['#5d5f6b', '#8a8c96', '#b8bac2'], MOSS = ['#4f7a43', '#7aa65a'], WATER = ['#5fb6d6', '#a9e6f2'];
+  const ICE = ['#7fc8e8', '#c5f0ff', '#ffffff'], REED = ['#5f8a45', '#93b85f'], BLOOM = ['#f0a8b8', '#f5d36a'];
+  function bear(view, form, step, attack, flick) {
+    const F = BEAR[form] || BEAR[0], big = form >= 3 ? 1 : 0;
+    const walk = step < 2, lA = walk && step === 0 ? 1 : 0, rA = walk && step === 1 ? 1 : 0;
+    const claw = form === 1 || form === 3 ? 2 : 1;
+    if (view === 'side') {
+      const fo = walk ? (step ? 1 : -1) : 0;
+      // Zampe lontane, corpo, zampe vicine.
+      px(F.d, 3 - fo, -6, 3, 6); px(F.d, -9 + fo, -6, 3, 6);
+      poly(F.m, [-10 - big, -5, -10 - big, -11, -7, -13 - big, -2, -14 - big, 1, -16 - big * 2, 4, -15 - big, 6, -12, 7, -6, 4, -4, -8, -4]);
+      poly(F.l, [-7, -12 - big, -2, -13 - big, 1, -15 - big * 2, 3, -14 - big, -1, -12, -6, -11]); px(F.d, -8, -4, 13, 1); px(F.d, -10 - big, -8, 1, 3);
+      px(F.m, 4 + fo, -6, 3, 6); px(F.d, 4 + fo, -1, 4, 1); px(CLAW, 7 + fo, -1, claw, 1);
+      px(F.m, -8 - fo, -6, 3, 6); px(F.d, -8 - fo, -1, 4, 1); px(CLAW, -5 - fo, -1);
+      px(F.l, -12 - big, -11, 2, 2);
+      // Testa di profilo.
+      const hx = 8 + big;
+      ov(F.m, hx, -11, 4, 4); ov(F.l, hx - 1, -13, 3, 2);
+      ov(F.m, hx - 2, -15, 2, 1); px(F.d, hx - 2, -15, 1, 1);
+      if (attack) { poly(MUZZLE[0], [hx + 2, -13, hx + 6, -12, hx + 6, -11, hx + 2, -11]); px(NOSE, hx + 3, -10, 4, 1); px(MUZZLE[1], hx + 2, -9, 4, 1); px('#f0e6d0', hx + 5, -10); px(NOSE, hx + 6, -13, 2, 1); }
+      else { poly(MUZZLE[0], [hx + 2, -12, hx + 6, -11, hx + 6, -9, hx + 2, -8]); px(NOSE, hx + 6, -12, 2, 2); px(MUZZLE[1], hx + 3, -8, 3, 1); }
+      px(NOSE, hx + 1, -13, 1, 1); px('#fff5d4', hx + 1, -13);
+      if (form === 0) { ln(LARCH[0], [hx - 3, -16, hx - 6, -19]); px(LARCH[1], hx - 6, -20); px(LARCH[1], hx - 4, -19); }
+      if (attack) { px(F.m, hx + 1, -8, 3, 3); for (let i = 0; i < 3; i++) px(CLAW, hx + 4, -9 + i, claw, 1); }
+      // Forme: creste, sorgenti, boreale, alvei.
+      if (form === 1) for (const x of [-7, -3, 1]) { poly(STONE[1], [x - 2, -14, x, -20, x + 2, -14]); px(STONE[2], x, -18, 1, 3); px(STONE[0], x + 1, -15); }
+      if (form === 2) { ov(MOSS[0], 0, -14, 7, 2); px(MOSS[1], -5, -16, 3, 1); px(MOSS[1], 1, -16, 3, 1); px(WATER[0], -6, -12, 1, 4); px(WATER[1], -6, -12); px(WATER[0], 3, -12, 1, 3); px(WATER[1], flick ? -11 : 11, -18); }
+      if (form === 3) { for (const [x, h] of [[-6, 8], [-2, 11], [2, 7]]) { poly(ICE[0], [x - 2, -15, x, -15 - h, x + 2, -15]); px(ICE[1], x, -13 - h, 1, h - 3); } px(ICE[2], -2, -25); if (flick) { px(ICE[1], hx + 8, -13); px(ICE[2], hx + 9, -14); } }
+      if (form === 4) {
+        for (const [x, h] of [[-7, 6], [-4, 9], [-1, 7], [2, 5]]) { ln(REED[0], [x, -14, x + 1, -14 - h]); px(REED[1], x + 1, -14 - h, 1, 2); }
+        px(BLOOM[0], -4, -24, 2, 2); px(BLOOM[1], 2, -20, 2, 1); ov(STONE[1], -5, -13, 2, 1); px(WATER[0], -9, -6, 12, 1); px(WATER[1], flick ? -6 : -2, -6, 3, 1);
+      }
+      return;
+    }
+    const back = view === 'back';
+    // Corpo massiccio con la gobba delle spalle.
+    ov(F.m, 0, -9, 9 + big, 6 + big); ov(F.l, 0, -12 - big, 7 + big, 2);
+    if (back) {
+      px(F.h, -1, -7, 2, 2); px(F.l, -1, -14, 2, 4);
+    } else {
+      // Mezzaluna chiara sul petto.
+      px(F.h, -3, -8, 6, 1); px(F.h, -2, -7, 4, 1);
+    }
+    for (const [x, l] of [[-6, lA], [2, rA]]) {
+      px(F.m, x, -6 - l, 4, 6); px(F.l, x, -6 - l, 1, 5); px(F.d, x, -1 - l, 4, 1);
+      if (!back) { px(CLAW, x, -1 - l, 1, claw); px(CLAW, x + 2, -1 - l, 1, claw); }
+    }
+    // Testa, orecchie tonde, muso chiaro.
+    ov(F.m, 0, -15 - big, 6, 5); ov(F.l, 0, -17 - big, 4, 2);
+    sym(() => { ov(F.m, 5, -20 - big, 2, 2); px(back ? F.m : F.h, 4, -20 - big, 1, 1); });
+    if (back) { px(F.l, -2, -18 - big, 4, 2); }
+    else {
+      const hy = -big;
+      ov(MUZZLE[0], 0, -12 + hy, 3, 2); px(NOSE, -1, -14 + hy, 2, 1);
+      if (attack) { px(NOSE, -2, -11 + hy, 4, 2); px('#f0e6d0', -2, -11 + hy, 1, 1); px('#f0e6d0', 1, -11 + hy, 1, 1); }
+      else px(MUZZLE[1], -1, -11 + hy, 2, 1);
+      sym(() => { px(NOSE, 2, -17 + hy, 1, 2); px('#fff5d4', 2, -17 + hy); });
+    }
+    if (form === 0) { ln(LARCH[0], [4, -21, 7, -23]); px(LARCH[1], 7, -24); px(LARCH[1], 6, -22); }
+    if (attack && !back) {
+      // Zampata: la zampa destra si alza con gli artigli tesi.
+      ov(F.m, 8, -13, 2, 3); px(F.l, 7, -15, 2, 1);
+      for (let i = 0; i < 3; i++) px(CLAW, 9 + i, -17 - (i === 1 ? 1 : 0), 1, claw + 1);
+    }
+    if (form === 1) {
+      sym(() => { poly(STONE[1], [5, -14, 8, -21, 10, -13]); px(STONE[2], 7, -19, 1, 4); });
+      poly(STONE[1], [-2, -21, 0, -26, 2, -21]); px(STONE[2], 0, -24, 1, 3);
+      if (!back) { px('#c9b7a0', -4, -16, 1, 3); }
+    }
+    if (form === 2) {
+      ov(MOSS[0], 0, -12, 8, 2); sym(() => { px(MOSS[1], 3, -14, 4, 1); px(WATER[0], 7, -11, 1, 4); px(WATER[1], 7, -11); });
+      px(WATER[1], flick ? -11 : 10, flick ? -18 : -20); px(WATER[0], flick ? 10 : -11, -16);
+    }
+    if (form === 3) {
+      sym(() => { poly(ICE[0], [5, -15, 7, -24, 9, -15]); px(ICE[1], 7, -22, 1, 6); poly(ICE[0], [9, -13, 12, -19, 12, -11]); px(ICE[2], 11, -17); });
+      if (!back) { px(ICE[1], -4, -11, 8, 1); }
+      if (flick && !back) { px(ICE[1], -1, -9); px(ICE[2], 0, -8); }
+    }
+    if (form === 4) {
+      sym(() => { ln(REED[0], [4, -15, 5, -24]); px(REED[1], 5, -25, 1, 2); ln(REED[0], [7, -14, 9, -21]); px(REED[1], 9, -22, 1, 2); px(BLOOM[0], 5, -26, 2, 1); });
+      px(BLOOM[1], 8, -23, 2, 2); px(BLOOM[0], -1, -23, 2, 2); ov(STONE[1], -7, -14, 2, 1); ov(STONE[2], 7, -14, 2, 1);
+      px(WATER[0], -9, -4, 18, 1); px(WATER[1], flick ? -6 : 3, -4, 3, 1);
+    }
+  }
+
+  /* ---------------------------------------------------------------- Viverna di brina */
+  const WYV = [
+    { d: '#2f4766', m: '#4f79a3', l: '#86b5d6', h: '#cfe9f4', w: '#6d93bd', wl: '#a7cbe4', wd: '#3d5b82' },
+    { d: '#243550', m: '#3d5c86', l: '#6b98c0', h: '#bfe0ef', w: '#567aa6', wl: '#8db3d6', wd: '#2c4366' },
+    { d: '#4f6377', m: '#7f97ad', l: '#b3c7d6', h: '#e6f0f5', w: '#9bb1c4', wl: '#d4e2ec', wd: '#61778d' },
+    { d: '#22325a', m: '#3a5c95', l: '#6f9fd0', h: '#cde6f7', w: '#4f76b0', wl: '#8fb8e3', wd: '#2a4275' },
+    { d: '#3b4f74', m: '#6b88b8', l: '#a5c2e3', h: '#eef6ff', w: '#a9c3e8', wl: '#e9f1ff', wd: '#7590bd' }
+  ];
+  const BELLY = ['#dfe9e2', '#a9bfc0'], HORN = '#efe6cf', EYE = '#c9fbff', MIST = '#e8f2f6', AURORA = ['#b8f0d8', '#e3c6f5'];
+  function wyvern(view, form, step, attack, flick) {
+    const W = WYV[form] || WYV[0], walk = step < 2, lA = walk && step === 0 ? 1 : 0, rA = walk && step === 1 ? 1 : 0;
+    const flap = walk ? step : (flick ? 1 : 0), big = form >= 3 ? 1 : 0, span = form === 0 ? 0 : form >= 3 ? 4 : 2;
+    const wing = dark => {
+      // Ala destra (specchiata per la sinistra): braccio fino al polso, tre dita, membrana smerlata fra le dita.
+      const up = flap ? -2 : 0, k = 1 + span / 8;
+      const P = (x, y) => [2 + R((x - 2) * k), -13 + R((y + 13) * k)];
+      const wr = P(6, -19 + up), f1 = P(10, -21 + up), m1 = P(9, -17 + up / 2), f2 = P(11, -14), m2 = P(8, -12);
+      const f3 = form === 4 ? P(9, -3) : form === 2 ? P(7, -8) : P(6, -9);
+      f3[1] = Math.min(f3[1], -2);
+      poly(dark ? W.wd : W.w, [2, -13, ...wr, ...f1, ...m1, ...f2, ...m2, ...f3, 3, -10]);
+      if (!dark) { poly(W.wl, [3, -13, ...wr, ...P(8, -17), 4, -11]); }
+      ln(dark ? W.d : W.l, [2, -13, ...wr, ...f1]); ln(W.d, [...wr, ...f2]); ln(W.d, [...wr, ...f3]);
+      px(W.h, f1[0], f1[1]);
+      if (form === 1) { px(HORN, f1[0] + 1, f1[1] - 1); px(HORN, wr[0], wr[1] - 1); }
+      if (form === 2 && !dark) { ov(MIST, f2[0] - 1, f2[1] + 2, 2, 1); px(MIST, f3[0] + 1, f3[1] + 1, 2, 1); }
+      if (form === 4 && !dark) { ln(AURORA[0], [...f2, ...f3]); px(AURORA[1], f1[0], f1[1] + 1, 1, 2); }
+    };
+    if (view === 'side') {
+      const fo = walk ? (step ? 1 : -1) : 0;
+      // Ala lontana e coda.
+      C.save(); C.translate(1, -2); C.scale(-1, 1); wing(true); C.restore();
+      const tl = form === 4 ? 17 : 14;
+      ln(W.m, [-5, -7, -10, -5, -tl, -7, -tl - 2, -10], 2); px(W.l, -10, -6, 4, 1);
+      if (form === 1) poly(HORN, [-tl - 2, -10, -tl - 5, -13, -tl - 1, -12]);
+      else if (form === 3) ov(W.d, -tl - 2, -11, 2, 2);
+      else poly(W.l, [-tl - 2, -11, -tl - 4, -12, -tl - 3, -9]);
+      px(W.d, -2 - fo, -5, 2, 5); px(HORN, -2 - fo, -1, 3, 1);
+      ov(W.m, -1, -8, 6 + big, 4 + big); px(BELLY[0], -3, -6, 7, 2); px(BELLY[1], -3, -5, 7, 1);
+      px(W.m, 1 + fo, -5, 2, 5); px(HORN, 1 + fo, -1, 3, 1);
+      // Collo e testa di profilo.
+      ln(W.m, [3, -10, 5, -14], 3); px(BELLY[0], 5, -12, 1, 2);
+      const hx = 7, hy = -17 - big;
+      ov(W.m, hx, hy, 3, 2); ov(W.l, hx, hy - 1, 2, 1);
+      if (attack) { px(W.m, hx + 2, hy - 1, 4, 2); px(HOLE, hx + 3, hy + 1, 3, 1); px(W.m, hx + 2, hy + 2, 3, 1); px(MIST, hx + 6, hy, 2, 2); px('#ffffff', hx + 8, hy + 1); px(MIST, hx + 9, hy - 1); }
+      else { px(W.m, hx + 2, hy - 1, 4, 2); px(W.l, hx + 2, hy - 1, 4, 1); px(W.d, hx + 5, hy); }
+      px(HOLE, hx, hy - 1); px(EYE, hx + 1, hy - 1);
+      ln(HORN, form === 3 ? [hx - 2, hy - 2, hx - 5, hy - 6, hx - 6, hy - 6] : [hx - 2, hy - 2, hx - 4, hy - 5]);
+      if (form === 3) { px(GOLD, hx - 1, hy - 4, 3, 1); px(GOLDL, hx, hy - 5); }
+      if (form === 1) for (const [x, y] of [[4, -16], [1, -13], [-2, -12], [-5, -11]]) poly(HORN, [x - 1, y, x, y - 3, x + 1, y]);
+      else px(W.h, 2, -12, 3, 1);
+      C.save(); C.translate(-1, 0); C.scale(-1, 1); wing(); C.restore();
+      if (form === 2) { ov(MIST, -3, -1, 4, 1); ov(MIST, 4, -1, 2, 1); }
+      if (form === 3) { px(HORN, -2, -9, 5, 1); px(HORN, -1, -7, 4, 1); }
+      if (form === 4 && flick) { px(AURORA[1], -9, -18); px(AURORA[0], 13, -22); }
+      return;
+    }
+    const back = view === 'back';
+    // Coda dietro il corpo, ali, zampe.
+    if (!back) { ln(W.m, [2, -3, 7, -2, 10, -5], 2); px(W.l, 10, -7, 2, 2); }
+    sym(() => wing());
+    for (const [x, l] of [[-4, lA], [1, rA]]) { px(W.d, x, -5 - l, 3, 4); px(HORN, x, -1 - l, 3, 1); }
+    ov(W.m, 0, -8, 5 + big, 5 + big);
+    if (back) {
+      for (let y = -12; y <= -4; y += 2) px(W.h, -1, y, 2, 1);
+      ln(W.m, [0, -5, 0, -2, -4, -1], 2); px(W.l, -6, -1, 2, 1);
+      if (form === 1) for (const y of [-13, -10, -7]) poly(HORN, [-1, y, 0, y - 3, 1, y]);
+    } else {
+      ov(BELLY[0], 0, -7, 3, 4); for (const y of [-9, -7, -5]) px(BELLY[1], -2, y, 4, 1);
+      if (form === 3) { px(HORN, -3, -10, 6, 1); px(HORN, -2, -8, 4, 1); px(GOLD, -1, -11, 2, 1); }
+    }
+    px(W.m, -2, -15 - big, 4, 3);
+    // Testa.
+    const hy = -18 - big;
+    ov(W.m, 0, hy, 4, 3); ov(W.l, 0, hy - 1, 3, 2);
+    if (back) { px(W.d, -1, hy - 1, 2, 3); }
+    else {
+      if (attack) { px(W.l, -2, hy + 2, 4, 1); px(HOLE, -2, hy + 3, 4, 1); px(W.m, -2, hy + 4, 4, 1); px(MIST, -3, hy + 5, 6, 2); px('#ffffff', -1, hy + 6, 2, 1); }
+      else { px(W.l, -2, hy + 2, 4, 2); px(W.d, -2, hy + 2); px(W.d, 1, hy + 2); }
+      sym(() => { px(HOLE, 2, hy - 1, 2, 2); px(EYE, 2, hy - 1); });
+    }
+    sym(() => {
+      if (form === 3) { ln(HORN, [2, hy - 2, 4, hy - 6, 5, hy - 8]); px(GOLD, 3, hy - 3); }
+      else if (form === 1) ln(HORN, [2, hy - 2, 5, hy - 5, 7, hy - 6]);
+      else ln(HORN, [2, hy - 2, 4, hy - 5]);
+    });
+    if (form === 3) { poly(HORN, [-1, hy - 3, 0, hy - 8, 1, hy - 3]); px(GOLDL, -1, hy - 4, 2, 1); }
+    else px(W.h, -1, hy - 3, 2, 1);
+    if (form === 2) { ov(MIST, -5, -1, 3, 1); ov(MIST, 5, -1, 3, 1); px(MIST, flick ? -9 : 8, -14, 2, 1); }
+    if (form === 4) { px(flick ? AURORA[0] : AURORA[1], -12, -20); px(flick ? AURORA[1] : AURORA[0], 11, -24); px(MIST, -1, hy - 5, 2, 1); }
+  }
+
+  const plans = {
+    skeleton: { paint: skeleton, shadow: f => f === 3 || f === 4 ? 8 : 6 },
+    bear: { paint: bear, shadow: f => f >= 3 ? 12 : 10 },
+    wyvern: { paint: wyvern, shadow: f => f >= 3 ? 9 : 7 }
+  };
+  const frames = new Map();
+  function outline(data, hit) {
+    const opaque = new Uint8Array(SIZE * SIZE);
+    for (let i = 0; i < opaque.length; i++) opaque[i] = data[i * 4 + 3] > 128 ? 1 : 0;
+    for (let y = 1; y < SIZE - 1; y++) for (let x = 1; x < SIZE - 1; x++) {
+      const i = y * SIZE + x, k = i * 4;
+      if (opaque[i]) {
+        if (hit) { data[k] = Math.min(255, data[k] + 130); data[k + 1] = (data[k + 1] + 232) >> 1; data[k + 2] = (data[k + 2] + 216) >> 1; }
+      } else if (opaque[i - 1] || opaque[i + 1] || opaque[i - SIZE] || opaque[i + SIZE]) {
+        data[k] = 31; data[k + 1] = 31; data[k + 2] = 47; data[k + 3] = 255;
+      }
+    }
+  }
+  function frame(kind, dir, form, step, hit, attack) {
+    const key = [kind, dir, form, step, hit, attack].join('/');
+    if (frames.has(key)) return frames.get(key);
+    const cv = document.createElement('canvas'); cv.width = cv.height = SIZE;
+    const c = cv.getContext('2d', { willReadFrequently: true });
+    c.save(); c.translate(AX, AY); if (dir === 'left') c.scale(-1, 1);
+    const view = dir === 'up' ? 'back' : dir === 'left' || dir === 'right' ? 'side' : 'front';
+    C = c; plans[kind].paint(view, form, step, attack, step % 2 === 1); C = null;
+    c.restore();
+    const pixels = c.getImageData(0, 0, SIZE, SIZE);
+    outline(pixels.data, hit);
+    c.putImageData(pixels, 0, 0);
+    let l = SIZE, r = 0, t = SIZE, b = 0;
+    for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) if (pixels.data[(y * SIZE + x) * 4 + 3] > 32) { l = Math.min(l, x); r = Math.max(r, x); t = Math.min(t, y); b = Math.max(b, y); }
+    const sprite = { cv, x: l, y: t, w: r - l + 1, h: b - t + 1 };
+    frames.set(key, sprite);
+    return sprite;
+  }
+  const formOf = opts => Math.max(0, Math.min(4, Number(opts.evolution) || 0));
+  function shadow(c, x, y, rx) {
+    c.fillStyle = 'rgba(20,18,35,.27)';
+    for (let j = -2; j <= 2; j++) { const dx = R(rx * Math.sqrt(Math.max(0, 1 - (j / 2.5) ** 2))); c.fillRect(R(x) - dx, R(y) - 1 + j, dx * 2 + 1, 1); }
+  }
+  function draw(c, kind, x, y, opts = {}) {
+    const plan = plans[kind];
+    if (!plan) return base.draw(c, kind, x, y, opts);
+    const form = formOf(opts), t = opts.t || 0, moving = !!opts.moving;
+    // Passo a due tempi in movimento; in attesa due tempi lenti (occhi, fiammelle, ali) con le zampe ferme.
+    const step = moving ? Math.floor(t * 7) % 2 : 2 + Math.floor(t * 2.4) % 2;
+    const sprite = frame(kind, opts.dir || 'down', form, step, !!opts.hit, !!opts.attack);
+    c.save(); c.imageSmoothingEnabled = false;
+    shadow(c, x, y, plan.shadow(form));
+    c.drawImage(sprite.cv, sprite.x, sprite.y, sprite.w, sprite.h, R(x) - AX + sprite.x, R(y) - AY + sprite.y - (moving ? step : 0), sprite.w, sprite.h);
+    c.restore();
+  }
+  function portrait(c, kind, x, y, sz, opts = {}) {
+    if (!plans[kind]) return base.portrait(c, kind, x, y, sz, opts);
+    const sprite = frame(kind, 'down', formOf(opts), 2, false, false);
+    const zoom = sz * .91 / Math.max(sprite.w, sprite.h);
+    const sw = Math.max(1, R(sprite.w * zoom)), sh = Math.max(1, R(sprite.h * zoom));
+    c.save(); c.imageSmoothingEnabled = false;
+    c.drawImage(sprite.cv, sprite.x, sprite.y, sprite.w, sprite.h, R(x + (sz - sw) / 2), R(y + (sz - sh) / 2), sw, sh);
+    c.restore();
+  }
+  window.ActorArt = { ...base, draw, portrait, dedicated: Object.keys(plans) };
+})();
 
 
 /* Una nuova area usa il router originale e la stessa risoluzione Canvas. */
@@ -13258,6 +14813,11 @@ window.Lantern = (() => {
   let s=null, effects=[],shots=[],hazards=[],autosave=0,combat=0,ally=null;
   let practiceSession=null;
   let combo=0,comboUntil=0,tickGrowth=0,movingTime=0,worldEpoch=0,evadePending=false,wardPractice=null;
+  // Effetti di combattimento (combat-fx.js): etichetta visiva dell'elemento per gli effetti creati in questo momento.
+  // Solo disegno: non entra nei salvataggi e non cambia danni, tempi, ingombri, velocità o numeri casuali.
+  let fxTag=null;
+  const fxOf=src=>{try{return window.CombatFX?.tag(src)||null;}catch{return null;}};
+  const fx=(type,data)=>{try{window.CombatFX?.emit(type,data,s);}catch{}};
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
   const heading=(dx,dy)=>Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');
@@ -13309,6 +14869,7 @@ window.Lantern = (() => {
   function resetTransient(){
     effects=[];shots=[];hazards=[];ally=null;autosave=0;combat=0;practiceSession=null;
     combo=0;comboUntil=0;tickGrowth=0;movingTime=0;evadePending=false;wardPractice=null;worldEpoch++;
+    fxTag=null;try{window.CombatFX?.reset();}catch{}
   }
   function newGame(){
     const seed=(Math.random()*4294967296)>>>0, r=randomRace();
@@ -13375,7 +14936,7 @@ window.Lantern = (() => {
     const equippedSlot=p.slots.indexOf(previous);
     if(equippedSlot>=0&&!p.slots.includes(form.skill))p.slots[equippedSlot]=form.skill;
     p.hp=stats().hpMax;p.mp=stats().mpMax;
-    ring(p.x,p.y,60,'#eec482');spark(p.x,p.y,'#ffd5e8',32);
+    ring(p.x,p.y,60,'#eec482',null);spark(p.x,p.y,'#ffd5e8',32,null);fx('evolve',{x:p.x,y:p.y,race:p.race});
     emit('sound','evolve');announce(['Evoluzione · '+form.name,...(notes||[])]);
     return true;
   }
@@ -13487,20 +15048,20 @@ window.Lantern = (() => {
         'Porta tre erbe di rugiada a Ivo ('+Math.min(3,p.inventory.herb)+'/3).','Ivo ha riacceso la forgia con le tue erbe.'][s.sideQuest],
       elderLost:fallen('elder')};
   }
-  function spark(x,y,color,n=10){
+  function spark(x,y,color,n=10,tag=fxTag){
     for(let i=0;i<n;i++){
       const a=Math.random()*Math.PI*2,v=12+Math.random()*47;
-      effects.push({kind:'dust',x,y:y-7,vx:Math.cos(a)*v,vy:Math.sin(a)*v-12,ttl:.25+Math.random()*.25,color});
+      effects.push({kind:'dust',x,y:y-7,vx:Math.cos(a)*v,vy:Math.sin(a)*v-12,ttl:.25+Math.random()*.25,color,tag});
     }
   }
-  function label(x,y,text,color){effects.push({kind:'label',x,y:y-13,text,color,ttl:.85,vy:-17,vx:0});}
-  function ring(x,y,r,color){effects.push({kind:'ring',x,y,r,color,ttl:.45,duration:.45});}
+  function label(x,y,text,color,tag=fxTag){effects.push({kind:'label',x,y:y-13,text,color,ttl:.85,vy:-17,vx:0,tag});}
+  function ring(x,y,r,color,tag=fxTag){effects.push({kind:'ring',x,y,r,color,ttl:.45,duration:.45,tag});}
   function gainXp(amount){
     const p=s.player;p.xp+=amount;
     while(p.xp>=stats().xpNext){
       p.xp-=stats().xpNext;p.level++;p.hp=stats().hpMax;p.mp=stats().mpMax;
       emit('sound','level');emit('toast','Livello '+p.level+' · Vitalità e mana ripristinati.');
-      ring(p.x,p.y,32,'#ffdf82');
+      ring(p.x,p.y,32,'#ffdf82',null);
     }
   }
   function keep(){save();emit('change');}
@@ -13529,7 +15090,8 @@ window.Lantern = (() => {
     announce(Legendary.recordKill(s,m.type));
     if(m.type==='nadir')announce(Reputation.record(s,'legendary-kill'));
     gainXp(def.xp);advance();
-    label(m.x,m.y-6,'+'+def.xp+' PE','#f8dd90');spark(m.x,m.y,'#e7bc6b',16);
+    label(m.x,m.y-6,'+'+def.xp+' PE','#f8dd90',null);spark(m.x,m.y,'#e7bc6b',16,null);
+    fx('defeat',{x:m.x,y:m.y,type:m.type,boss:!!def.boss,legendary:!!def.legendary});
     emit('sound',def.boss?'victory':'loot');
     if(s.quest===2 && p.kills===3)emit('toast','Il Cerchio delle Radici è aperto.');
     if(m.type==='boss')emit('toast','Corona di Orveth ottenuta. '+(elderRecord()?'Torna al registro di Vela.':'Nerea ti aspetta al borgo.'));
@@ -13549,12 +15111,12 @@ window.Lantern = (() => {
     const hp=Math.max(floor,m.hp-Math.max(1,Math.round(damage*Adaptive.damageFactor(s,m,channel)))),dealt=m.hp-hp;
     Adaptive.seeHit(s,m,channel);
     m.hp=hp;m.hit=.15;m.engaged=true;s.seen[m.type]=true;combat=5;
-    label(m.x,m.y,dealt,color||'#fff0c4');spark(m.x,m.y,color||'#fada8a',5);
+    label(m.x,m.y,dealt,color||'#fff0c4');spark(m.x,m.y,color||'#fada8a',5);fx('hit',{x:m.x,y:m.y,tag:fxTag,boss:!!def.boss});
     if(m.hp<=0){kill(m);return dealt;}
     if(floor&&m.hp===floor){
       Adaptive.clearGuard(s,m);
       m.phase++;m.wind=0;m.pattern='';m.cd=.6;m.grace=.55;m.dash=0;m.cycle=0;
-      ring(m.x,m.y,54,def.color||'#e792be');emit('toast',(m.type==='boss'?'Orveth apre il cuore':def.name)+' · '+(m.phase===3?'Fase III':'Fase II'));emit('sound','boss');
+      ring(m.x,m.y,54,def.color||'#e792be',fxOf({monster:m.type}));fx('phase',{x:m.x,y:m.y,type:m.type,phase:m.phase,legendary:!!def.legendary});emit('toast',(m.type==='boss'?'Orveth apre il cuore':def.name)+' · '+(m.phase===3?'Fase III':'Fase II'));emit('sound','boss');
     }
     return dealt;
   }
@@ -13585,7 +15147,7 @@ window.Lantern = (() => {
   function hurtPlayer(amount,magical=false){
     const p=s.player;
     if(p.invul>0){
-      if(evadePending){evadePending=false;record('dodge',1,{magical});label(p.x,p.y,'Schivata','#a6eced');}
+      if(evadePending){evadePending=false;record('dodge',1,{magical});label(p.x,p.y,'Schivata','#a6eced',null);fx('dodge',{x:p.x,y:p.y});}
       return;
     }
     const d=Math.max(2,Math.round(amount-stats().defense*.62-(magical&&p.race==='drake'?3:0)));
@@ -13593,7 +15155,7 @@ window.Lantern = (() => {
     if(d>absorbed)announce(Gear.defend(s,{hit:true,damage:d-absorbed,magical})?.notices);
     if(absorbed&&wardPractice){recordImpact(wardPractice);wardPractice=null;}
     if(d>absorbed&&p.hp>0)record('damage',1,{magical,damage:d-absorbed});
-    label(p.x,p.y,d===absorbed?'Scudo':'−'+(d-absorbed),d===absorbed?'#91dbff':'#ffaaa4');
+    label(p.x,p.y,d===absorbed?'Scudo':'−'+(d-absorbed),d===absorbed?'#91dbff':'#ffaaa4',null);fx('hurt',{x:p.x,y:p.y,tag:fxTag,shield:d===absorbed});
     emit('sound','hit');if(p.hp<=0)recover();
   }
   function move(a,dx,dy,r=5){
@@ -13623,7 +15185,7 @@ window.Lantern = (() => {
     const p=s.player, near=nearest(p,reach),current=dirVectors[p.dir];
     if(near && (distance(p,near)<21 || (near.x-p.x)*current[0]+(near.y-p.y)*current[1]>-4))p.dir=heading(near.x-p.x,near.y-p.y);
     const [vx,vy]=dirVectors[p.dir],angle=Math.atan2(vy,vx);
-    effects.push({kind:'arc',x:p.x,y:p.y-7,angle,r:reach*.86,ttl:.21,duration:.21,color});
+    effects.push({kind:'arc',x:p.x,y:p.y-7,angle,r:reach*.86,ttl:.21,duration:.21,color,tag:fxTag});
     let hits=0,boss=false;
     for(const m of s.monsters){
       if(!targetable(m)||distance(p,m)>reach+(codex[m.type].boss?9:0))continue;
@@ -13637,11 +15199,11 @@ window.Lantern = (() => {
     return hits;
   }
   function launch(x,y,dir,style,damage,color,hostile=false,speed=hostile?88:190){
-    shots.push({x,y,vx:dir[0]*speed,vy:dir[1]*speed,style,damage,color,hostile,ttl:hostile?2.1:1.05});
+    shots.push({x,y,vx:dir[0]*speed,vy:dir[1]*speed,style,damage,color,hostile,ttl:hostile?2.1:1.05,tag:fxTag});
   }
   function heal(amount){
     const p=s.player,max=stats().hpMax,delta=Math.min(max-p.hp,Math.round(amount));
-    p.hp+=delta;if(delta>0)label(p.x,p.y,'+'+Math.ceil(delta),'#9bf7ba');ring(p.x,p.y,23,'#97eab6');
+    p.hp+=delta;if(delta>0)label(p.x,p.y,'+'+Math.ceil(delta),'#9bf7ba',null);ring(p.x,p.y,23,'#97eab6',null);
   }
   function recordImpact(practice){
     if(!practice||practice.used)return;
@@ -13661,6 +15223,7 @@ window.Lantern = (() => {
     const dir=target?normalize(target.x-p.x,target.y-p.y):dirVectors[p.dir];
     const power=stats().attack*def.power*(innate?1:1+.16*(entry.level-1)),color=def.color;
     p.mp-=def.cost;p.cooldowns[id]=def.cooldown;p.swing=.2;
+    fxTag=fxOf({race:p.race,skill:id,style:def.style,innate:innate?def.id:null});
     if(!innate){
       entry.uses++;
       const next=Math.min(5,1+Math.floor(entry.uses/5));
@@ -13699,7 +15262,7 @@ window.Lantern = (() => {
         break;
       case 'cleave':if(arc(power,46,color))recordImpact(spellPractice);break;
       case 'familiar':
-        ally={x:p.x,y:p.y,life:10,cd:.2,power,color,practice:spellPractice};spark(p.x,p.y,color);
+        ally={x:p.x,y:p.y,life:10,cd:.2,power,color,practice:spellPractice,tag:fxTag};spark(p.x,p.y,color);
         break;
     }
     let rescued=false;
@@ -13711,7 +15274,7 @@ window.Lantern = (() => {
       record('npcRescue',1,{npc,critical:saved.critical,region:saved.region});
     }
     if(rescued)keep();
-    emit('sound',def.style==='heal'?'heal':'skill');return true;
+    fxTag=null;emit('sound',def.style==='heal'?'heal':'skill');return true;
   }
   function activeSkill(p,id){
     const def=skills[id],evolved=weaveById[id]?.evolved;
@@ -13747,7 +15310,7 @@ window.Lantern = (() => {
     const stage=s.time<=comboUntil?combo+1:1;
     const finisher=stage===3,impact=stats().attack*damage*(finisher?1.25:1);
     p.cooldowns.attack=style==='claw'?.34:style==='slam'?.47:.4;
-    p.swing=.2;
+    p.swing=.2;fxTag=fxOf({race:p.race,strike:style,strong:finisher});
     if(style==='spit'){
       const target=nearest(p,reach),facing=dirVectors[p.dir];
       const inFront=target&&(target.x-p.x)*facing[0]+(target.y-p.y)*facing[1]>-4;
@@ -13764,7 +15327,7 @@ window.Lantern = (() => {
       if(arc(impact,reach+(finisher?5:0),color,width,stage))registerStrike(style,stage);
       else combo=0;
     }
-    emit('sound','attack');return true;
+    fxTag=null;emit('sound','attack');return true;
   }
   function action(name){
     if(!s)return false;const p=s.player;
@@ -13775,7 +15338,7 @@ window.Lantern = (() => {
       case 'dash':{
         if(p.cooldowns.dash>0)return false;const [x,y]=dirVectors[p.dir];p.dashX=x;p.dashY=y;
         p.dash=.18;p.invul=p.race==='spirit'?.55:.34;p.cooldowns.dash=p.race==='wolf'?.95:1.5;evadePending=true;
-        spark(p.x,p.y,'#a6eced',6);emit('sound','dash');return true;}
+        spark(p.x,p.y,'#a6eced',6,null);fx('dash',{x:p.x,y:p.y});emit('sound','dash');return true;}
       case 'potion':
         Inventory.sync(s);
         if(p.cooldowns.potion>0)return false;
@@ -14003,7 +15566,7 @@ window.Lantern = (() => {
     }
   }
   function hazard(x,y,r,duration,damage,color){
-    hazards.push({x,y,r,ttl:duration,damage,color});
+    hazards.push({x,y,r,ttl:duration,damage,color,tag:fxTag});
   }
   function hasCover(from,to){
     const steps=Math.ceil(distance(from,to)/8);
@@ -14015,7 +15578,7 @@ window.Lantern = (() => {
   }
   function burstEnemy(m){
     const p=s.player,def=codex[m.type],color=def.color||(def.boss?'#f79faa':'#c6ef8c');
-    const damage=def.damage;
+    const damage=def.damage;fxTag=fxOf({monster:m.type});
     switch(m.pattern){
       case 'shot':
         if(m.type==='shardling')fanEnemy(m,3,.5,106,'#9cf3ff',damage);
@@ -14103,7 +15666,7 @@ window.Lantern = (() => {
         spark(m.x,m.y,color,9);break;
       }
     }
-    m.cd=phaseCooldown(m,def);m.pattern='';
+    m.cd=phaseCooldown(m,def);m.pattern='';fxTag=null;
   }
   function updateMonster(m,dt){
     const def=codex[m.type],boss=!!def.boss, behavior=def.behavior||monsterBehavior[m.type];
@@ -14123,7 +15686,7 @@ window.Lantern = (() => {
     if(m.dash>0){
       const dashSpeed=m.type==='syrava'?231:m.type==='shade'?211:172;
       m.dash=Math.max(0,m.dash-dt);m.moving=move(m,m.aimX*dashSpeed*dt,m.aimY*dashSpeed*dt,boss?7:5);
-      if(distance(m,p)<(boss?22:15))hurtPlayer(def.damage+2);
+      if(distance(m,p)<(boss?22:15)){fxTag=fxOf({monster:m.type});hurtPlayer(def.damage+2);fxTag=null;}
       return;
     }
     if(m.wind>0){m.wind=Math.max(0,m.wind-dt);if(!m.wind)burstEnemy(m);return;}
@@ -14162,12 +15725,14 @@ window.Lantern = (() => {
       b.ttl-=dt;if(b.ttl<=0)continue;
       b.x+=b.vx*dt;b.y+=b.vy*dt;
       if(!World.canWalk(b.x,b.y,1))continue;
-      if(b.hostile && distance(b,p)<9){hurtPlayer(b.damage,true);if(worldEpoch!==epoch)return;continue;}
+      if(b.hostile && distance(b,p)<9){fxTag=b.tag||null;hurtPlayer(b.damage,true);fxTag=null;if(worldEpoch!==epoch)return;continue;}
       if(!b.hostile){
         const m=nearest(b,13);
         if(m){
+          fxTag=b.tag||null;
           const dealt=hurtMonster(m,b.damage,b.color,'projectile');
           if(b.style==='leech'&&dealt)heal(dealt*.33);
+          fxTag=null;
           if(dealt){
             if(!b.practice?.used)announce(Gear.strike(s,{hit:true,magical:b.practice?.event==='magic',boss:!!codex[m.type].boss,combo:b.practice?.stage}).notices);
             recordImpact(b.practice);
@@ -14200,7 +15765,7 @@ window.Lantern = (() => {
       ally.life-=dt;ally.cd-=dt;ally.x=p.x+Math.cos(s.time*2)*16;ally.y=p.y+Math.sin(s.time*2)*7;
       const m=nearest(ally,123);
       if(m&&ally.cd<=0){
-        launch(ally.x,ally.y,normalize(m.x-ally.x,m.y-ally.y),'orb',ally.power,ally.color);
+        fxTag=ally.tag||null;launch(ally.x,ally.y,normalize(m.x-ally.x,m.y-ally.y),'orb',ally.power,ally.color);fxTag=null;
         shots.at(-1).practice=ally.practice;ally.cd=1.35;
       }
       if(ally.life<=0)ally=null;
@@ -14209,7 +15774,7 @@ window.Lantern = (() => {
     if(worldEpoch!==epoch)return;
     for(const h of hazards){
       h.ttl-=dt;
-      if(h.ttl>0&&distance(h,p)<h.r)hurtPlayer(h.damage,true);
+      if(h.ttl>0&&distance(h,p)<h.r){fxTag=h.tag||null;hurtPlayer(h.damage,true);fxTag=null;}
       if(worldEpoch!==epoch)return;
     }
     hazards=hazards.filter(h=>h.ttl>0);
@@ -14315,9 +15880,29 @@ window.Lantern = (() => {
     ctx.globalAlpha=.8;groundCircle(ctx,x,y,r,color,false);
     if(progress>.025)groundCircle(ctx,x,y,r*progress,color,false);
   }
+  function drawEffect(ctx,f){
+    const x=Math.round(f.x),y=Math.round(f.y);ctx.globalAlpha=Math.min(1,f.ttl*5);
+    switch(f.kind){
+      case 'label':
+        ctx.textAlign='center';ctx.font='bold 8px monospace';ctx.fillStyle='#29323c';ctx.fillText(f.text,x+1,y+1);
+        ctx.fillStyle=f.color;ctx.fillText(f.text,x,y);break;
+      case 'ring':circle(ctx,x,y,Math.max(.2,f.r*(1-f.ttl/f.duration)),f.color);break;
+      case 'arc':{
+        const k=1-f.ttl/f.duration;ctx.strokeStyle=f.color;ctx.lineWidth=2.5;
+        ctx.beginPath();ctx.arc(x,y,f.r*(.77+.23*k),f.angle-1.1+k*.7,f.angle+.8+k*.45);
+        ctx.stroke();ctx.lineWidth=1;break;}
+      case 'dust':ctx.fillStyle=f.color;ctx.fillRect(x,y,2,2);break;
+    }
+  }
   function drawFX(ctx){
     if(!s)return;
+    const art=window.CombatFX,scene=art?{t:s.time,region:s.region,player:s.player,monsters:s.monsters,hazards,codex}:null;
     ctx.save();ctx.lineWidth=1;
+    // Decorazioni del combattimento (aure, impatti, archi, anelli, scintille) sotto avvisi di pericolo, proiettili
+    // e numeri: restano leggibili anche negli scontri affollati (combat-fx.js, solo disegno).
+    if(art)art.draw(ctx,'under',scene);
+    for(const f of effects){if(f.kind==='label')continue;if(art&&f.tag)art.effect(ctx,f,scene);else drawEffect(ctx,f);}
+    ctx.globalAlpha=1;ctx.lineWidth=1;
     for(const m of s.monsters){
       if(m.hp<=0||!m.wind)continue;
       const pattern=m.pattern,progress=1-m.wind/m.windDuration,color=codex[m.type].color||(m.phase===2?'#ff9db9':'#ffbf75');
@@ -14370,25 +15955,14 @@ window.Lantern = (() => {
       ctx.globalAlpha=.78;groundCircle(ctx,h.x,h.y,h.r,h.color,false);
     }
     for(const b of shots){
+      if(art&&b.tag){art.shot(ctx,b,scene);continue;}
       const x=Math.round(b.x),y=Math.round(b.y-7);ctx.fillStyle=b.color;
       ctx.globalAlpha=.4;ctx.fillRect(Math.round(x-b.vx*.025)-2,Math.round(y-b.vy*.025)-1,4,3);
       ctx.globalAlpha=1;ctx.fillRect(x-3,y-1,7,3);ctx.fillRect(x-1,y-3,3,7);ctx.fillStyle='#fff8dc';ctx.fillRect(x-1,y-1,3,3);
     }
     if(ally)diamond(ctx,Math.round(ally.x),Math.round(ally.y-13),ally.color);
-    for(const f of effects){
-      const x=Math.round(f.x),y=Math.round(f.y);ctx.globalAlpha=Math.min(1,f.ttl*5);
-      switch(f.kind){
-        case 'label':
-          ctx.textAlign='center';ctx.font='bold 8px monospace';ctx.fillStyle='#29323c';ctx.fillText(f.text,x+1,y+1);
-          ctx.fillStyle=f.color;ctx.fillText(f.text,x,y);break;
-        case 'ring':circle(ctx,x,y,Math.max(.2,f.r*(1-f.ttl/f.duration)),f.color);break;
-        case 'arc':{
-          const k=1-f.ttl/f.duration;ctx.strokeStyle=f.color;ctx.lineWidth=2.5;
-          ctx.beginPath();ctx.arc(x,y,f.r*(.77+.23*k),f.angle-1.1+k*.7,f.angle+.8+k*.45);
-          ctx.stroke();ctx.lineWidth=1;break;}
-        case 'dust':ctx.fillStyle=f.color;ctx.fillRect(x,y,2,2);break;
-      }
-    }
+    // Numeri e scritte sopra tutto il resto.
+    for(const f of effects)if(f.kind==='label'){if(art)art.label(ctx,f);else drawEffect(ctx,f);}
     const p=s.player,boss=s.monsters.find(m=>m.hp>0&&m.engaged&&codex[m.type].boss);
     if(boss&&p.y<boss.y&&p.y>boss.y-55&&Math.abs(p.x-boss.x)<27){
       ctx.globalAlpha=1;
@@ -14550,6 +16124,651 @@ window.Lantern = (() => {
   const Game={get s(){return s;},onEvent:null,rules,races,skills,traits,talents,codex,equipment,campaignSteps,saveMaxBytes,newGame,load,save,exportSave,importSave,hasSave,
     view,step,action,command,actors,drawFX,activeSkill,practice,practiceView:()=>practiceSession&&GamePractice.view(practiceSession.session),cancelPractice:()=>{practiceSession=null;}};
   window.Game=Game;
+})();
+
+
+// Effetti di combattimento (World Art Overhaul, fase 4 C).
+// Sette elementi visivi (fisico, fuoco, acqua, ghiaccio, fulmine, oscurità, luce) per colpi, tecniche, proiettili,
+// anelli d'urto, schivate, cambi di fase dei boss, sconfitte ed evoluzioni. Solo disegno: il motore gli passa
+// un'etichetta (tag) e la posizione degli eventi; danni, tempi, ingombri, velocità e numeri casuali non cambiano
+// (qui non si usa Math.random: le variazioni vengono da un contatore e da una funzione hash).
+// Leggibilità: Game.drawFX disegna queste decorazioni PRIMA degli avvisi di pericolo, dei proiettili e dei numeri;
+// le particelle che cadono sulla figura del personaggio vengono attenuate. Con gli effetti ridotti o con
+// prefers-reduced-motion restano solo forme statiche che sfumano (niente particelle, scie, aure o tremolii).
+(() => {
+  'use strict';
+  const TAU = Math.PI * 2, R = Math.round;
+  const PAL = Object.freeze({
+    physical: {name: 'Fisico', hi: '#fffbea', mid: '#f3d6a0', lo: '#a77b4f', smoke: '#8c7b6b', ink: '#2b2230'},
+    fire: {name: 'Fuoco', hi: '#fff4b0', mid: '#ff9f3a', lo: '#d8462a', smoke: '#5e5557', ink: '#3a1414'},
+    water: {name: 'Acqua', hi: '#f2fdff', mid: '#6cd0f5', lo: '#2e7fc4', smoke: '#9fd8ee', ink: '#14304e'},
+    ice: {name: 'Ghiaccio', hi: '#ffffff', mid: '#bdf0ff', lo: '#6aaee0', smoke: '#dff6ff', ink: '#1e3a5c'},
+    lightning: {name: 'Fulmine', hi: '#ffffff', mid: '#fff27a', lo: '#9a8cff', smoke: '#c9c2ff', ink: '#26224f'},
+    dark: {name: 'Oscurità', hi: '#f2dcff', mid: '#b07ce8', lo: '#5a2f91', smoke: '#3a2452', ink: '#160b26'},
+    light: {name: 'Luce', hi: '#ffffff', mid: '#fff1a8', lo: '#f0bf55', smoke: '#fff8d8', ink: '#5a3d12'}
+  });
+  // Elemento delle 44 stirpi (tecniche della stirpe; il colpo base resta fisico con un accento dell'elemento).
+  const RACE = Object.freeze({
+    slime: 'water', goblin: 'physical', wolf: 'ice', elf: 'light', spirit: 'light', vampire: 'dark', demon: 'fire',
+    drake: 'fire', secret: 'dark',
+    kobold: 'physical', orc: 'physical', gnome: 'lightning', satyr: 'physical', hare: 'light', fungus: 'physical',
+    fox: 'fire', terrapin: 'water', dryad: 'physical', triton: 'water', raven: 'dark', salamander: 'fire',
+    scarabkin: 'physical', spider: 'physical', mimic: 'physical', troll: 'physical', harpy: 'lightning',
+    golem: 'physical', frostkin: 'ice', sylph: 'lightning', naga: 'water', mantis: 'physical', minotaur: 'physical',
+    djinn: 'fire', chimera: 'physical', phoenix: 'fire', leviathan: 'water',
+    human: 'physical', dwarf: 'physical', skeleton: 'dark', bear: 'physical', fairy: 'light', elemental: 'fire',
+    wyvern: 'ice', griffin: 'light'
+  });
+  const MONSTER = Object.freeze({
+    moth: 'light', thorn: 'physical', wolf: 'physical', boss: 'light', ember: 'fire', sentinel: 'fire',
+    scarab: 'physical', shardling: 'ice', shade: 'dark', crystalguard: 'ice', kharun: 'fire', syrava: 'ice',
+    asterion: 'dark', nadir: 'water', 'dungeon-heir': 'lightning', 'nadir-echo': 'water', 'dungeon-retainer': 'physical'
+  });
+  const SKILL = Object.freeze({spark: 'lightning', aurora: 'light', 'weave-storm': 'lightning', 'weave-guard': 'light', 'weave-fracture': 'dark'});
+  const INNATE = Object.freeze({insight: 'light', adaptation: 'physical', shade: 'dark', absorb: 'dark'});
+  const LIFE = {hit: .34, hurt: .3, dodge: .36, phase: 1.3, defeat: .7, evolve: 1.5};
+  const GHOST = '#a6eced';
+
+  // Etichette immutabili e condivise (una per combinazione): il motore le copia su effetti e proiettili.
+  const tags = new Map();
+  function make(el, accent, strong, hostile, kind) {
+    const key = el + '|' + (accent || '') + '|' + (strong ? 1 : 0) + '|' + (hostile ? 1 : 0) + '|' + kind;
+    let t = tags.get(key);
+    if (!t) { t = Object.freeze({el, accent: accent && accent !== el ? accent : null, strong: !!strong, hostile: !!hostile, kind}); tags.set(key, t); }
+    return t;
+  }
+  function tag(src) {
+    if (!src) return null;
+    if (src.monster) return make(MONSTER[src.monster] || 'physical', null, false, true, 'monster');
+    const race = RACE[src.race] || 'physical';
+    if (src.strike) {
+      const spit = src.strike === 'spit';
+      return make(spit ? race : 'physical', spit ? null : race, src.strong, false, 'strike');
+    }
+    if (src.style === 'heal') return null;
+    let el = race;
+    if (src.innate) el = src.innate === 'element' ? (race === 'physical' ? 'lightning' : race) : INNATE[src.innate] || race;
+    else if (Object.hasOwn(SKILL, src.skill)) el = SKILL[src.skill];
+    return make(el, null, false, false, 'skill');
+  }
+
+  // Variazioni ripetibili senza Math.random.
+  function hash(a, b) {
+    let h = Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+  let mask = null, still = false, mq;
+  function calm() {
+    try { if (mq === undefined) mq = window.matchMedia?.('(prefers-reduced-motion: reduce)') || null; } catch { mq = null; }
+    return window.UI?.effects === false || !!mq?.matches;
+  }
+  // Rettangolo con attenuazione sulla figura del personaggio (le parti sovrapposte restano al 25%).
+  function fill(ctx, x, y, w, h, color, alpha) {
+    if (alpha <= .02) return;
+    x = R(x); y = R(y);
+    ctx.fillStyle = color;
+    if (mask && x < mask.r && x + w > mask.l && y < mask.b && y + h > mask.t) {
+      const l = Math.max(x, mask.l), r = Math.min(x + w, mask.r), t = Math.max(y, mask.t), b = Math.min(y + h, mask.b);
+      ctx.globalAlpha = alpha;
+      if (t > y) ctx.fillRect(x, y, w, t - y);
+      if (y + h > b) ctx.fillRect(x, b, w, y + h - b);
+      if (l > x) ctx.fillRect(x, t, l - x, b - t);
+      if (x + w > r) ctx.fillRect(r, t, x + w - r, b - t);
+      ctx.globalAlpha = alpha * .25; ctx.fillRect(l, t, r - l, b - t);
+      return;
+    }
+    ctx.globalAlpha = alpha; ctx.fillRect(x, y, w, h);
+  }
+  const dot = (ctx, x, y, color, alpha) => fill(ctx, x, y, 1, 1, color, alpha);
+  function oval(ctx, x, y, rx, ry, color, alpha, width = 1) {
+    if (alpha <= .02 || rx < .5) return;
+    ry = Math.max(.5, ry); alpha = Math.min(1, alpha);
+    const stroke = a => { ctx.globalAlpha = a; ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, TAU); ctx.stroke(); };
+    const m = mask, pad = width + 1;
+    if (!m || x - rx - pad >= m.r || x + rx + pad <= m.l || y - ry - pad >= m.b || y + ry + pad <= m.t) { stroke(alpha); ctx.lineWidth = 1; return; }
+    ctx.save(); ctx.beginPath(); ctx.rect(x - rx - 8, y - ry - 8, 2 * rx + 16, 2 * ry + 16); ctx.rect(m.l, m.t, m.r - m.l, m.b - m.t); ctx.clip('evenodd'); stroke(alpha); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, m.r - m.l, m.b - m.t); ctx.clip(); stroke(alpha * .25); ctx.restore();
+    ctx.lineWidth = 1;
+  }
+  // Scintilla a quattro punte; con `ink` ha un contorno scuro che la stacca da ogni terreno.
+  function star(ctx, x, y, r, hi, mid, alpha, ink) {
+    x = R(x); y = R(y);
+    if (r < 1) { dot(ctx, x, y, hi, alpha); return; }
+    if (ink) { fill(ctx, x - r - 1, y - 1, 2 * r + 3, 3, ink, alpha * .5); fill(ctx, x - 1, y - r - 1, 3, 2 * r + 3, ink, alpha * .5); }
+    fill(ctx, x - r, y, 2 * r + 1, 1, mid, alpha); fill(ctx, x, y - r, 1, 2 * r + 1, mid, alpha);
+    for (let i = 1, d = R(r * .4); i <= d; i++) {
+      dot(ctx, x - i, y - i, mid, alpha * .8); dot(ctx, x + i, y - i, mid, alpha * .8);
+      dot(ctx, x - i, y + i, mid, alpha * .8); dot(ctx, x + i, y + i, mid, alpha * .8);
+    }
+    fill(ctx, x - 1, y - 1, 3, 3, hi, alpha);
+    if (r >= 4) { fill(ctx, x - 2, y, 5, 1, hi, alpha); fill(ctx, x, y - 2, 1, 5, hi, alpha); }
+  }
+  function streak(ctx, x, y, ang, r0, len, hi, mid, alpha, w = 1) {
+    const c = Math.cos(ang), s = Math.sin(ang) * .8;
+    for (let j = 0; j < len; j++) fill(ctx, x + c * (r0 + j), y + s * (r0 + j), w, w, j < len / 2 ? hi : mid, alpha);
+  }
+  // Saetta spezzata in quattro tratti (la forma cambia 15 volte al secondo, la luminosità resta costante).
+  function zigzag(ctx, x, y, ang, len, seed, P, alpha, w = 1) {
+    let px = x, py = y;
+    const c = Math.cos(ang), s = Math.sin(ang), steps = 4;
+    for (let i = 1; i <= steps; i++) {
+      const off = i < steps ? (hash(seed, i) - .5) * 7 : 0;
+      const nx = x + c * len * i / steps - s * off, ny = y + s * len * i / steps * .8 + c * off * .8;
+      const n = Math.max(1, R(Math.hypot(nx - px, ny - py)));
+      for (let j = 0; j < n; j++) {
+        const qx = px + (nx - px) * j / n, qy = py + (ny - py) * j / n;
+        fill(ctx, qx + 1, qy + 1, w, w, P.lo, alpha * .8); fill(ctx, qx, qy, w, w, P.hi, alpha);
+      }
+      px = nx; py = ny;
+    }
+  }
+  // Rombo di ghiaccio 5x5 (scheggia o cristallo).
+  function shard(ctx, x, y, P, alpha) {
+    x = R(x); y = R(y);
+    fill(ctx, x, y - 2, 1, 5, P.mid, alpha); fill(ctx, x - 2, y, 5, 1, P.mid, alpha);
+    fill(ctx, x - 1, y - 1, 3, 3, P.lo, alpha); dot(ctx, x, y, P.hi, alpha); dot(ctx, x, y - 1, P.hi, alpha);
+  }
+  // Una particella con la forma del suo elemento (2 pixel come le scintille originali del gioco); a = età 0..1.
+  function mote(ctx, el, P, x, y, a, seed, alpha, z = 2) {
+    x = R(x); y = R(y);
+    switch (el) {
+      case 'fire': {
+        const c = a < .3 ? P.hi : a < .6 ? P.mid : a < .85 ? P.lo : P.smoke, s = a < .6 ? z : 1;
+        fill(ctx, x, y, s, s, c, a > .85 ? alpha * .6 : alpha);
+        if (z > 1 && a < .55) dot(ctx, x, y - 1, a < .3 ? P.mid : P.lo, alpha * .8);
+        break;
+      }
+      case 'water': fill(ctx, x, y, z, z + 1, P.mid, alpha); dot(ctx, x, y, P.hi, alpha); break;
+      case 'ice':
+        fill(ctx, x, y, z, z, P.mid, alpha); dot(ctx, x, y, P.hi, alpha);
+        if (!still && ((a * 10 + seed * 4) | 0) % 2 === 0) { fill(ctx, x - 1, y + (z >> 1), z + 2, 1, P.hi, alpha * .7); fill(ctx, x + (z >> 1), y - 1, 1, z + 2, P.hi, alpha * .7); }
+        break;
+      case 'lightning': fill(ctx, x, y, z, z, P.hi, alpha); dot(ctx, x + z, y - 1, P.mid, alpha); dot(ctx, x - 1, y + z, P.lo, alpha * .8); break;
+      case 'dark': fill(ctx, x - 1, y, z + 2, z, P.lo, alpha * .85); fill(ctx, x, y, z, Math.max(1, z - 1), P.mid, alpha); break;
+      case 'light':
+        if (a < .6) { fill(ctx, x - z, y, 2 * z + 1, 1, P.mid, alpha); fill(ctx, x, y - z, 1, 2 * z + 1, P.mid, alpha); }
+        dot(ctx, x, y, P.hi, alpha); break;
+      default: fill(ctx, x, y, z, z, a < .5 ? P.mid : P.lo, alpha); if (z > 1) dot(ctx, x, y, P.hi, alpha * (1 - a));
+    }
+  }
+  // Traiettoria di una particella per elemento (KX, KY: spostamento dopo tt secondi).
+  let KX = 0, KY = 0;
+  function kin(el, ang, v, tt, i) {
+    const c = Math.cos(ang), s = Math.sin(ang);
+    switch (el) {
+      case 'fire': KX = c * v * .55 * tt + Math.sin(tt * 18 + i) * 1.5; KY = s * v * .3 * tt - 30 * tt - 45 * tt * tt; break;
+      case 'water': KX = c * v * tt; KY = (s * .5 - .9) * v * .8 * tt + 260 * tt * tt; break;
+      case 'ice': { const r = v * .2 * (1 - Math.exp(-7 * tt)); KX = c * r; KY = s * r * .8; break; }
+      case 'lightning': KX = c * v * 1.6 * tt; KY = s * v * 1.2 * tt; break;
+      case 'light': KX = c * v * .55 * tt; KY = s * v * .4 * tt - 24 * tt; break;
+      default: KX = c * v * tt; KY = s * v * .8 * tt + 100 * tt * tt;
+    }
+  }
+  function burst(ctx, f, el, n, k, a, from = 0, cx = f.x, cy = f.y - 7) {
+    const P = PAL[el], tt = a * f.life, alpha = 1 - a * a;
+    for (let i = 0; i < n; i++) {
+      const h = hash(f.id, i + from), ang = (i + h) / n * TAU, v = (34 + 44 * hash(f.id, i + from + 50)) * k;
+      if (el === 'dark') {
+        const r = (14 + 8 * h) * k * Math.max(0, 1 - a * 1.5), sw = ang + a * 2.4;
+        KX = Math.cos(sw) * r; KY = Math.sin(sw) * r * .75;
+      } else kin(el, ang, v, tt, i);
+      mote(ctx, el, P, cx + KX, cy + KY, a, h, alpha);
+    }
+  }
+
+  // Impatto di un colpo: lampo di contatto, firma dell'elemento e particelle. k = scala (1 normale, 1.5 colpo forte).
+  function impact(ctx, f, el, a, k) {
+    const P = PAL[el], x = R(f.x), y = R(f.y - 7), tt = a * f.life, fade = 1 - a;
+    if (still) {
+      // Effetti ridotti: un simbolo fermo dell'elemento che sfuma.
+      if (el === 'fire' || el === 'water' || el === 'dark') {
+        fill(ctx, x - 3, y - 3, 7, 7, P.ink, fade * .45); fill(ctx, x - 2, y - 2, 5, 5, P.lo, fade);
+        fill(ctx, x - 1, y - 1, 3, 3, P.mid, fade); dot(ctx, x, y, P.hi, fade);
+      } else if (el === 'ice') { shard(ctx, x, y, P, fade); star(ctx, x, y, 5, P.hi, P.mid, fade * .6); }
+      else star(ctx, x, y, k > 1 ? 6 : 4, P.hi, P.mid, fade, P.ink);
+      if (k > 1) oval(ctx, x, y, 12, 7, P.hi, fade * .8, 2);
+      return;
+    }
+    if (a < .22 && el !== 'dark') star(ctx, x, y, R((4 + 3 * k) * (1 - a * 2.2)), P.hi, P.mid, 1, P.ink);
+    switch (el) {
+      case 'physical': {
+        const n = k > 1 ? 8 : 6;
+        for (let i = 0; i < n; i++) streak(ctx, x, y, (i + .5 * hash(f.id, i)) / n * TAU, 4 + a * 14 * k, Math.max(1, R(fade * 5 * k)), P.hi, P.mid, fade, 2);
+        for (let i = 0; i < 5; i++) {
+          const ang = -Math.PI * (.1 + .8 * hash(f.id, i + 7)), v = 30 + 34 * hash(f.id, i + 3);
+          fill(ctx, x + Math.cos(ang) * v * tt, y + Math.sin(ang) * v * tt + 130 * tt * tt, 2, 2, P.lo, fade);
+        }
+        break;
+      }
+      case 'fire': {
+        for (let i = 0; i < 3; i++) {
+          const h = R((1 - a) * (i === 1 ? 12 : 8) * k), ox = x + (i - 1) * 4 + R(Math.sin(tt * 30 + i * 2)), base = y + 3 - R(a * 10);
+          for (let j = 0; j < h; j++) {
+            const w = j < h * .4 ? 3 : j < h * .75 ? 2 : 1;
+            fill(ctx, ox - (w >> 1), base - j, w, 1, j < h * .3 ? P.hi : j < h * .65 ? P.mid : P.lo, fade);
+          }
+        }
+        burst(ctx, f, 'fire', 10, k, a);
+        break;
+      }
+      case 'water': {
+        const rx = (5 + 16 * a) * k;
+        oval(ctx, x, R(f.y), rx, rx * .4, P.mid, fade * .9, 1.5);
+        if (a > .2) oval(ctx, x, R(f.y), rx * .6, rx * .24, P.lo, fade * .7);
+        for (let i = 0; i < 6; i++) {
+          const ang = -Math.PI * (.12 + .76 * i / 5), v = (48 + 16 * hash(f.id, i)) * k;
+          const sx = x + Math.cos(ang) * v * tt, sy = y + Math.sin(ang) * v * tt + 250 * tt * tt;
+          fill(ctx, sx, sy, 2, 3, P.mid, fade); dot(ctx, sx, sy, P.hi, fade);
+        }
+        burst(ctx, f, 'water', 6, k, a, 60);
+        break;
+      }
+      case 'ice': {
+        if (a < .3) for (let i = 0; i < 6; i++) streak(ctx, x, y, i / 6 * TAU, 2, R(6 * k * (1 - a * 3)) + 1, P.hi, P.mid, 1);
+        for (let i = 0; i < 6; i++) {
+          const ang = (i + hash(f.id, i)) / 6 * TAU, r = (8 + 18 * k) * (1 - Math.exp(-6 * tt));
+          shard(ctx, x + Math.cos(ang) * r, y + Math.sin(ang) * r * .8, P, fade);
+        }
+        burst(ctx, f, 'ice', 6, k, a, 20);
+        break;
+      }
+      case 'lightning': {
+        if (a < .6) {
+          const frame = (tt * 15) | 0;
+          for (let i = 0; i < 4; i++) zigzag(ctx, x, y, (i + hash(f.id, i)) / 4 * TAU, (12 + 6 * hash(f.id, i + 9)) * k, f.id * 31 + i * 7 + frame, P, 1 - a / .6);
+        }
+        burst(ctx, f, 'lightning', 8, k, a, 30);
+        break;
+      }
+      case 'dark': {
+        burst(ctx, f, 'dark', 12, k, a);
+        if (a < .55) {
+          fill(ctx, x - 3, y - 2, 7, 5, P.ink, .7); fill(ctx, x - 2, y - 3, 5, 7, P.ink, .7);
+          fill(ctx, x - 2, y - 1, 5, 3, P.lo, 1); fill(ctx, x - 1, y - 2, 3, 5, P.lo, 1);
+          fill(ctx, x - 1, y - 1, 3, 3, P.mid, 1); dot(ctx, x, y, P.hi, 1);
+        }
+        if (a > .4) {
+          const u = (a - .4) / .6, rr = (4 + 16 * u) * k;
+          oval(ctx, x, y, rr, rr * .7, P.mid, 1 - u, 2); oval(ctx, x, y, rr * .7, rr * .49, P.lo, (1 - u) * .7);
+        }
+        break;
+      }
+      case 'light': {
+        const grow = a < .3 ? a / .3 : 1 - (a - .3) / .7;
+        for (let i = 0; i < 8; i++) {
+          const len = R(grow * (i % 2 ? 7 : 12) * k);
+          if (len > 0) streak(ctx, x, y, i / 8 * TAU, 3, len, i % 2 ? P.mid : P.hi, P.lo, fade, i % 2 ? 1 : 2);
+        }
+        burst(ctx, f, 'light', 6, k, a, 40);
+        break;
+      }
+    }
+    if (k > 1) {
+      // Colpo forte (terzo colpo della combo): onda d'urto e linee di impatto.
+      const rr = 5 + 22 * a;
+      oval(ctx, x, y, rr, rr * .55, P.hi, (1 - a) * .95, 2);
+      for (let i = 0; i < 4; i++) streak(ctx, x, y, i / 4 * TAU + .4, 9 + 12 * a, R(7 * fade) + 1, '#ffffff', P.mid, fade, 2);
+    }
+  }
+
+  // Stato degli effetti propri (si azzerano col cambio di regione e con resetTransient del motore).
+  const live = [];
+  let serial = 1, ghosts = [], dashUntil = -1, lastGhost = -1;
+  const ghostCache = new Map();
+  function emit(type, d, s) {
+    if (!s || !d || !Number.isFinite(d.x) || !Number.isFinite(d.y)) return;
+    const t = s.time;
+    if (type === 'dash') { dashUntil = t + .2; lastGhost = -1; return; }
+    if (!Object.hasOwn(LIFE, type)) return;
+    const el = d.tag ? d.tag.el : d.type ? MONSTER[d.type] || 'physical' : d.race ? RACE[d.race] || 'physical' : 'physical';
+    const strong = !!d.tag?.strong;
+    live.push({type, t0: t, life: LIFE[type] * (strong ? 1.35 : 1) * (type === 'defeat' && d.boss ? 2.4 : 1), x: d.x, y: d.y,
+      el, accent: d.tag?.accent || null, strong, id: serial++, region: s.region, boss: !!d.boss, legendary: !!d.legendary,
+      shield: !!d.shield, phase: d.phase || 0});
+    if (live.length > 48) live.splice(0, live.length - 48);
+  }
+  function reset() { live.length = 0; ghosts = []; dashUntil = -1; }
+
+  function ghostImage(p) {
+    const form = p.form === null || p.form === undefined ? 0 : (p.evolutionStage - 1) * 2 + p.form + 1;
+    const key = p.race + '|' + p.dir + '|' + form;
+    let c = ghostCache.get(key);
+    if (!c && window.ActorArt?.draw) {
+      if (ghostCache.size > 12) ghostCache.clear();
+      c = document.createElement('canvas'); c.width = c.height = 64;
+      const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+      window.ActorArt.draw(g, p.race, 32, 56, {dir: p.dir, evolution: form, moving: true, t: 0});
+      g.globalCompositeOperation = 'source-in'; g.fillStyle = GHOST; g.fillRect(0, 0, 64, 64);
+      ghostCache.set(key, c);
+    }
+    return c;
+  }
+  function drawGhosts(ctx, p, t) {
+    if (t < dashUntil && (lastGhost < 0 || t - lastGhost >= .035)) {
+      lastGhost = t;
+      ghosts.push({x: p.x, y: p.y, t, img: ghostImage(p)});
+      if (ghosts.length > 8) ghosts.shift();
+    }
+    ghosts = ghosts.filter(g => t - g.t < .24 && t >= g.t);
+    for (const g of ghosts) {
+      if (!g.img || Math.hypot(g.x - p.x, g.y - p.y) < 7) continue;
+      ctx.globalAlpha = .42 * (1 - (t - g.t) / .24);
+      ctx.drawImage(g.img, R(g.x) - 32, R(g.y) - 56);
+    }
+  }
+
+  // Decorazioni dell'elemento lungo un'ellisse (anelli d'urto, aure): n punti, rotazione rot, fase k (0..1).
+  function rim(ctx, el, P, x, y, rx, ry, n, rot, k, alpha) {
+    for (let i = 0; i < n; i++) {
+      const ang = i / n * TAU + rot, px = x + Math.cos(ang) * rx, py = y + Math.sin(ang) * ry;
+      switch (el) {
+        case 'fire': {
+          const h = 4 + ((i + ((k * 14) | 0)) % 3);
+          fill(ctx, px - 1, py - h, 2, h, P.mid, alpha); fill(ctx, px - 1, py - 2, 2, 2, P.hi, alpha); fill(ctx, px - 1, py - h - 1, 1, 2, P.lo, alpha * .85);
+          break;
+        }
+        case 'ice': shard(ctx, px, py, P, alpha); break;
+        case 'lightning':
+          if (i % 2 === 0) {
+            const a2 = (i + 1) / n * TAU + rot;
+            zigzag(ctx, px, py, Math.atan2(Math.sin(a2) * ry - Math.sin(ang) * ry, Math.cos(a2) * rx - Math.cos(ang) * rx), Math.max(3, rx * TAU / n * .8), i * 13 + ((k * 12) | 0), P, alpha);
+          }
+          break;
+        case 'dark': fill(ctx, px - Math.cos(ang) * 4 - 1, py - Math.sin(ang) * 3, 4, 2, P.lo, alpha * .85); fill(ctx, px, py, 2, 2, P.mid, alpha); break;
+        case 'light': streak(ctx, px, py, ang, 1, 5, P.hi, P.mid, alpha, i % 2 ? 1 : 2); break;
+        case 'water': fill(ctx, px - 2, py, 4, 1, P.mid, alpha); fill(ctx, px, py - 2 - R(k * 4), 2, 2, P.mid, alpha * .9); dot(ctx, px, py - 2 - R(k * 4), P.hi, alpha); break;
+        default: fill(ctx, px - 1, py - 1, 3, 2, P.lo, alpha * .85); dot(ctx, px, py - 1, P.hi, alpha * .7);
+      }
+    }
+  }
+  // Aura dei boss impegnati: cresce con la fase (II: sigillo a terra, III: più particelle).
+  function aura(ctx, m, el, phase, legendary, t) {
+    const P = PAL[el], x = R(m.x), y = R(m.y);
+    if (phase >= 2) {
+      const rx = 26 + (phase - 2) * 6;
+      oval(ctx, x, y, rx, rx * .4, P.ink, .3, 3);
+      oval(ctx, x, y, rx, rx * .4, P.mid, .6, 1.5);
+      if (phase >= 3) oval(ctx, x, y, rx * .72, rx * .29, P.lo, .5);
+      if (!still) rim(ctx, el, P, x, y, rx, rx * .4, phase >= 3 ? 10 : 8, t * .5, (t * .9) % 1, .9);
+    }
+    if (still) return;
+    const n = 4 + 4 * (phase - 1) + (legendary ? 2 : 0);
+    for (let i = 0; i < n; i++) {
+      const h = hash(m.id * 7 + i, 3), period = 1.3 + .6 * h, u = ((t / period) + h) % 1;
+      let ang = h * TAU, rr = 16 + 12 * hash(m.id, i + 11);
+      if (el === 'ice') ang += t * .8;
+      if (el === 'dark') rr *= 1 - u * .7;
+      let px = x + Math.cos(ang) * rr, py = y - 4 + Math.sin(ang) * rr * .4;
+      if (el === 'fire' || el === 'light') py -= u * 30;
+      else if (el === 'water') { py -= u * 20; px += Math.sin(u * 9 + i) * 1.5; }
+      else if (el !== 'ice' && el !== 'dark') py -= u * 14;
+      if (el === 'lightning') { if (u < .25) zigzag(ctx, px, py - 14, h * TAU, 9, (t * 12 | 0) + i, P, 1 - u / .25); continue; }
+      if (el === 'ice' && i % 3 === 0) { shard(ctx, px, py - 10, P, Math.sin(u * Math.PI)); continue; }
+      mote(ctx, el, P, px, py, u, h, Math.sin(u * Math.PI));
+    }
+    if (legendary) for (let i = 0; i < 3; i++) {
+      const u = ((t * .6) + i / 3) % 1;
+      star(ctx, x + Math.cos(i / 3 * TAU + t) * 20, y - 30 - u * 12, 2, '#ffffff', '#ffe08a', Math.sin(u * Math.PI));
+    }
+  }
+  function sigil(ctx, x, y, rx, ry, P, alpha, rot) {
+    oval(ctx, x, y, rx, ry, P.ink, alpha * .35, 3);
+    oval(ctx, x, y, rx, ry, P.mid, alpha * .95, 1.5); oval(ctx, x, y, rx * .72, ry * .72, P.lo, alpha * .75);
+    for (let i = 0; i < 8; i++) {
+      const ang = i / 8 * TAU + rot, gx = x + Math.cos(ang) * rx * .86, gy = y + Math.sin(ang) * ry * .86;
+      if (i % 2) { fill(ctx, gx - 1, gy - 2, 3, 5, P.ink, alpha * .4); fill(ctx, gx, gy - 1, 1, 3, P.hi, alpha); }
+      else { fill(ctx, gx - 2, gy - 1, 5, 3, P.ink, alpha * .4); fill(ctx, gx - 1, gy, 3, 1, P.hi, alpha); }
+    }
+  }
+  function pillar(ctx, x, y, w, h, P, alpha) {
+    if (alpha <= .02 || w < 1) return;
+    fill(ctx, x - w, y - h, 2 * w + 1, h, P.mid, alpha * .3);
+    fill(ctx, x - R(w / 2), y - h, w + 1, h, P.mid, alpha * .35);
+    fill(ctx, x - 1, y - h, 3, h, P.hi, alpha * .7);
+  }
+
+  function drawLive(ctx, f, t) {
+    const a = Math.min(1, Math.max(0, (t - f.t0) / f.life)), P = PAL[f.el];
+    switch (f.type) {
+      case 'hit':
+        impact(ctx, f, f.el, a, f.strong ? 1.5 : 1);
+        if (f.accent && !still) burst(ctx, f, f.accent, 5, 1, a, 100);
+        break;
+      case 'hurt': {
+        if (f.shield) {
+          ctx.setLineDash([3, 2]); oval(ctx, R(f.x), R(f.y - 12), 13, 15, '#91dbff', (1 - a) * .95, 2); ctx.setLineDash([]);
+          break;
+        }
+        if (still) break;
+        const tt = a * f.life;
+        for (let i = 0; i < 7; i++) {
+          const ang = -Math.PI * (.05 + .9 * (i + hash(f.id, i)) / 7), r = 11 + (44 + 22 * hash(f.id, i + 5)) * tt;
+          mote(ctx, f.el, P, f.x + Math.cos(ang) * r, f.y - 12 + Math.sin(ang) * r * .9, a, hash(f.id, i), 1 - a);
+        }
+        break;
+      }
+      case 'dodge': {
+        const fade = 1 - a;
+        star(ctx, R(f.x + 10), R(f.y - 26), still ? 3 : R(4 * fade) + 1, '#ffffff', GHOST, fade, '#1d3a40');
+        if (still) break;
+        ctx.globalAlpha = fade; ctx.lineWidth = 2;
+        for (const [color, grow] of [[GHOST, 0], ['#ffffff', -2]]) {
+          ctx.strokeStyle = color;
+          for (const side of [-1, 1]) {
+            ctx.beginPath(); ctx.ellipse(R(f.x), R(f.y - 11), 14 + 5 * a + grow, 16 + 5 * a + grow, 0, side < 0 ? Math.PI * .65 : -Math.PI * .35, side < 0 ? Math.PI * 1.35 : Math.PI * .35); ctx.stroke();
+          }
+          ctx.lineWidth = 1;
+        }
+        break;
+      }
+      case 'phase': {
+        // Trasformazione del boss: sigillo che si apre, colonna di luce, onda d'urto e particelle dell'elemento.
+        const x = R(f.x), y = R(f.y), grow = Math.min(1, a / .22), fade = a < .75 ? 1 : (1 - a) / .25, rx = 12 + 30 * grow;
+        sigil(ctx, x, y, rx, rx * .42, P, fade, still ? 0 : a * 1.6);
+        if (still) break;
+        if (a < .7) pillar(ctx, x, y, R(14 * (1 - a / .7)) + 1, 90, P, 1 - a / .7);
+        if (a < .6) { const r = 10 + 80 * a; oval(ctx, x, y, r, r * .45, P.hi, (1 - a / .6) * .9, 2); }
+        burst(ctx, f, f.el, 24, 2, a);
+        if (f.legendary) for (let i = 0; i < 10; i++) {
+          const ang = i / 10 * TAU + a * 2;
+          star(ctx, x + Math.cos(ang) * 32, y - 14 + Math.sin(ang) * 12 - a * 24, 2, '#ffffff', '#ffe08a', 1 - a);
+        }
+        break;
+      }
+      case 'defeat': {
+        const x = R(f.x), y = R(f.y), fade = 1 - a;
+        if (still) { oval(ctx, x, y - 7, 10, 6, P.mid, fade, 2); break; }
+        const n = f.boss ? 30 : 12, tt = a * f.life;
+        for (let i = 0; i < n; i++) {
+          const h = hash(f.id, i), ang = h * TAU, r = (f.boss ? 26 : 10) * hash(f.id, i + 30);
+          mote(ctx, f.el, P, x + Math.cos(ang) * r + Math.sin(tt * 4 + i) * 2, y - 8 + Math.sin(ang) * r * .5 - (26 + 22 * h) * tt, a, h, fade);
+        }
+        const rr = f.boss ? 12 + 64 * a : 4 + 14 * a;
+        oval(ctx, x, y - (f.boss ? 0 : 7), rr, rr * .5, P.hi, fade * .85, 1.5);
+        if (f.boss) {
+          if (a < .6) pillar(ctx, x, y, R(16 * (1 - a / .6)) + 1, 100, P, 1 - a / .6);
+          if (a > .2) { const r2 = 12 + 54 * (a - .2); oval(ctx, x, y, r2, r2 * .45, P.mid, fade * .75, 2); }
+        }
+        break;
+      }
+      case 'evolve': {
+        // Trasformazione del personaggio: cerchio, colonne e scintille intorno alla figura, mai sopra.
+        const x = R(f.x), y = R(f.y), fade = a < .8 ? 1 : (1 - a) / .2;
+        sigil(ctx, x, y, 18, 7, P, fade, still ? 0 : a * 2.2);
+        if (still) break;
+        const h = R(44 * Math.min(1, a / .3));
+        for (const side of [-1, 1]) {
+          fill(ctx, x + side * 11 - (side < 0 ? 1 : 0), y - h, 2, h, P.hi, fade * .75);
+          fill(ctx, x + side * 14, y - R(h * .7), 1, R(h * .7), P.mid, fade * .55);
+        }
+        for (let i = 0; i < 14; i++) {
+          const hh = hash(f.id, i), side = i % 2 ? 1 : -1, u = (a * 1.6 + hh) % 1;
+          mote(ctx, f.el, P, x + side * (11 + 9 * hh), y - 2 - u * 40, u, hh, fade * Math.sin(u * Math.PI));
+        }
+        if (a > .35 && a < .8) { const u = (a - .35) / .45, r = 14 + 44 * u; oval(ctx, x, y, r, r * .45, P.hi, 1 - u, 2); }
+        if (a > .45) for (let i = 0; i < 3; i++) star(ctx, x - 9 + i * 9, y - 34 - (i % 2) * 4, 2, '#ffffff', P.mid, fade * Math.sin((a * 3 + i) * Math.PI) ** 2);
+        break;
+      }
+    }
+  }
+
+  function begin(scene) {
+    still = calm();
+    const p = scene?.player;
+    mask = p ? {l: R(p.x) - 8, r: R(p.x) + 9, t: R(p.y) - 26, b: R(p.y) + 1} : null;
+    placed = [];
+  }
+  function draw(ctx, layer, scene) {
+    if (!scene || layer !== 'under') return;
+    begin(scene);
+    const t = scene.t, region = scene.region;
+    for (let i = live.length - 1; i >= 0; i--) {
+      const f = live[i];
+      if (f.region !== region || t < f.t0 || t - f.t0 > f.life) live.splice(i, 1);
+    }
+    ctx.save();
+    for (const m of scene.monsters || []) {
+      const def = scene.codex?.[m.type];
+      if (!def?.boss || m.hp <= 0 || !m.engaged) continue;
+      aura(ctx, m, MONSTER[m.type] || 'physical', m.phase || 1, !!def.legendary, t);
+    }
+    if (!still) for (const h of scene.hazards || []) {
+      if (!h.tag) continue;
+      const P = PAL[h.tag.el] || PAL.physical, n = 3 + R(h.r / 6);
+      for (let i = 0; i < n; i++) {
+        const hh = hash(R(h.x) * 13 + i, R(h.y)), u = (t * (.8 + .4 * hh) + hh) % 1, ang = hh * TAU, r = h.r * .75 * hash(i, R(h.x));
+        mote(ctx, h.tag.el, P, h.x + Math.cos(ang) * r, h.y + Math.sin(ang) * r * .7 - (h.tag.el === 'fire' || h.tag.el === 'light' ? u * 8 : 0), u, hh, Math.sin(u * Math.PI) * .9);
+      }
+    }
+    if (!still && scene.player) drawGhosts(ctx, scene.player, t); else ghosts = [];
+    for (const f of live) drawLive(ctx, f, t);
+    ctx.restore();
+  }
+
+  // Effetti del motore con etichetta: arco del colpo, anello d'urto e scintille.
+  function effect(ctx, f, scene) {
+    const tg = f.tag, P = PAL[tg.el] || PAL.physical, alpha = Math.min(1, f.ttl * 5), x = Math.round(f.x), y = Math.round(f.y);
+    switch (f.kind) {
+      case 'arc': {
+        const k = 1 - f.ttl / f.duration, r = f.r * (.77 + .23 * k), a0 = f.angle - 1.1 + k * .7, a1 = f.angle + .8 + k * .45;
+        const strong = tg.strong;
+        ctx.globalAlpha = alpha * .55; ctx.strokeStyle = P.lo; ctx.lineWidth = strong ? 4.5 : 3.5;
+        ctx.beginPath(); ctx.arc(x, y, r, a0, a1); ctx.stroke();
+        ctx.globalAlpha = alpha; ctx.strokeStyle = tg.el === 'physical' ? f.color : P.mid; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(x, y, r, a0, a1); ctx.stroke();
+        ctx.strokeStyle = P.hi; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(x, y, r - .5, a0 + .25, a1); ctx.stroke();
+        if (strong) { ctx.globalAlpha = alpha * .7; ctx.beginPath(); ctx.arc(x, y, r + 4, a0 + .4, a1 - .1); ctx.stroke(); }
+        ctx.lineWidth = 1;
+        if (!still) {
+          const el = tg.el === 'physical' && tg.accent ? tg.accent : tg.el, PP = PAL[el];
+          for (let i = 0; i < 5; i++) {
+            const ang = a0 + (a1 - a0) * (i + .5) / 5, rr = r + 2 + k * 6 * (i % 2 ? 1 : .5);
+            mote(ctx, el, PP, x + Math.cos(ang) * rr, y + Math.sin(ang) * rr, k, i / 5, alpha * (i + 1) / 5);
+          }
+        }
+        break;
+      }
+      case 'ring': {
+        const k = 1 - f.ttl / f.duration, r = Math.max(.2, f.r * k), sp = scene?.player;
+        if (sp && Math.abs(f.x - sp.x) < 2 && Math.abs(f.y - sp.y) < 2 && r < 10) break;
+        oval(ctx, x, y, r, r * .7, P.ink, alpha * (tg.hostile ? .6 : .35), 4);
+        oval(ctx, x, y, r, r * .7, P.mid, alpha, 2);
+        oval(ctx, x, y, r * .86, r * .6, P.lo, alpha * .6);
+        if (still) break;
+        rim(ctx, tg.el, P, x, y, r, r * .7, Math.max(6, Math.min(16, R(r / 5))), k * .6, k, alpha);
+        break;
+      }
+      case 'dust': {
+        const a = 1 - Math.min(1, f.ttl / .5);
+        if (still) break; // effetti ridotti: niente particelle in volo (resta il simbolo fermo dell'impatto)
+        mote(ctx, tg.el, P, x, y, a, (x * 7 + y) % 5 / 5, alpha);
+        break;
+      }
+    }
+    ctx.globalAlpha = 1; ctx.lineWidth = 1;
+  }
+
+  // Proiettile con la forma del suo elemento. I proiettili nemici hanno un bordo scuro: restano leggibili.
+  function shot(ctx, b, scene) {
+    const el = b.tag.el, P = PAL[el] || PAL.physical, x = Math.round(b.x), y = Math.round(b.y - 7), t = scene?.t || 0;
+    const sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp;
+    mask = null;
+    if (!still) for (let i = 1; i <= 3; i++) {
+      const tx = x - ux * i * 3, ty = y - uy * i * 3, a = 1 - i / 4;
+      if (el === 'fire') fill(ctx, tx, ty, 2, 2, i < 2 ? P.mid : i < 3 ? P.lo : P.smoke, a);
+      else if (el === 'dark') fill(ctx, tx, ty, 2, 1, P.lo, a);
+      else if (el === 'physical') fill(ctx, tx - 1, ty - 1, 3, 2, b.color, a * .5);
+      else dot(ctx, tx, ty, i < 2 ? P.mid : P.lo, a);
+    }
+    if (b.hostile) { fill(ctx, x - 4, y - 2, 9, 5, P.ink, .85); fill(ctx, x - 2, y - 4, 5, 9, P.ink, .85); }
+    switch (el) {
+      case 'fire': {
+        const fl = still ? 0 : ((t * 20) | 0) % 2;
+        fill(ctx, x - 3, y - 1, 7, 3, P.mid, 1); fill(ctx, x - 1, y - 3, 3, 7, P.mid, 1);
+        fill(ctx, x - 1, y - 1, 3, 3, P.hi, 1); dot(ctx, x - fl, y - 3 - fl, P.lo, 1);
+        break;
+      }
+      case 'water':
+        fill(ctx, x - 2, y - 3, 5, 1, P.mid, 1); fill(ctx, x - 2, y + 3, 5, 1, P.mid, 1); fill(ctx, x - 3, y - 2, 1, 5, P.mid, 1); fill(ctx, x + 3, y - 2, 1, 5, P.mid, 1);
+        fill(ctx, x - 2, y - 2, 5, 5, P.lo, .55); dot(ctx, x - 1, y - 1, P.hi, 1); dot(ctx, x, y - 1, P.hi, 1);
+        break;
+      case 'ice':
+        for (let i = -3; i <= 3; i++) {
+          const w = Math.abs(i) <= 1 ? 1 : 0;
+          dot(ctx, x + ux * i, y + uy * i, Math.abs(i) <= 1 ? P.hi : P.mid, 1);
+          if (w) { dot(ctx, x + ux * i - uy, y + uy * i + ux, P.lo, 1); dot(ctx, x + ux * i + uy, y + uy * i - ux, P.lo, 1); }
+        }
+        break;
+      case 'lightning': {
+        fill(ctx, x - 1, y - 1, 3, 3, P.hi, 1); fill(ctx, x - 2, y, 5, 1, P.mid, 1); fill(ctx, x, y - 2, 1, 5, P.mid, 1);
+        const j = still ? 0 : ((t * 15) | 0) % 4, dx = [3, -3, 2, -2][j], dy = [-2, 2, 3, -3][j];
+        dot(ctx, x + dx, y + dy, P.mid, 1); dot(ctx, x + dx - Math.sign(dx), y + dy, P.lo, 1); dot(ctx, x - dx, y - dy, P.lo, 1);
+        break;
+      }
+      case 'dark':
+        fill(ctx, x - 2, y - 3, 5, 7, P.lo, 1); fill(ctx, x - 3, y - 2, 7, 5, P.lo, 1);
+        fill(ctx, x - 1, y - 1, 3, 3, P.mid, 1); dot(ctx, x, y, P.hi, 1);
+        break;
+      case 'light':
+        fill(ctx, x - 3, y, 7, 1, P.mid, 1); fill(ctx, x, y - 3, 1, 7, P.mid, 1);
+        dot(ctx, x - 2, y - 2, P.lo, 1); dot(ctx, x + 2, y - 2, P.lo, 1); dot(ctx, x - 2, y + 2, P.lo, 1); dot(ctx, x + 2, y + 2, P.lo, 1);
+        fill(ctx, x - 1, y - 1, 3, 3, P.hi, 1);
+        break;
+      default:
+        fill(ctx, x - 3, y - 1, 7, 3, b.color, 1); fill(ctx, x - 1, y - 3, 3, 7, b.color, 1); fill(ctx, x - 1, y - 1, 3, 3, '#fff8dc', 1);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Numeri e scritte: contorno scuro su tutti i lati; il colpo forte è più grande e dorato.
+  const lift = new WeakMap();
+  let placed = [];
+  function label(ctx, f) {
+    const strong = !!f.tag?.strong && typeof f.text === 'number', x = Math.round(f.x);
+    const w = String(f.text).length * (strong ? 7 : 5) + 2, h = strong ? 11 : 9;
+    let dy = lift.get(f);
+    if (dy === undefined) {
+      dy = 0;
+      for (let k = 0; k < 4 && placed.some(r => Math.abs(r.x - x) * 2 < r.w + w && Math.abs(r.y - (Math.round(f.y) - dy)) * 2 < r.h + h); k++) dy += h;
+      lift.set(f, dy);
+    }
+    const y = Math.round(f.y) - dy;
+    placed.push({x, y, w, h});
+    ctx.globalAlpha = Math.min(1, f.ttl * 5); ctx.textAlign = 'center';
+    ctx.font = strong ? 'bold 11px monospace' : 'bold 8px monospace';
+    ctx.fillStyle = '#1d2129';
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) ctx.fillText(f.text, x + dx, y + dy);
+    ctx.fillStyle = strong ? '#fff0b8' : f.color; ctx.fillText(f.text, x, y);
+    ctx.font = 'bold 8px monospace'; ctx.globalAlpha = 1;
+  }
+
+  const elementOf = src => tag(src)?.el || null;
+  window.CombatFX = Object.freeze({
+    palette: PAL, races: RACE, monsters: MONSTER, tag, emit, reset, draw, effect, shot, label, elementOf, calm,
+    debug: () => ({live: live.map(f => f.type + ':' + f.el), ghosts: ghosts.length, tags: tags.size})
+  });
 })();
 
 

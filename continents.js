@@ -373,46 +373,168 @@
   function insideCrypt(r,x,y,margin){
     return r.rooms.some(([a,b,rw,rh])=>x>=a+margin&&x<=a+rw-margin&&y>=b+margin&&y<=b+rh-margin);
   }
+  // Cripta delle Soglie (World Art Overhaul, fase 4): arenaria calda, basalto, intarsi d'oro e rune viola-ambra,
+  // distinta dal Santuario della Marea Muta (freddo e acquatico). Le sale, gli oggetti e i punti non cambiano:
+  // la percorribilità resta «dentro una sala» (insideCrypt) e gli arredi stanno sulle pareti o a filo del pavimento.
+  const cryptRoomStyle=['ante','corridor','keys','corridor','names','corridor','threshold'];
   function makeCrypt(r,seed){
     const image=makeCanvas(w,h),c=image.getContext('2d'),objects=[],palette=formats.star;
-    // Roccia scura intorno alle sale, bordi e pareti in mattoni con profondità; le sale non cambiano forma.
-    tile(c,'#10181e',0,0,w,h);
-    const rock=random(seed^0x6c8e9cf5);
-    for(let i=0;i<6000;i++){const x=Math.floor(rock()*w),y=Math.floor(rock()*h),q=rock();tile(c,q<.5?'#18232a':'#0b1216',x,y,1+Math.floor(q*3),1);}
-    for(const [x,y,rw,rh] of r.rooms){tile(c,'#1c2429',x-6,y-11,rw+12,rh+18);tile(c,'#2d373d',x-4,y-9,rw+8,rh+14);}
-    for(const [x,y,rw,rh] of r.rooms)tile(c,'#575f62',x,y,rw,rh);
+    const glow=makeCanvas(w,h),gl=glow.getContext('2d');
     const floor=(x,y)=>insideCrypt(r,x,y,0);
-    for(const [x,y,rw,rh] of r.rooms){
-      for(let yy=y-9;yy<y;yy++)for(let xx=x-4;xx<x+rw+4;xx++){
+    const rnd=random(seed^0x51ac2d7);
+    // 1. Roccia viva: basalto bruno con venature calde.
+    tile(c,'#130f13',0,0,w,h);
+    const rock=random(seed^0x6c8e9cf5);
+    for(let i=0;i<6000;i++){const x=Math.floor(rock()*w),y=Math.floor(rock()*h),q=rock();tile(c,q<.5?'#1c161a':'#0c090c',x,y,1+Math.floor(q*3),1);}
+    for(let i=0;i<220;i++){const x=Math.floor(rock()*w),y=Math.floor(rock()*h);for(let k=0;k<10;k++)tile(c,'#2a1f1c',x+k,y+Math.round(Math.sin(k*.7+x)*2),1,1);}
+    // 2. Bordi e pareti: arenaria in blocchi, pareti alte 20 px sopra ogni sala, lati e soglia anteriore.
+    for(const [x,y,rw,rh] of r.rooms){tile(c,'#1d1619',x-7,y-23,rw+14,rh+31);tile(c,'#2c2224',x-5,y-21,rw+10,rh+27);}
+    for(const [x,y,rw,rh] of r.rooms)tile(c,'#6d6052',x,y,rw,rh);
+    for(const [i,[x,y,rw,rh]] of r.rooms.entries()){
+      for(let yy=y-20;yy<y;yy++)for(let xx=x-5;xx<x+rw+5;xx++){
         if(floor(xx,yy))continue;
-        const row=yy-(y-9),brick=Math.floor((xx+(Math.floor(row/3)%2)*4)/8);
-        const col=row===0?'#6f787b':row%3===2||(xx+(Math.floor(row/3)%2)*4)%8===0?'#262e33':hash(brick,Math.floor(row/3)+y,seed)<.5?'#4a5358':'#535c61';
+        const row=yy-(y-20),course=Math.floor(row/4),off=(course%2)*5,brick=Math.floor((xx+off)/10);
+        const joint=row%4===3||(xx+off)%10===0;
+        const q=hash(brick,course+y,seed+11);
+        let col=joint?'#3b2e2a':q<.33?'#7d6a57':q<.66?'#88745f':'#927e67';
+        if(row===0)col='#a8957a';if(row===19)col='#3a2c28';
         tile(c,col,xx,yy);
       }
-      for(let xx=x;xx<x+rw;xx++)if(floor(xx,y+1)&&!floor(xx,y-1)){tile(c,'#1d242833',xx,y,1,4);tile(c,'#1d242822',xx,y+4,1,2);}
-    }
-    for(let y=104;y<638;y+=12)for(let x=84;x<1192;x+=16){
-      if(!insideCrypt(r,x+8,y+6,8))continue;
-      const q=hash(x,y,seed),q2=hash(y,x,seed+3);
-      tile(c,q<.13?'#606963':q<.56?'#6c7470':'#758079',x,y,15,11);
-      tile(c,'#8a8e7e77',x+1,y,7+q*7,1);tile(c,'#4b535633',x,y+10,15,1);tile(c,'#4b535622',x+14,y,1,11);
-      if(q>.96)tile(c,'#b0a98b',x+4,y+4,2,2);
-      if(q2>.95){const cx=x+3+Math.floor(q*8),dir=q>.5?1:-1;tile(c,'#454d4f',cx,y+2,1,3);tile(c,'#454d4f',cx+dir,y+5,1,2);tile(c,'#454d4f',cx+dir*2,y+7,2,1);if(q2>.98)tile(c,'#454d4f',cx-dir*2,y+3,2,1);}
-      if(!insideCrypt(r,x+8,y+6,22)&&q2<.22){tile(c,'#4f6b5a',x+2+Math.floor(q*9),y+3,3,1);tile(c,'#6f8f6a',x+3+Math.floor(q*9),y+2,1,1);}
-    }
-    for(const pt of r.marks){
-      disc(c,'#3e4848',pt.x,pt.y,30,22);disc(c,'#515d5c',pt.x,pt.y,29,21);disc(c,'#798780',pt.x,pt.y,25,18);
-      disc(c,'#5f6d69',pt.x,pt.y,19,13);disc(c,'#798780',pt.x,pt.y,17,12);
-      for(let k=0;k<12;k++){const a=k*Math.PI/6;tile(c,k%3?'#5fa59c':'#9fe0d4',pt.x+Math.cos(a)*22-1,pt.y+Math.sin(a)*15-1,2,2);}
-      for(const angle of [0,Math.PI/2,Math.PI,Math.PI*1.5]){
-        tile(c,'#bfaa7b',pt.x+Math.cos(angle)*16-2,pt.y+Math.sin(angle)*11-2,4,4);
+      // Nicchie con urne, iscrizioni e (nell'Ultima Soglia) la porta sigillata in rilievo.
+      const style=cryptRoomStyle[i];
+      if(style!=='corridor'){
+        for(let xx=x+14;xx<x+rw-18;xx+=34){
+          const q=hash(xx,y,seed+23);
+          if(q<.5){
+            tile(c,'#1f1716',xx,y-17,9,13);tile(c,'#2b201d',xx+1,y-16,7,12);tile(c,'#a8957a',xx-1,y-18,11,1);
+            tile(c,'#8a6f4d',xx+2,y-9,5,5);tile(c,'#b8946a',xx+3,y-10,3,1);tile(c,'#5d4a36',xx+2,y-5,5,1);
+          }else{
+            tile(c,'#5e4e40',xx-1,y-16,13,10);tile(c,'#b2a184',xx,y-15,11,8);
+            for(let k=0;k<3;k++){const len=3+Math.floor(hash(xx,k,seed)*6);tile(c,'#5e4e40',xx+1,y-13+k*2,len,1);tile(c,'#5e4e40',xx+len+2,y-13+k*2,7-len,1);}
+          }
+        }
       }
-      objects.push({x:pt.x-30,y:pt.y+5,type:'pillar',variant:0,radius:0},{x:pt.x+30,y:pt.y+5,type:'pillar',variant:0,radius:0});
+      if(style==='threshold'){
+        const cx=x+rw/2|0;
+        tile(c,'#2a1f1c',cx-17,y-20,34,20);tile(c,'#8e7a62',cx-15,y-19,30,19);
+        tile(c,'#1a1214',cx-10,y-16,20,16);tile(c,'#3a2a3a',cx-9,y-15,18,15);
+        for(let k=0;k<5;k++){tile(c,'#d9b45c',cx-1,y-14+k*3,2,1);tile(gl,'#b48a3a',cx-1,y-14+k*3,2,1);}
+        tile(c,'#c9a55a',cx-12,y-20,24,2);tile(gl,'#7a5a2a',cx-12,y-20,24,2);
+        for(const d of [-1,1]){tile(c,'#a68a6a',cx+d*14-1,y-19,3,19);}
+      }
+      // Ombra di contatto della parete sul pavimento.
+      for(let xx=x;xx<x+rw;xx++)if(floor(xx,y+1)&&!floor(xx,y-1)){tile(c,'#1a121233',xx,y,1,5);tile(c,'#1a121222',xx,y+5,1,3);}
     }
+    // 3. Pavimenti per sala.
+    const cellIn=(px,py,m)=>insideCrypt(r,px,py,m);
+    // Prima i corridoi, poi le sale: gli ingressi restano delle sale; ogni pavimento è ritagliato sul proprio perimetro.
+    const order=[...r.rooms.keys()].sort((a,b)=>(cryptRoomStyle[a]==='corridor'?0:1)-(cryptRoomStyle[b]==='corridor'?0:1));
+    for(const i of order){
+      const [rx,ry,rw,rh]=r.rooms[i],style=cryptRoomStyle[i];
+      c.save();c.beginPath();c.rect(rx,ry,rw,rh);c.clip();
+      paintCryptFloor(style,rx,ry,rw,rh);
+      c.restore();
+    }
+    function paintCryptFloor(style,rx,ry,rw,rh){
+      if(style==='corridor'){
+        // Mattoni a spina di pesce con una passatoia di lastre al centro.
+        for(let y=ry;y<ry+rh;y+=4)for(let x=rx;x<rx+rw;x+=8){
+          const q=hash(x,y,seed+31),hz=((x/8|0)+(y/4|0))%2;
+          tile(c,q<.5?'#5d4740':'#68514a',x,y,hz?8:4,hz?4:8);tile(c,'#3c2c28',x,y+(hz?3:7),hz?8:4,1);
+        }
+        const vertical=rh>rw;
+        if(vertical){const cx=rx+rw/2|0;for(let y=ry;y<ry+rh;y+=10){tile(c,'#3a2d28',cx-9,y,18,10);tile(c,'#8f7c66',cx-8,y,16,9);tile(c,'#a28d74',cx-8,y,16,1);}}
+        else{const cy=ry+rh/2|0;for(let x=rx;x<rx+rw;x+=12){tile(c,'#3a2d28',x,cy-8,12,16);tile(c,'#8f7c66',x,cy-7,11,14);tile(c,'#a28d74',x,cy-7,11,1);}}
+        return;
+      }
+      if(style==='ante'){
+        for(let y=ry;y<ry+rh;y+=13)for(let x=rx-((y/13|0)%2)*10;x<rx+rw;x+=20){
+          const q=hash(x,y,seed+41);
+          tile(c,'#4a3e33',x,y,20,13);tile(c,q<.3?'#75675a':q<.7?'#7f705f':'#8a7a67',x+1,y+1,18,11);tile(c,'#9a8a74',x+1,y+1,18,1);
+          if(q>.9){tile(c,'#4a3e33',x+6,y+4,1,4);tile(c,'#4a3e33',x+7,y+7,3,1);}
+        }
+        // Sentiero consumato dal varco verso il corridoio.
+        for(let x=rx;x<rx+rw;x+=2)for(let k=-9;k<=9;k+=2)if(hash(x,k,seed+43)<.35)tile(c,'#9b8b73',x,ry+84+k,2,1);
+        return;
+      }
+      if(style==='keys'){
+        for(let y=ry;y<ry+rh;y+=12)for(let x=rx;x<rx+rw;x+=12){
+          const dark=((x-rx)/12+(y-ry)/12)%2===0,q=hash(x,y,seed+47);
+          // Contrasto contenuto: mostri ed effetti restano leggibili sopra la scacchiera.
+          tile(c,dark?'#4a4147':'#7f7466',x,y,12,12);tile(c,dark?'#554b52':'#8d8273',x+1,y+1,10,1);
+          if(!dark&&q>.85)tile(c,'#8a7f6b',x+3,y+6,5,1);
+        }
+        return;
+      }
+      if(style==='names'){
+        for(let y=ry;y<ry+rh;y+=11)for(let x=rx-((y/11|0)%2)*8;x<rx+rw;x+=16){
+          const q=hash(x,y,seed+53);
+          tile(c,'#3a3a40',x,y,16,11);tile(c,q<.5?'#5b5c63':'#64656c',x+1,y+1,14,9);tile(c,'#74757b',x+1,y+1,14,1);
+          // Ogni lastra porta un nome inciso: brevi tratti scuri.
+          const parts=1+Math.floor(q*3);let px=x+3;for(let k=0;k<parts&&px<x+13;k++){const len=1+Math.floor(hash(x,k,seed)*4);tile(c,'#3e3f46',px,y+5,len,1);px+=len+1;}
+        }
+        return;
+      }
+      // Ultima Soglia: basalto levigato con riflessi.
+      for(let y=ry;y<ry+rh;y+=14)for(let x=rx-((y/14|0)%2)*12;x<rx+rw;x+=24){
+        const q=hash(x,y,seed+59);
+        tile(c,'#2a2230',x,y,24,14);tile(c,q<.5?'#3a3042':'#41354a',x+1,y+1,22,12);tile(c,'#5a4a62',x+1,y+1,22,1);
+        if(q>.7)tile(c,'#6a5a72',x+4,y+3,5,1);
+      }
+      // Anelli d'oro intarsiati che conducono lo sguardo verso il cerchio della Soglia.
+      const last=r.marks[2];
+      for(const [rad,n] of [[62,44],[90,60]])for(let k=0;k<n;k++){const a=k*Math.PI*2/n,px=last.x+Math.cos(a)*rad,py=last.y+Math.sin(a)*rad*.68;if(k%2===0){tile(c,'#9a7a3a',px,py,3,1);tile(gl,'#5a3a1a',px,py,3,1);}}
+      for(let k=0;k<8;k++){const a=k*Math.PI/4+Math.PI/8;for(let t=50;t<96;t+=3)tile(c,'#7a5f34',last.x+Math.cos(a)*t,last.y+Math.sin(a)*t*.68,1,1);}
+    }
+    // 4. Pezzi centrali delle tre sale (i vecchi segni), mosaico del patto e candele.
+    const ring=(cx,cy,rx,ry,n,col,gcol,size=2)=>{for(let k=0;k<n;k++){const a=k*Math.PI*2/n;const px=cx+Math.cos(a)*rx,py=cy+Math.sin(a)*ry;tile(c,col,px-1,py-1,size,size);if(gcol)tile(gl,gcol,px-1,py-1,size,size);}};
+    const [keys,names,last]=r.marks;
+    // Sala delle Chiavi: rosa di otto chiavi d'oro attorno a una serratura.
+    disc(c,'#2a2228',keys.x,keys.y+1,34,24);disc(c,'#c9a55a',keys.x,keys.y,32,22);disc(c,'#3a3238',keys.x,keys.y,29,20);disc(c,'#4a4048',keys.x,keys.y,24,16);
+    for(let k=0;k<8;k++){
+      const a=k*Math.PI/4,ux=Math.cos(a),uy=Math.sin(a)*.68;
+      for(let t=8;t<22;t++)tile(c,'#d9b45c',keys.x+ux*t,keys.y+uy*t,1,1);
+      tile(c,'#d9b45c',keys.x+ux*22-2,keys.y+uy*22-2,4,4);tile(c,'#3a3238',keys.x+ux*22-1,keys.y+uy*22-1,2,2);
+      tile(c,'#d9b45c',keys.x+ux*12+uy*3,keys.y+uy*12-ux*2,2,1);
+      tile(gl,'#7a5a2a',keys.x+ux*22-2,keys.y+uy*22-2,4,4);
+    }
+    disc(c,'#c9a55a',keys.x,keys.y,6,4);tile(c,'#2a2228',keys.x-1,keys.y-2,2,3);tile(c,'#2a2228',keys.x-2,keys.y+1,4,1);disc(gl,'#8a6a32',keys.x,keys.y,6,4);
+    // Camera dei Nomi: altare ad anello con il libro dei nomi e candele.
+    disc(c,'#2c2c32',names.x,names.y+1,34,24);disc(c,'#7c7d84',names.x,names.y,32,22);disc(c,'#4a4b52',names.x,names.y,28,19);
+    ring(names.x,names.y,30,20,24,'#a08ad0','#6a5aa0');
+    tile(c,'#2a2a30',names.x-12,names.y-6,24,12);tile(c,'#c8b896',names.x-11,names.y-5,10,10);tile(c,'#d8caa8',names.x+1,names.y-5,10,10);tile(c,'#5a4a3a',names.x,names.y-5,1,10);
+    for(let k=0;k<4;k++){tile(c,'#7a6a52',names.x-9,names.y-3+k*2,7,1);tile(c,'#7a6a52',names.x+3,names.y-3+k*2,7,1);}
+    for(let k=0;k<8;k++){const a=k*Math.PI/4+Math.PI/8,px=names.x+Math.cos(a)*24,py=names.y+Math.sin(a)*16;tile(c,'#e8dcc0',px,py-3,2,3);tile(c,'#ffd27a',px,py-5,2,2);tile(gl,'#c8902a',px,py-5,2,2);}
+    // Ultima Soglia: cerchio della soglia con due archi che si cercano (il patto) e rune viola e oro.
+    disc(c,'#160f16',last.x,last.y+2,46,32);disc(c,'#c9a55a',last.x,last.y,44,30);disc(c,'#241b26',last.x,last.y,41,28);
+    ring(last.x,last.y,37,25,32,'#b48ad8','#7a4aa8');disc(c,'#c9a55a',last.x,last.y,30,20);disc(c,'#2d2232',last.x,last.y,28,18);
+    for(const d of [-1,1])for(let t=-12;t<=12;t++){const px=last.x+d*(12-Math.abs(t)*.5)*1.2,py=last.y+t*.9;tile(c,'#d9b45c',px,py,2,1);tile(gl,'#9a7a3a',px,py,2,1);}
+    disc(c,'#e3c8ff',last.x,last.y,4,3);disc(gl,'#9a6ad0',last.x,last.y,5,4);
+    for(let k=0;k<6;k++){const a=k*Math.PI/3;tile(c,'#d9b45c',last.x+Math.cos(a)*48-1,last.y+Math.sin(a)*33-1,3,3);}
+    // Anticamera: mosaico del patto, due mani tese verso un'anima, sul pavimento davanti all'ingresso.
+    const mx=226,my=578;
+    disc(c,'#3a2e26',mx,my,34,15);disc(c,'#8a7a62',mx,my,32,13);disc(c,'#6a5a48',mx,my,29,11);
+    for(const d of [-1,1]){for(let k=0;k<12;k++)tile(c,'#c9a55a',mx+d*(26-k),my+Math.round(Math.sin(k*.3)*2),2,2);tile(c,'#c9a55a',mx+d*13,my-3,2,6);tile(c,'#c9a55a',mx+d*11,my-4,2,7);}
+    disc(c,'#e8dcc0',mx,my-1,4,3);disc(c,'#ffffff',mx,my-2,2,1);disc(gl,'#b49a6a',mx,my-1,4,3);
+    // 5. Oggetti invariati: pilastri accanto ai segni, lampade, varchi.
+    for(const pt of r.marks)objects.push({x:pt.x-30,y:pt.y+5,type:'pillar',variant:0,radius:0},{x:pt.x+30,y:pt.y+5,type:'pillar',variant:0,radius:0});
     for(const [x,y] of [[192,485],[509,539],[722,464],[594,303],[789,219],[990,201],[1137,310]])objects.push({x,y,type:'lamp',variant:0,radius:0});
     for(const g of r.points.gates)objects.push({...g,type:'gate',variant:0,radius:0});
     const chart=makeCanvas(324,204);chart.getContext('2d').drawImage(image,0,0,324,204);
-    return {r,palette,image,objects,cells:new Map(),chart};
+    return {r,palette,image,objects,cells:new Map(),chart,glow,crypt:true};
+  }
+  // Braciere della Cripta: treppiede di bronzo con coppa (sprite 24x30, base a y=26); la fiamma è animata a parte.
+  let cryptBrazier=null;
+  function paintCryptLamp(c,o,t){
+    if(!cryptBrazier){
+      cryptBrazier=makeCanvas(24,30);const g=cryptBrazier.getContext('2d');
+      disc(g,'#0c080a88',12,27,7,2);
+      for(const [x0,x1] of [[6,10],[18,14],[12,12]])for(let y=26;y>14;y--){const k=(26-y)/12;tile(g,'#5a3f28',Math.round(x0+(x1-x0)*k),y,1,1);}
+      tile(g,'#2a1c14',5,13,14,4);tile(g,'#a07a45',6,12,12,3);tile(g,'#d0a868',6,12,12,1);tile(g,'#3a2a20',7,15,10,1);
+    }
+    c.drawImage(cryptBrazier,o.x-12,o.y-26);
+    const lit=Math.sin(t*5+o.x)>-.4;
+    tile(c,'#c85a28',o.x-3,o.y-17,6,3);tile(c,'#f2a046',o.x-2,o.y-19,4,3);if(lit)tile(c,'#ffe3a0',o.x-1,o.y-20,2,2);
   }
   function makeArea(r,seed){
     if(r.rooms)return makeCrypt(r,seed);
@@ -1302,6 +1424,8 @@
   }
   // Posizione della fiamma rispetto alla base del lampione: [dx, dy, larghezza, altezza].
   function lampFlame(pal){
+    const fam=familySprite(pal,'lamp',0);
+    if(fam?.flame)return fam.flame;
     if(pal==='grass'||pal==='root')return [-1,-27,3,4];
     if(pal==='star'||pal==='fae')return [-1,-22,3,3];
     if(pal==='ruin')return [-1,-19,3,3];
@@ -1313,8 +1437,12 @@
     const a=current,lights=[],windows=[];
     if(!a)return null;
     if(a.r.rooms){
-      for(const o of a.objects)if(o.type==='lamp')lights.push({x:o.x,y:o.y,kind:'fire',lift:25,core:[o.x-1,o.y-11,3,3,'#ffd890']});
-      return {lights,windows};
+      // Bracieri, pezzi centrali delle tre sale e mosaico del patto; rune e intarsi come strato emissivo.
+      for(const o of a.objects)if(o.type==='lamp')lights.push({x:o.x,y:o.y,kind:'fire',lift:32,core:[o.x-1,o.y-20,2,2,'#ffe3a0']});
+      const [keys,names,last]=a.r.marks;
+      lights.push({x:keys.x,y:keys.y,kind:'fire',lift:33,p:1},{x:names.x,y:names.y,kind:'spirit',lift:33,p:1},
+        {x:last.x,y:last.y,kind:'spirit',lift:33},{x:226,y:578,kind:'lamp',lift:33,p:1});
+      return {lights,windows,emissive:a.glow?{image:a.glow,alpha:.9}:null};
     }
     const pal=a.r.palette,glowKind=pal==='star'||pal==='fae'?'crystal':pal==='grass'||pal==='root'?'fire':'lamp',[dx,dy,fw,fh]=lampFlame(pal);
     for(const o of a.objects){
@@ -1332,11 +1460,30 @@
     if(e&&l.discoveredAt!==null&&e.region===a.r.id)lights.push({x:e.x,y:e.y,kind:'spirit',lift:29});
     return {lights,windows};
   }
-  const biomeOf=rid=>advanced[rid]?.rooms?'under':advanced[rid]?.palette;
+  const biomeOf=rid=>advanced[rid]?.rooms?'crypt':advanced[rid]?.palette;
   window.WorldLight?.provide(rid=>!!advanced[rid]&&current?.r.id===rid,lightSources,biomeOf,biomeOf);
+  // Famiglie architettoniche per continente (city-families.js, fase 4 D): casa, bottega (seconda casa), sala, banchi,
+  // pozzo e lampioni dei borghi con le impronte di sempre; senza il modulo resta il disegno precedente.
+  // La Selva degli Alambicchi (tavolozza `fae`) resta il pilota di Codex con i suoi sprite, lampioni e pozzo compresi.
+  const familySpec=(type,v)=>type==='hall'?{w:50,variant:v}:type==='house'?{w:40,stories:v===2?1:2,variant:v}:{variant:v};
+  function familySprite(pal,type,v){
+    const fam=pal!=='fae'&&['house','hall','stall','well','lamp'].includes(type)&&window.CityFamilies?.familyOf(pal);
+    return fam?CityFamilies.render(fam[0],fam[1],type==='house'&&v===2?'workshop':type,familySpec(type,v)):null;
+  }
   function paintBiomeSprite(c,a,o,t){
     const pal=a.r.palette,type=o.type;
     let key=null,draw=null;
+    const fam=familySprite(pal,type,o.variant);
+    if(fam){
+      a.sprites.set(type==='lamp'?'lamp':type+'/'+o.variant,fam.image);
+      c.drawImage(fam.image,o.x-fam.ax,o.y-fam.ay);
+      if(type==='lamp'){
+        const lit=Math.sin(t*4+o.x)>-.6,[dx,dy,fw,fh]=lampFlame(pal);
+        const col=pal==='star'||pal==='fae'?['#9ff0ff','#e6ffff']:['#f2a046','#ffe3a0'];
+        tile(c,col[0],o.x+dx,o.y+dy,fw,fh);if(lit)tile(c,col[1],o.x+dx+1,o.y+dy+(fh>3?1:0),1,2);
+      }
+      return true;
+    }
     if(['leaf','pine','umbrella','palm','rock','shrub','stone'].includes(type)){
       const size=Math.floor(hash(o.x,o.y,7259)*3),v=o.variant%6;
       const kind=type==='shrub'||type==='stone'?type:pal==='star'&&type==='leaf'?'tree':'tree';
@@ -1364,6 +1511,7 @@
   function paint(c,a,o,t){
     // Integrazione: Cripta (pilastri e varco) e statue di Nordharyn e Azheryon da Codex; il resto da Claude.
     if(a.r?.rooms&&(o.type==='gate'||o.type==='pillar')){paintRelic(c,a,o);return;}
+    if(a.r?.rooms&&o.type==='lamp'){paintCryptLamp(c,o,t);return;}
     if(o.type==='monument'&&(o.variant===1||o.variant===4)){paintRelic(c,a,o);return;}
     if(a.selvaSprites&&paintSelvaSprite(c,a,o))return;
     if(a.sprites&&paintBiomeSprite(c,a,o,t))return;
