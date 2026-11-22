@@ -24,6 +24,8 @@ Apri `Reincarnation.html` in un browser moderno. Grafica, musica sintetizzata e 
 
 - Ogni continente ha un paesaggio proprio: querce, travertino e colonne a Vaelthoria; larici, baite e rocche innevate a Nordharyn; cristalli, cupole e alberi velati a Myrathen; acacie, capanne di paglia e palafitte fra le radici a Voryndhal; palme, case bianche, pinnacoli d’arenaria e adobe ad Azheryon.
 - Di sera i borghi accendono finestre e lampioni; nel cuore della notte restano accese poche finestre. La Cripta delle Soglie è sempre in penombra, rischiarata dalle sue lanterne.
+- Ogni continente ha il proprio custode della rinascita e i propri varchi: dall’arco degli Ardel al portale minerario, dall’arco di cristallo al pilone d’arenaria. Il passaggio scuro dentro l’arco indica che lì si cambia regione.
+- Il Santuario della Marea Muta, se il tuo mondo lo nasconde, è un bacino d’acqua immobile con sale di pietra, rune e colonne che brillano nella penombra.
 - Nella Cava delle Braci la lava resta incandescente anche di notte e scalda la roccia vicina; nella Fenditura Astrale le isole sospese mostrano la roccia che pende nel vuoto. Le terrazze hanno l’orlo illuminato verso di te: i bordi praticabili si riconoscono a colpo d’occhio.
 - Neve leggera, lucciole, spore, scintille e polvere cambiano da un bioma all’altro; di giorno le ombre delle nuvole scorrono sul terreno. Con **effetti ridotti** (Opzioni) o con la riduzione del movimento del sistema le particelle e le nuvole si fermano e le luci non pulsano.
 

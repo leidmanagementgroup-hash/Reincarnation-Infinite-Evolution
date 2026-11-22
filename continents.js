@@ -1184,6 +1184,9 @@
         list.forEach((q,i)=>windows.push({x:o.x+q.x,y:o.y+q.y,w:q.w,h:q.h,seed:Math.floor(hash(o.x+i*7,o.y,13)*100)}));
       }
     }
+    // Portale del Santuario della Marea Muta in superficie, solo dopo la scoperta.
+    const l=window.Game?.s?.legendary,e=l?.entrance;
+    if(e&&l.discoveredAt!==null&&e.region===a.r.id)lights.push({x:e.x,y:e.y,kind:'spirit',lift:29});
     return {lights,windows};
   }
   const biomeOf=rid=>advanced[rid]?.rooms?'under':advanced[rid]?.palette;

@@ -2,6 +2,20 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-22] Santuario della Marea Muta, monumenti e varchi per continente — Claude
+Branch `claude/world-art-santuario` da `main` `ec03eeb` (non unito; nessun merge senza approvazione dell'utente). Commit `82f5804` (Santuario), `e54567f` (monumenti e varchi), poi luce del portale, prove e documenti. File: `legendary-land.js`, `legendary.js`, `continents.js`, `world-light.js`, `interface.js`, `tests/`.
+### Modificato
+- **Santuario della Marea Muta** (`legendary-land.js`): le sale diventano piattaforme di pietra su un bacino d'acqua immobile (riflessi sotto le pareti, alghe, coralli e rovine sommerse fuori dal calpestabile), parapetti e pareti frontali che scendono nell'acqua, lastre smussate con umidità e fasce a onde, cerchi di rune luminosi attorno ai luoghi di lettura, arena del Trono con bordo chiaro, solco inciso a onde e raggi, colonne scanalate con capitello a conchiglia e glifi (sprite in cache), portale ad arco con velo d'acqua che scorre. Strato emissivo e sorgenti per `WorldLight` (portale, arena, trono, cerchi, colonne); penombra marina costante (`tide`) con bolle che salgono.
+- Lapidi incise a onde e trono a conchiglia (`legendary.js`): stessi punti, stessi segnali di lettura e colori dell'erede.
+- **Monumenti della rinascita** (`continents.js`): Custode delle Origini in travertino con lanterna (Vaelthoria), Sentinella Eterna in granito innevato con la spada in giù (Nordharyn), Oracolo del Velo con sfera e schegge di cristallo (Myrathen), Madre delle Radici in legno con l'urna (Voryndhal), Giudice delle Ere seduto fra piloni d'arenaria (Azheryon); pilastri attorno per continente (colonne Ardel, menhir runici, obelischi viola, pietre avvolte dalle radici, obelischi incisi).
+- **Varchi** per bioma con il passaggio scuro che segnala il cambio di regione: arco Ardel, portale minerario, porta fortificata con grata, arco di cristallo, porta di Namar con stendardi, arco vivo di radici, arco del porto con reti, pilone d'arenaria; anche il varco della Valle verso la Via degli Antichi. Luci dei varchi e del portale del Santuario in superficie (dopo la scoperta).
+- `interface.js`: nei sotterranei (Cripta, Santuario) non piove e non nevica.
+### Aggiunto (prove)
+- `tests/prova-browser-santuario.cjs`: seme 1116, scoperta e ingresso con i comandi del motore nella build precedente, lettura delle lapidi, camminata fra sale e colonne, Nadir sconfitto di notte, trono disponibile, uscita dal portale e rientro, ricarica.
+- `tests/scatti-mondo.cjs`: variabile `SEED`, scene del Santuario e dei varchi.
+### Verifica
+- Collisioni, varchi e rotte identici a `main`; integrazione, economia, percorsi, residenti; browser 10/10, 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7; scatti PRIMA/DOPO; prestazioni (dettagli in `PROGRESS.md`). Sale, colonne, punti, varchi e monumenti mantengono posizioni e collisioni; nessun dato di salvataggio nuovo.
+
 ## [2026-11-22] Cava delle Braci e Fenditura Astrale; ART-001 risolto — Claude (con lavoro recuperato di Codex)
 Branch `claude/world-art-cava-fenditura` da `main` `cf86486`; **unito a `main` per fast-forward il 2026-11-22 (`cf86486` → `8da2400`) su approvazione dell'utente**. Dopo l'unione: HTML di `main` identico alla ricostruzione e all'HTML di prova (SHA-256 `9dcc64fb…`), file urbani ed economici invariati, rieseguiti su `main` con esito positivo: `verifica-integrazione.cjs`, `economia-flussi.cjs` (158), `economia-flussi-2.cjs`, `economia-integrazione.cjs` (147), `sonda-percorsi.cjs` (0 bloccati su 41 040), `sonda-residenti.cjs` (0), `confronto-mondo.cjs` contro `cf86486` (8,6 milioni di campioni identici), browser 10/10, 12/12, economia, mondo 15/15, Cava e Fenditura 6/6. Commit `74b74d0` (recupero di `expansion-world.js`), `120ddc9` (recupero di atmosfera prima degli avvisi e bande di duna), `419f9a0` (Cava e Fenditura), `14dd5ba` (ottimizzazione dell'ingresso, prove e documenti).
 ### ART-001

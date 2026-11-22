@@ -39,7 +39,7 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 | 6 | `expansion-species.js` | `EvolutionContent` | Stirpi aggiunte e rami evolutivi avanzati |
 | 7 | `expansion-art.js` | `ActorArt` | Arte delle nuove stirpi, creature, guardiani |
 | 8 | `continental-species.js` | `EvolutionContent`, `ContinentalBiology`, `ActorArt` | Otto stirpi aggiuntive e profili biologici |
-| 9 | `legendary-land.js` | `LegendaryLand`, `World` | Area del Santuario della Marea Muta (`nadir-vault`) |
+| 9 | `legendary-land.js` | `LegendaryLand`, `World` | Area del Santuario della Marea Muta (`nadir-vault`): bacino sommerso, piattaforme, colonne e rune in cache, strato emissivo e luci per `WorldLight` |
 | 10 | `urban-exterior.js` | `UrbanExterior` | Quartieri, edifici, canale, ponti e percorsi deterministici di Velaris (tratti verificati in modo esatto per il raggio del corpo); luce dal calendario, finestre, cristalli, riflessi, ombre e vegetazione animata (movimento ridotto rispettato) |
 | 11 | `urban-interiors.js` | `UrbanInteriors` | Sette interni visitabili e cache delle superfici |
 | 12 | `urban-world.js` | `UrbanWorld, World` | Collegamenti con la Selva degli Alambicchi, rotte, collisioni e accesso ai servizi |
@@ -114,6 +114,12 @@ Il formato v7 conserva `urban` (routine, scorte, memorie e commissioni), `cityWo
 ### 3.4 Cava delle Braci e Fenditura Astrale (World Art Overhaul)
 
 `expansion-world.js` genera il terreno dalla maschera a 2 px che decide anche le collisioni; il disegno legge la maschera senza cambiarla. Ai colori e ai rilievi di Codex (pozze di luce, cenge, correnti della lava, nubi del vuoto) si aggiungono `depthShade` (orli illuminati verso chi guarda e in ombra sul lato lontano, pareti con gradiente e fenditure, riflesso della lava, vene incandescenti, crosta e crepe della lava, calore sul terreno vicino, sottofondi pendenti sotto le isole della Fenditura, frammenti nel vuoto) e le ombre di contatto degli oggetti. Ogni regione ha uno strato emissivo (`map.glow`) che `WorldLight.draw` riaccende di notte sopra il velo, e registra lanterne, forgia, nucleo astrale, osservatorio, guglie e varchi come sorgenti di luce; tinte `ember` per la Cava e `astral` per la Fenditura. In `interface.js` atmosfera e luci si disegnano prima degli avvisi di combattimento (`Game.drawFX`).
+
+### 3.5 Santuario della Marea Muta, monumenti e varchi (World Art Overhaul)
+
+`legendary-land.js` disegna le sette sale come piattaforme di pietra su un bacino d'acqua immobile: il calpestabile è ancora definito solo da sale e colonne (`canWalk`), mentre acqua, alghe, coralli e rovine sommerse occupano il resto. Parapetti, pareti frontali che scendono nell'acqua, lastre smussate, fasce a onde, cerchi di rune luminosi attorno ai luoghi di lettura e l'arena del Trono con bordo chiaro e solco inciso rendono leggibili spazi e combattimento. Le colonne sono sprite in cache (stessa impronta di collisione). Lo strato emissivo (`map.glow`) e le sorgenti (portale, arena, trono, cerchi, colonne) passano a `WorldLight`; il cielo `tide` è una penombra marina costante, con bolle che salgono. Lapidi e trono (`legendary.js`) mantengono posizioni, raggi d'interazione e stati.
+
+In `continents.js` i cinque monumenti della rinascita (`monument`, variante = continente) e i loro pilastri hanno sagome e materiali propri; i varchi (`gate`) cambiano per bioma e mostrano un passaggio scuro. Nessuno di questi oggetti ha ingombro di collisione: posizioni, collegamenti e interazioni sono quelli di prima.
 
 ## 4. Meccaniche
 
