@@ -2,6 +2,11 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-22] Pubblica il Piazzale degli Argani su main — Codex
+
+- Fast-forward autorizzato da `f2febd1` a `24d33eb` (`codex/integrazione-filoni-fase4`). Disponibili 13 edifici, cinque interni, tre residenti e servizi collegati al mercato dei Filoni, con la famiglia architettonica di Nordharyn già in uso.
+- `Reincarnation.html` ricostruito e verificato byte per byte. Ripetuti il collaudo su 55 semi, le attività nei cinque interni, le migrazioni dei salvataggi e le regressioni di economia, NPC, combattimento e grafica. PERF-001 e PERF-002 confermati. RISK-011 rimane aperto. [Registro dei test](PROGRESS.md#piazzale-degli-argani-su-main)
+
 ## [2026-11-22] Integra il Piazzale degli Argani con la Fase 4 — Codex
 
 Branch `codex/integrazione-filoni-fase4`, commit di integrazione `5982895`, prototipo `56886ab`. La base `1f684e1` con la Fase 4 è stata aggiornata a `main` `f2febd1` sul branch di prova.

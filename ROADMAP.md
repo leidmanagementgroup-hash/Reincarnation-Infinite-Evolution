@@ -20,8 +20,8 @@
 - [x] **PERF-001**: `path()` medio da 5,9 a 0,78 ms e p95 da 21 a 2 ms, percorsi identici (unito a `main` il 2026-11-21, `a1e4c54`).
 - [x] **PERF-002**: pianificazione delle soste per celle e preparazione distribuita dalle 22:00. Unito a `main` per fast-forward da `972e31c` ad `a4a7c20`. [Misure e regressioni su `main`](PROGRESS.md#perf-002-su-main).
 - [ ] **PERF-003 · Salto di calendario anticipato con popolazione elevata**: nel test con 500 residenti sintetici e 120 fotogrammi serali, il completamento sincrono porta ancora il picco CPU a 110 ms in Edge. Lavoro futuro separato dal cambio di giorno ordinario. Misurare anche il primo ingresso con il piano assente.
-- [x] **Generatore Procedurale Urbano 2.0 · Prototipo dei Filoni**: quartiere giocabile da 13 lotti, cinque interni e tre residenti. La build con le famiglie della Fase 4 è verificata su `codex/integrazione-filoni-fase4` e attende la revisione per l'integrazione definitiva.
-- [ ] **Secondo profilo urbano**: dopo la verifica dei Filoni, generalizzare la definizione dei settori e provare un insediamento in un altro continente. Misurare percorsi intersettoriali, carico, collisioni e più istanze interne prima di aumentare la popolazione e il numero di strutture.
+- [x] **Generatore Procedurale Urbano 2.0 · Prototipo dei Filoni**: quartiere giocabile da 13 lotti, cinque interni e tre residenti. La build con le famiglie della Fase 4 è unita a `main` con fast-forward `f2febd1` → `24d33eb`. [Collaudo su main](PROGRESS.md#piazzale-degli-argani-su-main).
+- [ ] **Secondo profilo urbano · Porto di Calis**: in attesa di autorizzazione. Generalizzare la definizione dei settori e provare il profilo di Azheryon. Misurare percorsi intersettoriali, carico, collisioni e più istanze interne prima di aumentare la popolazione e il numero di strutture.
 - [x] BUG-011: risolto e unito a `main` (2026-11-21).
 - [ ] Verificare in partita il bilanciamento dei danni ai compagni (quanto spesso scendono in stato critico).
 - [x] Prima prova nel browser con Playwright: `tests/prova-browser.cjs` (menu principali, Atlante, Segna Velaris, salvataggi). Da estendere a combattimento, minigiochi e interni.
