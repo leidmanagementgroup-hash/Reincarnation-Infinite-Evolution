@@ -2,6 +2,32 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-22] Integrazione: Santuario, statue, varchi e interni di Velaris da Claude e Codex — Claude
+Branch `claude/integrazione-santuario-interni` da `main` `ec03eeb`: fast-forward su `claude/world-art-santuario` (`3bd7f6d`), commit di prova `scatti-mondo` per più build, poi merge di `codex/world-art-interni-santuario` (`e9f1146`) con scelta parte per parte. Branch originali non modificati; nessun merge su `main` senza approvazione.
+### Provenienza degli elementi
+| Parte | Da Claude (`claude/world-art-santuario`) | Da Codex (`codex/world-art-interni-santuario`) |
+|---|---|---|
+| Santuario · bacino | acqua immobile a mezza risoluzione con riflessi sotto le pareti, alghe, coralli e rovine sommerse | sponde rocciose e segni d'onda |
+| Santuario · strutture | ombre nell'acqua, parapetti, pareti frontali che scendono nel bacino | — |
+| Santuario · pavimenti e sale | — | una finitura per sala; rosa delle correnti e panche alla Soglia, binari e grate nel Deposito, mosaici a onde nel Chiostro |
+| Santuario · arena del Trono | bordo chiaro, solco inciso a onde, raggi, otto glifi | spalliera incassata dietro il trono |
+| Santuario · colonne | disegno scanalato con capitello a conchiglia e glifi luminosi | tinte per zona (Deposito, Chiostro, sala regale) e soglia di dissolvenza a 32 px |
+| Santuario · arredi interattivi | lapidi incise, trono a conchiglia (`legendary.js`), portale ad arco con velo d'acqua | — |
+| Santuario · luce | fornitore unico per `WorldLight`, strato emissivo, cielo `tide` con bolle, alone del portale in superficie | otto lanterne alle pareti (aggiunte al fornitore unico) |
+| Statue della Rinascita | Custode delle Origini (Vaelthoria), Oracolo del Velo (Myrathen), Madre delle Radici (Voryndhal) | Sentinella Eterna (Nordharyn), Giudice delle Ere nella nicchia del canyon (Azheryon) |
+| Pilastri attorno alle statue | tutti e cinque i continenti | — |
+| Varchi | otto varchi per bioma e varco della Valle, con passaggio scuro e luci | — |
+| Cripta delle Soglie | — | pilastri e varco reliquiario |
+| Interni di Velaris | — | tutti e otto (`urban-interiors.js` per intero): pavimenti, rivestimenti, arredi, luci per tipo |
+| Atmosfera | niente pioggia nei sotterranei (`interface.js`) | — |
+
+Scartati, perché doppioni: i tre cerchi di rune di Claude nel Santuario (al loro posto le sale di Codex), il fornitore di luce `under` di Codex (resta quello unico, con le sue lanterne), le statue di Claude per Nordharyn e Azheryon, le statue di Codex per gli altri tre continenti, i varchi e i pilastri di Codex fuori dalla Cripta (restano nel codice per la Cripta e le due statue).
+### Aggiunto (prove)
+- `tests/prova-browser-interni.cjs`: otto interni raggiunti dalle porte, camminata, servizio della stanza, giorno/notte, uscita, salvataggi della build precedente dentro locanda e forgia.
+- `tests/scatti-mondo.cjs`: confronto impilato di più build (es. `main`, Claude, Codex, integrazione) e inquadrature degli otto interni.
+### Verifica
+- Collisioni, varchi e rotte identici a `main` (21,5 milioni di campioni, 5 semi); integrazione, economia, percorsi, residenti; browser 10/10, 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7, interni 12/12; scatti a quattro vie e attribuzione verificata byte per byte (Cripta e interni identici alla build di Codex; tre statue, varchi e resto del mondo identici alla build di Claude); prestazioni equivalenti alle due build di partenza (dettagli in `PROGRESS.md`).
+
 ## [2026-11-22] Santuario della Marea Muta, monumenti e varchi per continente — Claude
 Branch `claude/world-art-santuario` da `main` `ec03eeb` (non unito; nessun merge senza approvazione dell'utente). Commit `82f5804` (Santuario), `e54567f` (monumenti e varchi), `ab8a10e` (luce del portale, prove e documenti). File: `legendary-land.js`, `legendary.js`, `continents.js`, `world-light.js`, `interface.js`, `tests/`.
 ### Modificato
@@ -15,6 +41,19 @@ Branch `claude/world-art-santuario` da `main` `ec03eeb` (non unito; nessun merge
 - `tests/scatti-mondo.cjs`: variabile `SEED`, scene del Santuario e dei varchi.
 ### Verifica
 - Collisioni, varchi e rotte identici a `main`; integrazione, economia, percorsi, residenti; browser 10/10, 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7; scatti PRIMA/DOPO; prestazioni (dettagli in `PROGRESS.md`). Sale, colonne, punti, varchi e monumenti mantengono posizioni e collisioni; nessun dato di salvataggio nuovo.
+
+## [2026-11-22] Differenzia le sale del Santuario della Marea Muta — Codex
+Commit `3c3df4d`, incremento separato da `043b76c` sul branch `codex/world-art-interni-santuario` per facilitare il confronto con `claude/world-art-santuario`.
+### Modificato
+- Soglia, Deposito degli echi, Chiostro dei flutti e sala del trono hanno lastricati, rilievi, mosaici e sorgenti luminose propri. Il bacino è disegnato fuori dal pavimento percorribile; le colonne sono precalcolate (`legendary-land.js`).
+- Ricostruito `Reincarnation.html`. Le prove in Edge e i confronti con geometria e salvataggi precedenti sono registrati in `PROGRESS.md`.
+
+## [2026-11-22] Identità dei monumenti e degli interni di Velaris — Codex
+Branch `codex/world-art-interni-santuario`, da `ec03eeb`, commit `043b76c`.
+### Modificato
+- Le cinque Statue della Rinascita hanno sagome e materiali legati al loro continente. Varchi e pilastri usano la tavolozza e l'architettura della zona; il disegno viene conservato in cache (`continents.js`).
+- Gli otto interni di Velaris hanno pavimenti, rivestimenti, arredi e luci riconoscibili. La luce è precalcolata, limitata alla stanza e rispetta il movimento ridotto (`urban-interiors.js`).
+- Ricostruito `Reincarnation.html`. Il renderer usa coordinate, collisioni, vie d'accesso, interazioni e dati di salvataggio esistenti.
 
 ## [2026-11-22] Cava delle Braci e Fenditura Astrale; ART-001 risolto — Claude (con lavoro recuperato di Codex)
 Branch `claude/world-art-cava-fenditura` da `main` `cf86486`; **unito a `main` per fast-forward il 2026-11-22 (`cf86486` → `8da2400`) su approvazione dell'utente**. Dopo l'unione: HTML di `main` identico alla ricostruzione e all'HTML di prova (SHA-256 `9dcc64fb…`), file urbani ed economici invariati, rieseguiti su `main` con esito positivo: `verifica-integrazione.cjs`, `economia-flussi.cjs` (158), `economia-flussi-2.cjs`, `economia-integrazione.cjs` (147), `sonda-percorsi.cjs` (0 bloccati su 41 040), `sonda-residenti.cjs` (0), `confronto-mondo.cjs` contro `cf86486` (8,6 milioni di campioni identici), browser 10/10, 12/12, economia, mondo 15/15, Cava e Fenditura 6/6. Commit `74b74d0` (recupero di `expansion-world.js`), `120ddc9` (recupero di atmosfera prima degli avvisi e bande di duna), `419f9a0` (Cava e Fenditura), `14dd5ba` (ottimizzazione dell'ingresso, prove e documenti).

@@ -60,6 +60,143 @@
     rect(ctx,'#263345',x-1,y-2,3,3);
     rect(ctx,color,x-1,y+5,3);
   };
+  // --- Da Codex (codex/world-art-interni-santuario 3c3df4d): carattere delle sale, sponde, lanterne, spalliera.
+  const surfaces=[
+    ['#2c4244','#374e4f','#4b6160','#213537'],
+    ['#293d45','#374e54','#52696a','#1e313a'],
+    ['#353d48','#444d58','#656971','#282f3d'],
+    ['#293d45','#374e54','#52696a','#1e313a'],
+    ['#2c4549','#395357','#59746f','#1d343d'],
+    ['#293d45','#374e54','#52696a','#1e313a'],
+    ['#333d50','#444d62','#68778a','#263040']
+  ];
+  const lanterns=[
+    {x:81,y:476,kind:'crystal'},{x:266,y:476,kind:'crystal'},
+    {x:475,y:422,kind:'fire'},{x:631,y:422,kind:'fire'},
+    {x:472,y:109,kind:'crystal'},{x:661,y:109,kind:'crystal'},
+    {x:874,y:80,kind:'spirit'},{x:1018,y:80,kind:'spirit'}
+  ];
+  // Da Codex: sponde rocciose e segni d'onda nel bacino.
+  const banks=[
+      [[0,0],[480,0],[434,44],[317,62],[284,111],[174,129],[123,198],[0,240]],
+      [[0,292],[110,305],[221,364],[247,400],[209,435],[89,436],[0,466]],
+      [[0,640],[141,633],[239,652],[321,618],[355,628],[382,668],[0,668]],
+      [[638,668],[695,612],[770,588],[805,520],[881,495],[981,499],[1015,441],[1120,421],[1120,668]],
+      [[694,0],[1120,0],[1120,209],[1091,161],[1081,78],[1044,43],[875,34],[825,14]]
+    ];
+  function paintBanks(c){
+    for(const bank of banks){
+      for(const [dy,tint] of [[9,'#223644'],[4,'#2c3d4b'],[0,'#1b2835']]){
+        poly(c,tint,bank.map(([x,y])=>[x,y+dy]));
+      }
+    }
+    for(const [x,y] of [[339,481],[347,597],[405,329],[665,370],[750,294],[939,386]]){
+      for(let row=0;row<5;row++){
+        const dx=(row%2)*9,py=y+row*5,reach=26-2*Math.abs(2-row);
+        rect(c,'#223a47',x-reach+dx,py,reach*2);
+        rect(c,'#3b5966',x+dx-9,py,15-row,1);
+        rect(c,'#2f4c56',x+dx+12,py,7+row,1);
+      }
+    }
+  }
+  function inBank(x,y){
+    return banks.some(b=>{let inside=false;for(let i=0,j=b.length-1;i<b.length;j=i++){const [xi,yi]=b[i],[xj,yj]=b[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)inside=!inside;}return inside;});
+  }
+  // Da Codex: una finitura per sala (lastricati diversi per Soglia, passerelle, Deposito, Chiostro e sala regale).
+  function paintFloors(c,rnd){
+    // In ordine: nelle giunzioni il pavimento copre i parapetti e mantiene aperti i passaggi.
+    for(const [i,[x,y,w,h]] of chambers.entries())rect(c,surfaces[i][0],x,y,w+1,h+1);
+    for(const [i,[left,top,w,h]] of chambers.entries()){
+      const [,stone,edge,shade]=surfaces[i],tile=i===4||i===6?24:20;
+      for(let y=top+3,row=0;y<top+h-11;y+=13,row++){
+        for(let x=left+2+(row%2)*Math.floor(tile/2);x<left+w-tile;x+=tile){
+          rect(c,stone,x,y,tile-2,11);
+          rect(c,edge,x+1,y,tile-4);
+          rect(c,shade,x+1,y+10,tile-3);
+          const mark=rnd();
+          if(mark<.3){rect(c,shade,x+3,y+6,4);rect(c,shade,x+7,y+7,2);}
+          if(mark>.82){rect(c,edge,x+tile-7,y+2,4);rect(c,edge,x+tile-6,y+3,2);}
+        }
+      }
+    }
+  }
+  function paintLantern(c,light){
+    const {x,y,kind}=light;
+    const rim=kind==='fire'?'#a88062':kind==='spirit'?'#77759c':'#538b8d';
+    const lamp=kind==='fire'?'#efbf88':kind==='spirit'?'#c5bde4':'#9fdbcb';
+    ellipse(c,'rgba(16,28,37,.5)',x,y+5,11,3);
+    rect(c,'#1d2836',x-6,y-11,13,17);
+    rect(c,rim,x-5,y-10,11,2);
+    rect(c,'#354352',x-4,y-8,9,10);
+    poly(c,lamp,[[x,y-7],[x+3,y-4],[x+3,y],[x,y+2],[x-3,y],[x-3,y-4]]);
+    rect(c,'#e2ebdb',x-1,y-5,2,3);
+    rect(c,rim,x-6,y+3,13,2);
+  }
+
+  function paintRooms(c){
+    // La rosa delle correnti identifica la soglia e orienta verso il corridoio.
+    const x=182,y=542;
+    poly(c,'#547174',octagon(x,y,36,24));
+    poly(c,'#263d46',octagon(x,y,33,21));
+    poly(c,'#49787b',[[x,y-17],[x+5,y-5],[x+25,y],[x+5,y+4],[x,y+17],[x-5,y+4],[x-25,y],[x-5,y-5]]);
+    glyph(c,x,y,'#83b4ad');
+    for(const [px,py] of [[167,486],[234,486],[167,606],[234,606]]){
+      rect(c,'#28464a',px-17,py-4,34,8);rect(c,'#5d8380',px-15,py-3,30,1);
+      for(let i=-13;i<14;i+=4)rect(c,'#68817e',px+i,py-2,1,4);
+    }
+
+    // Nel deposito i binari dismessi e le griglie sono a livello del lastricato.
+    for(const py of [481,567]){
+      rect(c,'#2d3440',458,py,188,10);
+      rect(c,'#656068',458,py+2,188);
+      rect(c,'#52505a',458,py+7,188);
+      for(let x=463;x<643;x+=11)rect(c,'#797071',x,py+2,2,6);
+    }
+    for(const px of [481,616]){
+      rect(c,'#637078',px-14,519,29,17);
+      rect(c,'#27343e',px-12,521,25,13);
+      for(let x=px-10;x<px+12;x+=4)rect(c,'#465158',x,522,2,11);
+      rect(c,'#7b7979',px-12,524,25);
+    }
+
+    // Un mosaico di correnti nel chiostro, con segni a tessere anziché ostacoli.
+    for(const [px,py] of [[555,181],[586,227],[556,271]]){
+      poly(c,'#527270',octagon(px,py,49,26));
+      poly(c,'#2e484d',octagon(px,py,46,23));
+      for(const dy of [-8,0,8]){
+        for(let j=-32;j<32;j+=4){
+          const wy=py+dy+Math.round(Math.sin(j*.14)*3);
+          rect(c,(j+32)%12===0?'#77a39a':'#537d78',px+j,wy,4,2);
+        }
+      }
+      glyph(c,px,py,'#a1c9b3');
+    }
+  }
+
+  // Da Codex: spalliera incassata dietro il trono interattivo.
+  function paintBackrest(c){
+    // Spalliera incassata dietro il trono interattivo; i gradini fanno parte del lastricato.
+    const tx=throne.x,ty=throne.y;
+    ellipse(c,'rgba(17,24,37,.46)',tx,ty+8,31,9);
+    poly(c,'#5a687f',[[tx-24,ty-4],[tx-17,ty-14],[tx+17,ty-14],[tx+24,ty-4],[tx+24,ty+8],[tx-24,ty+8]]);
+    rect(c,'#303e51',tx-24,ty+3,49,5);rect(c,'#8493a5',tx-22,ty+3,45,1);
+    rect(c,'#798299',tx-18,ty-1,37,1);
+    for(const dir of [-1,1]){
+      const sx=tx+dir*20;
+      rect(c,'#253246',sx-4,ty-48,9,37);
+      rect(c,'#77859b',sx-4,ty-48,7,3);
+      rect(c,'#50617a',sx-3,ty-45,6,31);
+      rect(c,'#6c8492',sx-2,ty-43,2,22);
+      rect(c,'#77859b',sx-5,ty-15,11,3);
+    }
+    for(const [span,height,colour] of [[23,65,'#222c3f'],[20,61,'#788499'],[17,59,'#4c5c74'],[12,52,'#283d50']]){
+      poly(c,colour,[[tx-span,ty-40],[tx-span,ty-height+11],[tx-span*.45,ty-height+2],
+        [tx,ty-height],[tx+span*.45,ty-height+2],[tx+span,ty-height+11],[tx+span,ty-40]]);
+    }
+    glyph(c,tx,ty-47,'#9ebec5');
+    rect(c,'#465f74',tx-14,ty-36,29,6);
+    rect(c,'#667c90',tx-13,ty-36,27,1);
+  }
   // Santuario della Marea Muta (World Art Overhaul): le sale sono piattaforme di pietra su un bacino d'acqua immobile.
   // Sale e colonne (le uniche collisioni) non cambiano; acqua, alghe e rovine sommerse stanno fuori dal calpestabile.
   function mix(x,y,s){let h=Math.imul(x+7919,374761393)+Math.imul(y+104729,668265263)+Math.imul(s,69069);h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967296;}
@@ -68,10 +205,16 @@
     return (mix(a,b,s)*(1-u)+mix(a+1,b,s)*u)*(1-v)+(mix(a,b+1,s)*(1-u)+mix(a+1,b+1,s)*u)*v;
   }
   const inRim=(x,y,pad)=>chambers.some(([l,t,w,h])=>x>=l-pad&&x<=l+w+pad&&y>=t-pad-4&&y<=t+h+pad+12);
-  function paintColumn(g,v){
+  // Tinte per zona: Deposito (colonne 0-3), Chiostro (4-7), sala regale (8-13), riprese da Codex.
+  const columnTones=[
+    {P:['#2f2b33','#695f60','#9c9083','#c9bba8'],rune:'#efbf88',kind:'fire'},
+    {P:['#22343d','#587782','#9ab1a8','#cfe0d6'],rune:'#9fe6d7',kind:'crystal'},
+    {P:['#262f40','#576d86','#9da7bb','#cdd4e2'],rune:'#c5bde4',kind:'spirit'}
+  ];
+  const columnZone=i=>i<4?0:i<8?1:2;
+  function paintColumn(g,zone){
     // Colonna scanalata con capitello a conchiglia, fascia di glifi e corallo alla base (sprite 40x46, base a y=40).
-    const P=v?['#2d3c4a','#5b6f86','#8ea2ae','#c4d6d8']:['#2c3f47','#5f828a','#9fbdba','#d2e6dc'];
-    const rune=v?'#a9b6f0':'#9fe6d7';
+    const {P,rune}=columnTones[zone];
     ellipse(g,'rgba(8,16,24,.55)',21,41,13,4);
     rect(g,P[0],11,34,20,6);rect(g,P[1],12,34,18,2);rect(g,P[2],12,34,18,1);rect(g,P[0],13,30,16,5);rect(g,P[2],13,30,16,1);
     rect(g,P[0],13,8,15,23);rect(g,P[1],14,8,13,22);
@@ -100,10 +243,11 @@
       const k=(i+j*hw)*4;img.data[k]=r;img.data[k+1]=g;img.data[k+2]=b;img.data[k+3]=255;
     }
     hc.putImageData(img,0,0);ctx.imageSmoothingEnabled=false;ctx.drawImage(half,0,0,width,height);
-    // 2. Vita sommersa e rovine nel bacino, lontano dalle piattaforme.
+    paintBanks(ctx);
+    // 2. Vita sommersa e rovine nel bacino, lontano dalle piattaforme e dalle sponde.
     for(let n=0;n<420;n++){
       const x=Math.floor(rnd()*width),y=Math.floor(rnd()*height),q=rnd();
-      if(inRim(x,y,18)||x<6||y<10||x>width-8||y>height-6)continue;
+      if(inRim(x,y,18)||inBank(x,y)||x<6||y<10||x>width-8||y>height-6)continue;
       if(q<.5){const h=6+Math.floor(q*24);for(let k=0;k<h;k++){const sway=Math.round(Math.sin(k*.5+x)*1.5);rect(ctx,k%3?'#1d4a48':'#2b6158',x+sway,y-k,1,1);}}
       else if(q<.62){rect(ctx,'#5a4566',x,y,3,2);rect(ctx,'#7d5f86',x+1,y-1,1,1);rect(ctx,'#4b6f74',x+3,y,2,1);}
       else if(q<.67){rect(ctx,'#2c3b45',x-4,y-3,9,4);rect(ctx,'#40525d',x-3,y-3,7,1);rect(ctx,'#1a2a33',x-5,y+1,11,1);}
@@ -121,40 +265,10 @@
       rect(ctx,'#5a7388',x-7,fy,w+14,1);rect(ctx,'#0e1b24',x-7,fy+11,w+14,1);
       for(let k=x-6;k<x+w+6;k+=3)if(mix(k,y,seed)>.55)rect(ctx,'#5f8c96',k,fy+12,2,1);
     }
-    // 4. Pavimento: lastre smussate, macchie di umidità e fasce a mosaico di onde «senza nome».
-    for(const [x,y,w,h] of chambers)rect(ctx,'#2e404d',x,y,w+1,h+1);
-    const tints=['#30414f','#324555','#364859','#344a56','#3a4c58','#34454f'];
-    for(let y=69;y<625;y+=13){
-      for(let x=66+(Math.floor(y/13)%2)*8;x<1060;x+=19){
-        if(!floor(x+3,y+2)||!floor(x+14,y+9))continue;
-        const damp=vnoise(x,y,60,seed+5),t=tints[Math.floor(rnd()*tints.length)];
-        rect(ctx,t,x+2,y+2,14,9);
-        rect(ctx,'#506270',x+2,y+2,14,1);rect(ctx,'#475866',x+2,y+2,1,8);
-        rect(ctx,'#23343f',x+3,y+10,13,1);rect(ctx,'#273946',x+15,y+3,1,8);
-        if(damp>.66)rect(ctx,'rgba(20,46,52,.35)',x+2,y+2,14,9);
-        const q=rnd();
-        if(q>.94)rect(ctx,'#69807e',x+8,y+5,2,1);
-        else if(q<.04){rect(ctx,'#24363f',x+5,y+4,1,3);rect(ctx,'#24363f',x+6,y+7,2,1);}
-      }
-    }
-    // Fasce a onde solo al centro delle sale, lontano dai bordi e dai cerchi di rune.
-    for(const [l,t,w,h] of chambers){
-      if(w<120||h<120)continue;
-      for(let y=t+30;y<t+h-24;y+=48)for(let x=l+24;x<l+w-24;x+=6){
-        if([[167,555],[547,529],[556,215],[dais.x,dais.y]].some(([cx,cy])=>Math.abs(x-cx)<(cx===dais.x?108:52)&&Math.abs(y-cy)<(cx===dais.x?124:36)))continue;
-        const up=Math.round(Math.sin(x*.26)*2);
-        rect(ctx,'#4a6870',x,y+up,4,1);rect(ctx,'#22343d',x,y+up+1,4,1);
-      }
-    }
-    // 5. Cerchi di rune dei luoghi di lettura: inserti turchesi che di notte restano accesi.
-    const runeRing=(x,y,rx,ry,color,count)=>{for(let i=0;i<count;i++){const a=i*Math.PI*2/count,px=x+Math.cos(a)*rx,py=y+Math.sin(a)*ry;rect(ctx,color,px-1,py-1,3,2);rect(gl,color,px-1,py-1,3,2);}};
-    for(const [x,y] of [[167,555],[547,529],[556,215]]){
-      poly(ctx,'#1f2e39',octagon(x,y+2,46,31));
-      poly(ctx,'#5d6f7b',octagon(x,y,44,29));poly(ctx,'#394452',octagon(x,y,41,26));
-      poly(ctx,'#2e4650',octagon(x,y,35,23));poly(ctx,'#425b63',octagon(x,y,32,21));
-      runeRing(x,y,38,25,'#6fc3b6',16);
-      glyph(ctx,x,y,'#8cb6b0');glyph(gl,x,y,'#5fb0a6');
-    }
+    // 4. Pavimenti per sala (Codex) e carattere delle stanze: rosa delle correnti, binari e grate, mosaici del Chiostro.
+    paintFloors(ctx,seeded(seed^0x43d2a9b));
+    paintRooms(ctx);
+    for(const [gx,gy] of [[182,542],[555,181],[586,227],[556,271]])glyph(gl,gx,gy,'#5fb0a6');
     // 6. Arena del Trono: anelli concentrici, solco inciso a onde e bordo chiaro per leggere il combattimento.
     poly(ctx,'#16222c',octagon(dais.x,dais.y+3,103,120));
     poly(ctx,'#a8bcc0',octagon(dais.x,dais.y,100,117));
@@ -176,10 +290,12 @@
     }
     for(let i=0;i<8;i++){const a=i*Math.PI/4+Math.PI/8;for(let r=20;r<60;r+=4)rect(ctx,'#4f6f78',dais.x+Math.cos(a)*r*.9,dais.y+Math.sin(a)*r,2,1);}
     ellipse(ctx,'#2c414a',dais.x,dais.y,15,12);ellipse(ctx,'#4e7078',dais.x,dais.y,12,9);ellipse(ctx,'#7fb0ac',dais.x,dais.y,4,3);ellipse(gl,'#5fb0a6',dais.x,dais.y,4,3);
+    paintBackrest(ctx);
+    for(const light of lanterns){paintLantern(ctx,light);rect(gl,light.kind==='fire'?'#c88a50':light.kind==='spirit'?'#9890c0':'#6fb7a8',light.x-2,light.y-6,5,6);}
     const thumb=make(224,134),thumbCtx=thumb.getContext('2d');
     thumbCtx.imageSmoothingEnabled=false;thumbCtx.drawImage(map,0,0,thumb.width,thumb.height);
-    const sprites=[0,1].map(v=>{const c=make(40,46),g=c.getContext('2d');paintColumn(g,v);return c;});
-    const props=columns.map(([x,y],i)=>({x,y,draw:g=>g.drawImage(sprites[i%2],x-21,y-40)}));
+    const sprites=[0,1,2].map(z=>{const c=make(40,46),g=c.getContext('2d');paintColumn(g,z);return c;});
+    const props=columns.map(([x,y],i)=>({x,y,draw:g=>g.drawImage(sprites[columnZone(i)],x-21,y-40)}));
     return {map,thumb,props,glow};
   }
   // Portale: arco di pietra marina con conchiglia in chiave e un velo d'acqua sospeso che scorre (stessa impronta).
@@ -221,7 +337,7 @@
     const player=actors[0];
     const visible=o=>o.x>=cam.x-60&&o.x<=cam.x+cam.w+60&&o.y>=cam.y-15&&o.y<=cam.y+cam.h+75;
     for(const o of map.props.concat(actors).filter(visible).sort((a,b)=>a.y-b.y)){
-      if(player&&map.props.includes(o)&&Math.abs(player.x-o.x)<13&&player.y<o.y&&player.y>o.y-28){
+      if(player&&map.props.includes(o)&&Math.abs(player.x-o.x)<13&&player.y<o.y&&player.y>o.y-32){
         c.save();c.globalAlpha=.45;o.draw(c);c.restore();
       }else o.draw(c);
     }
@@ -260,9 +376,10 @@
   // Luce del Santuario per WorldLight: penombra costante, glifi delle colonne, cerchi di rune, arena, portale e trono.
   function lightSources(){
     if(!active||!map)return null;
-    const lights=[{x:exit.x,y:exit.y,kind:'crystal',lift:29},{x:dais.x,y:dais.y,kind:'spirit',lift:33},{x:throne.x,y:throne.y,kind:'spirit',lift:31,p:1}];
-    for(const [x,y] of [[167,555],[547,529],[556,215]])lights.push({x,y,kind:'crystal',lift:33,p:1});
-    for(const [x,y] of columns)lights.push({x,y,kind:'crystal',lift:36,p:2});
+    const lights=[{x:exit.x,y:exit.y,kind:'crystal',lift:29},{x:dais.x,y:dais.y,kind:'spirit',lift:33},{x:throne.x,y:throne.y,kind:'spirit',lift:31,p:1},
+      {x:182,y:542,kind:'crystal',lift:33,p:1},{x:586,y:227,kind:'crystal',lift:33,p:1}];
+    for(const l of lanterns)lights.push({x:l.x,y:l.y,kind:l.kind,lift:17});
+    columns.forEach(([x,y],i)=>lights.push({x,y,kind:columnTones[columnZone(i)].kind,lift:36,p:2}));
     return {lights,windows:[],emissive:{image:map.glow,alpha:1}};
   }
   window.WorldLight?.provide(rid=>rid===id&&active,lightSources,()=>'tide',()=>'tide');

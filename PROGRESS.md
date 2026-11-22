@@ -1,11 +1,12 @@
 # PROGRESS.md — Stato del progetto
 
-> Ultimo aggiornamento 2026-11-22, Claude, Santuario della Marea Muta, monumenti e varchi sul branch `claude/world-art-santuario` (non unito, in attesa di approvazione). `main` resta `ec03eeb`.
+> Ultimo aggiornamento 2026-11-22, Claude, integrazione di Santuario, statue, varchi e interni di Velaris (Claude e Codex) sul branch `claude/integrazione-santuario-interni` (non unito, in attesa di approvazione). `main` resta `ec03eeb`.
 
 ## In corso
-_Nessuna modifica in corso._ Il branch `claude/world-art-santuario` (worktree `C:\Users\elaro\Downloads\Reincarnation-santuario`, da `main` `ec03eeb`) è concluso e attende l'approvazione dell'utente; non è unito a `main`.
+_Nessuna modifica in corso._ Il branch di integrazione `claude/integrazione-santuario-interni` (worktree `C:\Users\elaro\Downloads\Reincarnation-integrazione-si`) attende l'approvazione dell'utente. I branch `claude/world-art-santuario` (`3bd7f6d`) e `codex/world-art-interni-santuario` (`e9f1146`) restano invariati.
 
 ## Prossimo passo
+0. **Integrazione Claude + Codex** (2026-11-22, branch `claude/integrazione-santuario-interni`): contiene il Santuario combinato, le statue scelte per continente, i varchi di Claude, la Cripta e gli otto interni di Codex (tabella della provenienza in *Test e verifiche*). **Da decidere con l'utente**: merge su `main` (fast-forward possibile: il branch parte da `ec03eeb`). Dopo il merge, Claude e Codex devono ripartire da `main` e non da `claude/world-art-santuario` o `codex/world-art-interni-santuario`, già assorbiti.
 0. **Santuario della Marea Muta, monumenti e varchi** (Claude, 2026-11-22, branch `claude/world-art-santuario`): Santuario come bacino sommerso con piattaforme di pietra, rune e colonne luminose, arena leggibile; cinque custodi della rinascita, pilastri e varchi distinti per continente. **Da decidere con l'utente**: revisione e merge su `main`. Prossimi incrementi grafici possibili: interni di Velaris, Cripta delle Soglie con arredi narrativi, collegamento di `flora`/`masonry` al Generatore Procedurale Urbano 2.0.
 0. **Cava delle Braci e Fenditura Astrale; ART-001 risolto — unito a `main`** (Claude, 2026-11-22, fast-forward `cf86486` → `8da2400`, approvazione dell'utente; branch `claude/world-art-cava-fenditura`): rilievi di Codex recuperati dal worktree non committato `world-art-wide` (copia verificata in `C:\Users\elaro\Downloads\Codex-backup-2026-11-22-world-art-wide`), più profondità, lava, isole sospese, ombre e luce notturna; atmosfera prima degli avvisi di combattimento. Il worktree di Codex resta com'era: **Codex deve ripartire da `main` (`8da2400` o successivo)** e non applicare di nuovo il proprio diff, già recuperato o deliberatamente scartato. Prossimi incrementi grafici possibili: Santuario della Marea Muta, varchi e pilastri dei monumenti per bioma, interni di Velaris, collegamento di `flora`/`masonry` al Generatore Procedurale Urbano 2.0.
 0. **World Art Overhaul unito a `main`** (Claude, 2026-11-22, fast-forward `7060f17` → `ad6daa4`, approvazione dell'utente; branch `claude/world-art-overhaul`): terreno, sentieri, vegetazione, edifici e arredi per bioma nelle nove regioni continentali (la Selva resta il pilota di Codex, recuperato da `codex/world-art-myrathen` `4d8b060`), luce notturna del mondo aperto (`world-light.js`: tinte per continente, finestre, aloni, particelle, ombre di nuvole) anche nella Valle di Vela, Cripta delle Soglie con profondità. Collisioni, rotte, salvataggi, economia e Velaris invariati (verifiche in *Test e verifiche*). **Da decidere con l'utente**: integrazione con il lavoro **non committato** di Codex nel worktree `world-art-wide` (`codex/world-art-overhaul`), che riscrive in modo diverso le stesse parti di `continents.js` (terreno regionale), `interface.js` (`atmosphere()`), `world.js` (pozze di luce) ed `expansion-world.js` (Cava e Fenditura): i due lavori non si uniscono automaticamente, va scelto quale tenere per ogni parte (ART-001). **Codex deve ripartire da `main` (`ad6daa4`)**, non da `96a03f5`. Prossimi incrementi grafici possibili: Cava e Fenditura (oggi solo nel lavoro di Codex), Santuario della Marea Muta, varchi e pilastri dei monumenti per bioma, collegamento di `flora`/`masonry` ai profili del Generatore Procedurale Urbano 2.0.
@@ -53,6 +54,45 @@ La tabella elenca i sistemi disponibili. La sezione seguente indica le verifiche
 | Build a file singolo | ✅ | `build.py` |
 
 ## Test e verifiche
+
+### Integrazione Santuario, statue, varchi e interni (Claude, 2026-11-22, branch `claude/integrazione-santuario-interni`)
+**Metodo**: confronto a tre vie (`main` `ec03eeb`, Claude `3bd7f6d`, Codex `e9f1146`) con `tests/scatti-mondo.cjs` sulle stesse scene, poi scelta per elemento e merge manuale di `continents.js` e `legendary-land.js` (`urban-interiors.js` si unisce senza conflitti). Nessuna funzione di Codex o di Claude riscritta: le parti scelte sono riprese così come sono e combinate.
+**Provenienza** (verificata anche byte per byte negli scatti: Cripta e otto interni identici alla build di Codex; Vaelthoria, Myrathen, Voryndhal, varchi e resto del mondo identici alla build di Claude):
+
+| Parte | Da Claude (`claude/world-art-santuario`) | Da Codex (`codex/world-art-interni-santuario`) |
+|---|---|---|
+| Santuario · bacino | acqua immobile a mezza risoluzione con riflessi sotto le pareti, alghe, coralli e rovine sommerse | sponde rocciose e segni d'onda |
+| Santuario · strutture | ombre nell'acqua, parapetti, pareti frontali che scendono nel bacino | — |
+| Santuario · pavimenti e sale | — | una finitura per sala; rosa delle correnti e panche alla Soglia, binari e grate nel Deposito, mosaici a onde nel Chiostro |
+| Santuario · arena del Trono | bordo chiaro, solco inciso a onde, raggi, otto glifi | spalliera incassata dietro il trono |
+| Santuario · colonne | disegno scanalato con capitello a conchiglia e glifi luminosi | tinte per zona (Deposito, Chiostro, sala regale) e soglia di dissolvenza a 32 px |
+| Santuario · arredi interattivi | lapidi incise, trono a conchiglia (`legendary.js`), portale ad arco con velo d'acqua | — |
+| Santuario · luce | fornitore unico per `WorldLight`, strato emissivo, cielo `tide` con bolle, alone del portale in superficie | otto lanterne alle pareti (aggiunte al fornitore unico) |
+| Statue della Rinascita | Custode delle Origini (Vaelthoria), Oracolo del Velo (Myrathen), Madre delle Radici (Voryndhal) | Sentinella Eterna (Nordharyn), Giudice delle Ere nella nicchia del canyon (Azheryon) |
+| Pilastri attorno alle statue | tutti e cinque i continenti | — |
+| Varchi | otto varchi per bioma e varco della Valle, con passaggio scuro e luci | — |
+| Cripta delle Soglie | — | pilastri e varco reliquiario |
+| Interni di Velaris | — | tutti e otto (`urban-interiors.js` per intero): pavimenti, rivestimenti, arredi, luci per tipo |
+| Atmosfera | niente pioggia nei sotterranei (`interface.js`) | — |
+
+Scartati, perché doppioni: i tre cerchi di rune di Claude nel Santuario (al loro posto le sale di Codex), il fornitore di luce `under` di Codex (resta quello unico, con le sue lanterne), le statue di Claude per Nordharyn e Azheryon, le statue di Codex per gli altri tre continenti, i varchi e i pilastri di Codex fuori dalla Cripta (restano nel codice per la Cripta e le due statue).
+
+**Risultati (tutti superati)**:
+- Collisioni e navigazione: `confronto-mondo.cjs` contro `main` su semi 19425/555/2024/1/1116 (23 regioni, interni e Santuario compresi), passo 4 px: 21 501 135 campioni `canWalk` identici, acqua, punti, luoghi, varchi e 1 587 rotte identici.
+- Node: `verifica-integrazione.cjs`, `economia-flussi.cjs` 158, `economia-flussi-2.cjs` codice 0, `economia-integrazione.cjs` 147, `sonda-percorsi.cjs` 0 bloccati su 41 040, `sonda-residenti.cjs` 0.
+- Browser (Edge, build combinata): `prova-browser.cjs` 10/10; `prova-browser-velaris-est.cjs` 12/12; `prova-browser-economia.cjs` tutte (build `07e42e9`); `prova-browser-mondo.cjs` 15/15; `prova-browser-cava.cjs` 6/6; `prova-browser-santuario.cjs` 7/7 (Nadir sconfitto di notte); nuovo `prova-browser-interni.cjs` 12/12 (otto interni con servizio: letto della locanda, emporio, fucina, addestramento della Gilda, archivio, accademia, letto di casa, aiuola della serra; salvataggi di `ec03eeb` dentro locanda e forgia). Salvataggi delle build precedenti sempre da `ec03eeb`. Nessun errore JS, nessun processo Edge rimasto.
+- Scatti: a quattro vie (`main`, Claude, Codex, integrazione) per Santuario (seme 1116), statue, varchi, Cripta e interni; resto del mondo integrazione contro `main`: 17 su 28 identici byte per byte, gli altri 11 (varchi in vista) identici alla build di Claude.
+- Prestazioni (Edge visibile, alternando le build): Velaris identica a `main` (CPU 0,1–0,2/0,2–0,3 ms, intervallo p95 4,3 ms, 0 oltre 20 ms, due giri). `scatti-mondo` BENCH a quattro build, 3 giri, 300 fotogrammi: interni, statue e Santuario con fotogramma 0,1–0,3/0,2–0,5 ms e disegno 0,0–0,2/0,1–0,3 ms in tutte e quattro, di giorno e di notte. Primo ingresso: interni 4–14 ms in tutte; Santuario ~30 ms nelle build con il bacino di Claude (Claude e integrazione) contro ~6 ms (`main`, Codex), una volta per partita.
+**Non verificato**: tocco su dispositivo reale, hardware meno potente, successione al trono a schermo.
+
+### Interni, monumenti e Santuario (Codex, 2026-11-22)
+
+- **Build e scatti**. `Reincarnation.html` e la build locale `outputs/World-Art-Completo/REINCARNATION-WORLD-ART.html` sono due ricostruzioni identiche, SHA-256 `5b99ca18cbcbf7776501ec648d531c49b0ddae9a82693af04538470b4e9a1a0d`. Edge offline ha verificato il contenuto del file aperto. Il manifesto locale `scatti/scatti-dopo.json` registra il percorso e le impronte dei 23 scatti. Le sei tavole distinguono i nuovi interventi (base `ec03eeb`) dal confronto storico del mondo aperto (base `96a03f5`).
+- **Geometria**. `node tests/confronto-mondo.cjs <worktree-ec03eeb> . --seeds 19425,555,2024 --step 6`. Identità su 23 regioni, 5.750.955 campioni di collisione e 1.587 verifiche di rotte. Passaggio mirato sugli otto interni (208.560 campioni) e sul Santuario (561.120 campioni e collegamenti dallo spawn).
+- **Partita**. Integrazione e 147 controlli su economia e Velaris. In Edge, avvio e salvataggi (10/10), Velaris e Serra (12/12), mondo e ciclo giorno/notte (15/15), Cava e Fenditura con combattimento contro Syrava (6/6), economia e migrazione dei mercati (7/7). Passaggio mirato su ingresso raro, importazione, movimento, salvataggio, presenza di Nadir e uscita dal Santuario. Nessun errore JavaScript nei controlli.
+- **Costo di disegno**. In Edge headless (96 fotogrammi per misura, 24 di riscaldamento, due ordini alternati), p95 CPU a scena stabilizzata di 0,5–0,6 ms alla Custode, 0,3 ms in locanda e 0,3–0,4 ms nel chiostro. La misura confronta scene invariate per camera, ora e seme. FPS e memoria su altri dispositivi restano da misurare.
+
+
 
 ### Santuario, monumenti e varchi (Claude, 2026-11-22, branch `claude/world-art-santuario`)
 **Come raggiungere il Santuario nelle prove**: esiste solo nei mondi con `location(seed)` non nullo (1 su 128). Il seme 1116 lo mette nel Passo dei Larici (877,304), raggiungibile allo stadio 0; altri semi: 284 (Savana), 502 (Santuario del Primo Germoglio), 1085 (Costa), 1096 (Gola). `tests/scatti-mondo.cjs` lo raggiunge con `SEED=1116`; `tests/prova-browser-santuario.cjs` scopre ed entra con i comandi del motore (stato legittimo, salvataggi validi).
