@@ -3,7 +3,7 @@
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
 ## [2026-11-22] PERF-002, pianificazione delle routine di Velaris — Codex
-Branch `codex/perf-002-npc`, base `972e31c`.
+Branch `codex/perf-002-npc`, base `972e31c`, commit `d980a80`.
 ### Corretto
 - `urban-life.js` cerca le soste occupate in celle vicine, riusa gli scostamenti e prepara il piano successivo a piccoli passi dalla sera. Al cambio di giorno promuove il piano pronto e aggiorna subito le soste visibili. In caso di caricamento o salto di calendario completa a richiesta il giorno corrente.
 - Ricostruito l'HTML offline. Conservati l'ordine dei residenti e delle soste, le destinazioni e le verifiche dei percorsi. Le cache delle routine sono in memoria e non entrano in salvataggi o scorte.

@@ -3,7 +3,7 @@
 > Ultimo aggiornamento 2026-11-22, Codex, ottimizzazione PERF-002 su `codex/perf-002-npc` da `972e31c`.
 
 ## In corso
-_Nessuna modifica in corso._ PERF-002 è verificato su `codex/perf-002-npc` da `972e31c` e attende approvazione per l'integrazione.
+_Nessuna modifica in corso._ PERF-002 è verificato su `codex/perf-002-npc` (commit `d980a80` da `972e31c`) e attende approvazione per l'integrazione.
 
 ## Prossimo passo
 0. **PERF-002**. Il pianificatore dei residenti usa celle spaziali e una preparazione a piccoli passi per il cambio di giorno. Prima di adottarlo in una metropoli, misurare il primo ingresso a freddo, la concentrazione delle soste per quartiere e la cache dei percorsi oltre la popolazione di prova. Vedi [test e limiti](#perf-002--routine-npc).
