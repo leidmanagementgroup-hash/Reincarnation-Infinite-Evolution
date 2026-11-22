@@ -2717,6 +2717,155 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
     if(flora[pal].moss&&pal!=='canyon'&&pal!=='shore'){k.box(flora[pal].moss,-5,-8,4,2);k.box(flora[pal].moss,2,-tall+2,2,3);}
     if(pal==='snow')k.box(flora.snow.snow[2],-6,-tall-3,12,2);
   }
+  // Monumenti della rinascita, pilastri e varchi per continente (World Art Overhaul): stessi punti, nessun ingombro.
+  // Ogni custode ha sagoma e materiali propri: Custode delle Origini (travertino), Sentinella Eterna (granito e neve),
+  // Oracolo del Velo (cristallo), Madre delle Radici (legno e radici), Giudice delle Ere (arenaria).
+  function drawMonument(g,design){
+    const k=spriteKit(g,40,78),ink='#1a2128';
+    k.blob('#14202866',3,2,34,7);
+    if(design===0){
+      // Custode delle Origini: figura velata in travertino che regge una lanterna, su basamento a gradini con alloro.
+      const S=['#5f584a','#9d947c','#c8bea2','#e8e0c6'];
+      k.box(ink,-27,-9,54,10);k.box(S[1],-26,-9,52,8);k.box(S[3],-26,-9,52,1);k.box(S[0],-26,-2,52,2);
+      k.box(ink,-21,-15,42,7);k.box(S[2],-20,-15,40,6);k.box(S[3],-20,-15,40,1);
+      for(let x=-18;x<18;x+=6){k.box('#5f7b4a',x,-14,3,2);k.box('#86a35f',x+1,-15,2,1);}
+      k.shape(ink,[[-12,-15],[-10,-44],[-6,-52],[6,-52],[10,-44],[12,-15]]);
+      k.shape(S[2],[[-11,-16],[-9,-43],[-5,-50],[5,-50],[9,-43],[11,-16]]);
+      k.shape(S[1],[[3,-16],[6,-42],[9,-43],[11,-16]]);
+      for(let y=-40;y<-17;y+=4)k.box(S[1],-8+((y/4)&1),y,2,3);
+      k.blob(ink,0,-57,7,7);k.blob(S[2],0,-57,6,6);k.blob(S[3],-2,-59,3,3);k.shape(S[1],[[-6,-58],[0,-65],[6,-58],[4,-54],[-4,-54]]);
+      k.stroke(S[1],8,-40,15,-46,2);k.box(ink,13,-54,7,9);k.box('#c99a52',14,-53,5,7);k.box('#ffe1a0',15,-51,3,3);k.box(S[2],13,-55,7,1);
+      return;
+    }
+    if(design===1){
+      // Sentinella Eterna: cavaliere in granito con la spada rivolta verso il basso, neve su spalle ed elmo.
+      const S=['#2d343e','#56616e','#848f9a','#b8c1c8'],N='#eef4f6';
+      k.box(ink,-24,-10,48,11);k.box(S[1],-23,-10,46,9);k.box(S[2],-23,-10,46,1);
+      for(let x=-21;x<21;x+=7)k.box(S[0],x,-7,1,5);
+      k.shape(ink,[[-15,-10],[-17,-40],[-11,-50],[11,-50],[17,-40],[15,-10]]);
+      k.shape(S[1],[[-14,-11],[-16,-40],[-10,-48],[10,-48],[16,-40],[14,-11]]);
+      k.shape(S[2],[[-14,-11],[-16,-40],[-10,-48],[-6,-48],[-9,-40],[-8,-11]]);
+      for(let y=-38;y<-12;y+=6)k.box(S[0],-13,y,26,1);
+      k.box(ink,-9,-62,18,13);k.box(S[2],-8,-61,16,12);k.box(S[0],-6,-56,12,2);k.box(S[3],-8,-61,16,2);
+      k.box(N,-17,-50,9,3);k.box(N,8,-50,9,3);k.box(N,-8,-64,16,3);
+      k.box(ink,-2,-46,4,40);k.box('#c8d0d6',-1,-45,2,38);k.box(ink,-9,-48,18,3);k.box('#9aa5ad',-8,-47,16,1);
+      k.box('#a33d34',-3,-52,6,4);
+      return;
+    }
+    if(design===2){
+      // Oracolo del Velo: figura velata in pietra viola con una sfera di cristallo e schegge sospese.
+      const S=['#2a2846','#4d4a74','#7a76a3','#b7b1d6'],C=['#3f8aa0','#86c6cf','#d8fbff'];
+      k.blob(ink,0,-6,24,7);k.blob(S[1],0,-7,23,6);k.blob(S[2],0,-8,19,4);
+      k.shape(ink,[[-13,-8],[-9,-46],[-4,-56],[4,-56],[9,-46],[13,-8]]);
+      k.shape(S[1],[[-12,-9],[-8,-45],[-3,-54],[3,-54],[8,-45],[12,-9]]);
+      for(let x=-9;x<10;x+=4)k.stroke(S[2],x,-12,x*.5,-48);
+      k.shape(S[3],[[-8,-45],[-3,-54],[3,-54],[8,-45],[0,-40]]);
+      k.blob(ink,0,-30,7,7);k.blob(C[0],0,-30,6,6);k.blob(C[1],-1,-31,4,4);k.box(C[2],-2,-33,2,2);
+      for(const [x,y,h] of [[-22,-40,10],[21,-46,12],[-17,-62,7],[16,-66,8]]){k.shape(C[0],[[x-2,y],[x,y-h],[x+2,y]]);k.box(C[2],x,y-h+2,1,3);}
+      return;
+    }
+    if(design===3){
+      // Madre delle Radici: tronco a forma di donna che avvolge un'urna, radici aperte sul suolo e muschio.
+      const W=['#2f2419','#5a4632','#83684a','#a88c66'],M=['#3c6a43','#5d9a5e','#8cc07a'];
+      for(const [x,dx] of [[-6,-30],[6,30],[-3,-18],[3,20]]){k.stroke(W[0],x,-4,dx,2,3);k.stroke(W[2],x,-5,dx,1,1);}
+      k.shape(W[0],[[-12,-2],[-10,-30],[-16,-44],[-9,-58],[0,-54],[9,-58],[16,-44],[10,-30],[12,-2]]);
+      k.shape(W[1],[[-10,-3],[-8,-30],[-13,-43],[-8,-55],[0,-51],[8,-55],[13,-43],[8,-30],[10,-3]]);
+      k.shape(W[2],[[-10,-3],[-8,-30],[-13,-43],[-8,-55],[-5,-53],[-9,-42],[-5,-30],[-6,-3]]);
+      k.blob(W[0],0,-62,6,6);k.blob(W[2],-1,-62,5,5);k.box(W[3],-2,-64,2,2);
+      k.blob(ink,0,-17,7,6);k.blob('#7a6b5a',0,-18,6,5);k.box('#a89880',-3,-21,5,2);k.box('#2a2420',-2,-23,4,2);
+      for(const [x,y] of [[-12,-40],[11,-36],[-6,-50],[7,-24],[-9,-12]]){k.box(M[1],x,y,3,2);k.box(M[2],x,y-1,2,1);}
+      for(let i=0;i<5;i++)k.stroke(M[0],-14+i*7,-56+(i&1)*6,-15+i*7,-44+(i&1)*6);
+      return;
+    }
+    // Giudice delle Ere: colosso seduto in arenaria con corona e bilancia, fra due pilastri del tempio.
+    const S=['#5a3a2c','#8f6248','#bf8f68','#e2b98d'];
+    k.box(ink,-36,-12,72,13);k.box(S[1],-35,-12,70,11);k.box(S[3],-35,-12,70,1);
+    for(let x=-33;x<34;x+=8){k.box(S[0],x,-9,1,7);k.box(S[2],x+3,-6,3,1);}
+    for(const x of [-31,23]){k.box(ink,x,-62,9,51);k.box(S[2],x+1,-61,7,49);k.box(S[3],x+1,-61,2,49);k.box(S[1],x-1,-64,11,4);for(let y=-55;y<-14;y+=8)k.box(S[0],x+2,y,5,1);}
+    k.box(ink,-35,-70,70,7);k.box(S[2],-34,-69,68,5);k.box(S[3],-34,-69,68,1);
+    k.shape(ink,[[-16,-12],[-16,-34],[-10,-38],[10,-38],[16,-34],[16,-12]]);k.shape(S[1],[[-15,-13],[-15,-33],[-9,-37],[9,-37],[15,-33],[15,-13]]);
+    k.box(S[2],-15,-24,30,2);
+    k.box(ink,-9,-54,18,17);k.box(S[2],-8,-53,16,15);k.box(S[0],-5,-47,3,2);k.box(S[0],2,-47,3,2);
+    k.shape('#d9a24e',[[-9,-54],[-7,-60],[-3,-56],[0,-62],[3,-56],[7,-60],[9,-54]]);
+    k.box(S[0],-1,-36,2,10);k.box(S[0],-12,-27,24,1);k.box('#d9a24e',-13,-26,5,2);k.box('#d9a24e',8,-26,5,2);
+  }
+  function drawPillar(g,design,k2){
+    const k=spriteKit(g,40,78),ink='#1a2128';
+    k.blob('#14202855',2,1,8,3);
+    if(design===0){k.box(ink,-5,-26,10,26);k.box('#c8bea2',-4,-25,8,24);for(let x=-3;x<4;x+=2)k.box('#9d947c',x,-24,1,22);k.box('#e8e0c6',-6,-28,12,3);if(k2)k.shape('#e8e0c6',[[-5,-28],[-2,-32],[1,-29],[5,-31],[5,-28]]);k.box('#86a35f',-4,-6,3,2);return;}
+    if(design===1){k.shape(ink,[[-6,0],[-5,-24],[0,-30],[5,-24],[6,0]]);k.shape('#56616e',[[-5,-1],[-4,-23],[0,-28],[4,-23],[5,-1]]);k.shape('#848f9a',[[-5,-1],[-4,-23],[0,-28],[-1,-1]]);for(let y=-20;y<-4;y+=6)k.box('#9fd3e0',-1,y,2,3);k.box('#eef4f6',-4,-26,8,3);return;}
+    if(design===3){k.shape(ink,[[-6,0],[-6,-22],[-2,-27],[4,-25],[6,0]]);k.shape('#6f7a62',[[-5,-1],[-5,-21],[-2,-25],[3,-24],[5,-1]]);for(let y=-22;y<-2;y+=5)k.stroke('#5a4632',-6,y,6,y+3,2);k.box('#5d9a5e',-5,-26,4,2);k.box('#8cc07a',2,-15,3,2);return;}
+    if(design===4){k.shape(ink,[[-6,0],[-5,-28],[0,-34],[5,-28],[6,0]]);k.shape('#bf8f68',[[-5,-1],[-4,-27],[0,-32],[4,-27],[5,-1]]);k.shape('#e2b98d',[[-5,-1],[-4,-27],[0,-32],[-1,-1]]);for(let y=-24;y<-4;y+=5){k.box('#8f6248',-2,y,4,1);k.box('#8f6248',-1,y+2,2,1);}return;}
+    // design 2 (Oracolo): obelischi viola; i cristalli dispari restano i cristalli della Conca.
+    k.shape(ink,[[-5,0],[-4,-26],[0,-32],[4,-26],[5,0]]);k.shape('#4d4a74',[[-4,-1],[-3,-25],[0,-30],[3,-25],[4,-1]]);k.shape('#7a76a3',[[-4,-1],[-3,-25],[0,-30],[-1,-1]]);k.box('#86c6cf',-1,-18,2,4);
+  }
+  function drawGateSprite(g,pal){
+    const k=spriteKit(g,40,78),ink='#1a2128',M=masonry[pal]||masonry.ruin,F=flora[pal]||flora.ruin,st=F.stone;
+    k.blob('#14202860',2,1,22,5);
+    // Passaggio scuro dentro l'arco: segnala il cambio di regione come il varco precedente.
+    const deep=pal==='snow'?'#1c2530':pal==='star'?'#1d1a3a':pal==='root'?'#122219':'#1e2a32';
+    k.shape(deep,[[-12,0],[-12,-20],[-8,-26],[8,-26],[12,-20],[12,0]]);k.box('#00000033',-12,-26,24,6);
+    k.box('#8a9a9466',-11,-2,22,2);k.box('#c8d4c844',-9,-1,18,1);
+    const posts=(col,top,w=5)=>{for(const x of [-18,13]){k.box(ink,x-1,top-1,w+2,-top+1);k.box(col[1],x,top,w,-top);k.box(col[2],x,top,2,-top);}};
+    const lamp=(x,y,c)=>{k.box(ink,x-2,y-1,5,6);k.box(c,x-1,y,3,4);};
+    if(pal==='ruin'||pal==='fae'){
+      // Arco degli Ardel: colonne scanalate, architrave con chiave; nella Selva rame e vetro.
+      const C=pal==='fae'?['#2e4f4f','#73a091','#9fc1ae']:['#5f584a','#c8bea2','#e8e0c6'];
+      posts(C,-30,6);for(const x of [-17,14])for(let y=-28;y<-2;y+=3)k.box(C[0],x+1,y,1,2);
+      k.shape(ink,[[-22,-30],[-12,-41],[12,-41],[22,-30]]);k.shape(C[1],[[-20,-31],[-11,-39],[11,-39],[20,-31]]);k.box(C[2],-20,-31,40,2);
+      k.shape(pal==='fae'?'#86c6cf':'#d6b66a',[[-3,-40],[0,-45],[3,-40],[0,-36]]);
+      if(pal==='ruin'){k.blob('#4e7446',-17,-22,3,6);k.blob('#6e9458',-16,-25,2,3);}
+      lamp(-16,-16,pal==='fae'?'#9ff0ff':'#f3ce8e');lamp(15,-16,pal==='fae'?'#9ff0ff':'#f3ce8e');return;
+    }
+    if(pal==='pine'){
+      // Portale minerario: montanti di larice, trave doppia, insegna e lanterne.
+      const C=['#3b2f28','#77583f','#977650'];posts(C,-32,6);
+      k.box(ink,-22,-37,44,6);k.box(C[1],-21,-36,42,4);k.box(C[2],-21,-36,42,1);k.box(ink,-18,-31,36,3);k.box(C[1],-17,-30,34,1);
+      k.box(ink,-7,-29,14,7);k.box('#c9b58a',-6,-28,12,5);k.box('#5c4635',-4,-26,8,1);
+      k.stroke(C[0],-14,-28,-18,-20,2);k.stroke(C[0],14,-28,18,-20,2);lamp(-15,-14,'#f0c070');lamp(16,-14,'#f0c070');return;
+    }
+    if(pal==='snow'){
+      // Porta fortificata: torrette merlate, grata abbassata a metà e neve sui merli.
+      for(const x of [-21,13]){k.box(ink,x-1,-36,10,36);k.box('#69747d',x,-35,8,35);k.box('#8a959d',x,-35,3,35);for(let y=-30;y<-2;y+=5)k.box('#454e57',x,y,8,1);for(let m=0;m<8;m+=3){k.box(ink,x+m,-39,2,3);k.box('#eef4f6',x+m,-40,2,1);}}
+      k.box(ink,-13,-33,26,5);k.box('#69747d',-12,-32,24,3);k.box('#eef4f6',-13,-34,26,2);
+      for(let x=-11;x<12;x+=4)k.box('#2b3036',x,-28,1,12);k.box('#2b3036',-12,-22,24,1);k.box('#2b3036',-12,-17,24,1);
+      lamp(-17,-20,'#ffcf7d');lamp(17,-20,'#ffcf7d');return;
+    }
+    if(pal==='star'){
+      // Arco di cristallo: due guglie che si piegano l'una verso l'altra e una stella sospesa.
+      const C=flora.star.crystal;
+      for(const d of [-1,1]){k.shape(ink,[[d*20,0],[d*22,-24],[d*14,-38],[d*6,-42],[d*12,-30],[d*14,0]]);k.shape(C[d<0?0:1][1],[[d*19,-1],[d*21,-24],[d*14,-36],[d*8,-39],[d*13,-29],[d*15,-1]]);k.shape(C[d<0?0:1][2],[[d*19,-1],[d*21,-24],[d*18,-27],[d*17,-1]]);}
+      k.shape('#f5e6ff',[[0,-50],[2,-46],[6,-45],[2,-43],[0,-39],[-2,-43],[-6,-45],[-2,-46]]);return;
+    }
+    if(pal==='grass'){
+      // Porta di Namar: pali dipinti, tettoia di paglia e stendardi.
+      const C=['#4f3a26','#a57c4f','#d6ad77'];posts(C,-30,5);
+      for(const x of [-18,13])for(let y=-26;y<-2;y+=6)k.box('#b8553a',x,y,5,2);
+      k.shape(ink,[[-25,-28],[0,-42],[25,-28]]);k.shape('#a38a42',[[-23,-29],[0,-41],[23,-29]]);
+      for(let x=-21;x<22;x+=3)k.stroke('#c4a855',x,-29,x*.4,-38);
+      for(const x of [-10,7]){k.box(ink,x,-28,4,11);k.box('#b8553a',x+1,-27,2,9);k.box('#e6c27a',x+1,-22,2,1);}return;
+    }
+    if(pal==='root'){
+      // Arco vivo: due tronchi che intrecciano i rami, radici a terra e lanterne appese.
+      const W=flora.root.trunk,L=flora.root.leaves;
+      for(const d of [-1,1]){k.stroke(W[0],d*18,0,d*14,-30,5);k.stroke(W[1],d*18,-1,d*14,-30,3);k.stroke(W[0],d*14,-30,-d*4,-40,3);k.stroke(W[0],d*19,0,d*26,3,2);}
+      for(const [x,y,rw,rh] of [[-12,-40,10,5],[10,-41,10,5],[0,-45,11,5]]){k.blob(L[1],x,y,rw,rh);k.blob(L[3],x-2,y-2,rw-4,rh-2);}
+      for(const x of [-8,7]){k.box(W[0],x,-36,1,8);k.box(ink,x-2,-29,5,5);k.box('#f2cf86',x-1,-28,3,3);}return;
+    }
+    if(pal==='shore'){
+      // Arco del porto: pali di legno salmastro, cima tesa, reti e lanterne.
+      const C=['#55412d','#9d7f57','#c0a477'];posts(C,-32,5);
+      k.box(ink,-23,-36,46,5);k.box(C[1],-22,-35,44,3);k.box(C[2],-22,-35,44,1);
+      k.stroke('#d8c79c',-17,-30,0,-25);k.stroke('#d8c79c',0,-25,17,-30);
+      for(let x=-12;x<13;x+=4)k.stroke('#a99777',x,-27+Math.abs(x)*.15,x,-20);
+      k.box('#2f6f8e',-24,-40,6,4);k.box('#f4efe2',-23,-39,4,1);lamp(-15,-16,'#f5d38a');lamp(16,-16,'#f5d38a');return;
+    }
+    // canyon: pilone d'arenaria a fasce, architrave pesante con disco solare inciso.
+    const C=['#5a3a2c','#bf8f68','#e2b98d'];
+    for(const x of [-21,12]){k.shape(ink,[[x-1,0],[x,-34],[x+9,-34],[x+10,0]]);k.shape(C[1],[[x,-1],[x+1,-33],[x+8,-33],[x+9,-1]]);k.box(C[2],x+1,-33,3,32);for(let y=-28;y<-2;y+=6)k.box('#8f6248',x+1,y,8,1);}
+    k.box(ink,-24,-41,48,8);k.box(C[1],-23,-40,46,6);k.box(C[2],-23,-40,46,1);k.blob('#d9a24e',0,-37,4,2);k.box('#8f6248',-6,-37,12,1);
+    lamp(-16,-20,'#f4c27a');lamp(16,-20,'#f4c27a');
+  }
   // Posizione della fiamma rispetto alla base del lampione: [dx, dy, larghezza, altezza].
   function lampFlame(pal){
     if(pal==='grass'||pal==='root')return [-1,-27,3,4];
@@ -2738,6 +2887,7 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
       if(o.type==='lamp')lights.push({x:o.x+dx+1,y:o.y,kind:glowKind,lift:14-dy,core:[o.x+dx,o.y+dy,fw,fh,glowKind==='crystal'?'#d8fbff':'#ffdf94']});
       else if(o.type==='crystal')lights.push({x:o.x,y:o.y,kind:'crystal',lift:24,p:2});
       else if(o.type==='monument')lights.push({x:o.x,y:o.y,kind:'spirit',lift:44,p:1});
+      else if(o.type==='gate'&&pal!=='grass')lights.push({x:o.x,y:o.y,kind:pal==='star'||pal==='fae'?'crystal':'lamp',lift:pal==='star'?58:32,p:1});
       else if(o.type==='house'||o.type==='hall'){
         const list=a.selvaSprites?selvaWindows(o.type):a.sprites.get(o.type+'/'+o.variant)?.windows||[];
         list.forEach((q,i)=>windows.push({x:o.x+q.x,y:o.y+q.y,w:q.w,h:q.h,seed:Math.floor(hash(o.x+i*7,o.y,13)*100)}));
@@ -2758,6 +2908,9 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
     else if(type==='house'||type==='hall'||type==='stall'||type==='well'){key=type+'/'+o.variant;draw=(g,wins)=>drawBuilding(g,pal,type,o.variant,wins);}
     else if(type==='lamp'){key='lamp';draw=g=>drawLampSprite(g,pal);}
     else if(type==='ruin'){key='ruin/'+o.variant;draw=g=>drawRuinSprite(g,pal,o.variant);}
+    else if(type==='monument'){key='monument/'+o.variant;draw=g=>drawMonument(g,o.variant);}
+    else if(type==='pillar'&&a.r.statue){const d=a.r.statue.design;key='pillar/'+d+'/'+(o.variant%2);draw=g=>drawPillar(g,d,o.variant%2);}
+    else if(type==='gate'){key='gate';draw=g=>drawGateSprite(g,pal);}
     else return false;
     let image=a.sprites.get(key);
     if(!image){image=makeCanvas(80,88);image.windows=[];draw(image.getContext('2d'),image.windows);a.sprites.set(key,image);}
@@ -2767,6 +2920,7 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
       const lit=Math.sin(t*4+o.x)>-.6,[dx,dy,fw,fh]=lampFlame(pal);
       const col=pal==='star'||pal==='fae'?['#9ff0ff','#e6ffff']:['#f2a046','#ffe3a0'];
       tile(c,col[0],o.x+dx,o.y+dy,fw,fh);if(lit)tile(c,col[1],o.x+dx+1,o.y+dy+(fh>3?1:0),1,2);
+    }else if(type==='monument'&&o.variant===2&&Math.sin(t*3)>.05){tile(c,'#f5f0cf',o.x+15,o.y-68,1,4);tile(c,'#f5f0cf',o.x+13,o.y-67,5,1);
     }else if(type==='crystal'&&Math.sin(t*2+o.x)>.93){tile(c,'#ededd5',o.x+6,o.y-18,3,1);tile(c,'#ededd5',o.x+7,o.y-19,1,3);}
     return true;
   }
@@ -2872,6 +3026,7 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
         if(Math.abs(px)<rx-2)box(i%3?top[2]:top[0],px,base+py,1+i%3,1);}
     }
   }
+  const valleyGateSprites=new Map();
   let id='valley',worldSeed=19425,current=null;
   const rendered=new Map();
   function setRegion(next,seed=worldSeed){
@@ -2914,7 +3069,7 @@ html,body,#console{width:100%;height:100%;margin:0;overflow:hidden;background:#0
   function drawFront(c,cam,t,actors=[]){
     if(!current){
       if(id!=='valley')return original.drawFront(c,cam,t,actors);
-      const a={palette:formats.ruin};
+      const a={palette:formats.ruin,r:{palette:'ruin'},sprites:valleyGateSprites};
       const gate={...ValleyTrail,type:'gate'};
       return original.drawFront(c,cam,t,actors.concat({x:gate.x,y:gate.y,draw:g=>paint(g,a,gate,t)}));
     }
