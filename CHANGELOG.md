@@ -2,6 +2,13 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-22] Identità dei monumenti e degli interni di Velaris — Codex
+Branch `codex/world-art-interni-santuario`, da `ec03eeb`.
+### Modificato
+- Le cinque Statue della Rinascita hanno sagome e materiali legati al loro continente. Varchi e pilastri usano la tavolozza e l'architettura della zona; il disegno viene conservato in cache (`continents.js`).
+- Gli otto interni di Velaris hanno pavimenti, rivestimenti, arredi e luci riconoscibili. La luce è precalcolata, limitata alla stanza e rispetta il movimento ridotto (`urban-interiors.js`).
+- Ricostruito `Reincarnation.html`. Il renderer usa coordinate, collisioni, vie d'accesso, interazioni e dati di salvataggio esistenti.
+
 ## [2026-11-22] Cava delle Braci e Fenditura Astrale; ART-001 risolto — Claude (con lavoro recuperato di Codex)
 Branch `claude/world-art-cava-fenditura` da `main` `cf86486`; **unito a `main` per fast-forward il 2026-11-22 (`cf86486` → `8da2400`) su approvazione dell'utente**. Dopo l'unione: HTML di `main` identico alla ricostruzione e all'HTML di prova (SHA-256 `9dcc64fb…`), file urbani ed economici invariati, rieseguiti su `main` con esito positivo: `verifica-integrazione.cjs`, `economia-flussi.cjs` (158), `economia-flussi-2.cjs`, `economia-integrazione.cjs` (147), `sonda-percorsi.cjs` (0 bloccati su 41 040), `sonda-residenti.cjs` (0), `confronto-mondo.cjs` contro `cf86486` (8,6 milioni di campioni identici), browser 10/10, 12/12, economia, mondo 15/15, Cava e Fenditura 6/6. Commit `74b74d0` (recupero di `expansion-world.js`), `120ddc9` (recupero di atmosfera prima degli avvisi e bande di duna), `419f9a0` (Cava e Fenditura), `14dd5ba` (ottimizzazione dell'ingresso, prove e documenti).
 ### ART-001

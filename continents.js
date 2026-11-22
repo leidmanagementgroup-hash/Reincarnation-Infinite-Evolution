@@ -1008,6 +1008,146 @@
     if(flora[pal].moss&&pal!=='canyon'&&pal!=='shore'){k.box(flora[pal].moss,-5,-8,4,2);k.box(flora[pal].moss,2,-tall+2,2,3);}
     if(pal==='snow')k.box(flora.snow.snow[2],-6,-tall-3,12,2);
   }
+  const gateStyles={
+    ruin:['arch','#b2a16c'], pine:['gable','#d8bd81'], snow:['keep','#d8c298'],
+    fae:['gable','#8bc4c4'], star:['arch','#9cdeea'], grass:['arch','#dbb975'],
+    root:['gable','#b7c580'], shore:['arch','#8abec6'], canyon:['keep','#e5b47c'],
+    crypt:['arch','#82afb1']
+  };
+  function drawGate(g,pal){
+    const {box,blob,shape,stroke}=spriteKit(g,40,78);
+    const [silhouette,accent]=gateStyles[pal];
+    const [dark,mid,face,light]=pal==='crypt'?['#323942','#535761','#767b83','#9ba1a1']:masonry[pal].wall;
+    const ink='#242c33';
+    blob('#18232972',3,2,24,6);
+    box(dark,-23,-5,46,7);box(mid,-22,-6,44,4);box(face,-21,-6,42,1);
+    if(silhouette==='gable'){
+      shape(ink,[[-24,-27],[0,-47],[24,-27],[21,-24],[-21,-24]]);
+      const roof=masonry[pal].roof;
+      shape(roof[2],[[-21,-27],[0,-45],[20,-27]]);
+      stroke(roof[4],-21,-27,0,-45);stroke(roof[0],0,-45,20,-27,2);
+      for(const shift of [-14,-7,0,7,14])stroke(roof[1],shift,-29,Math.floor(shift*.55),-36);
+    }else if(silhouette==='keep'){
+      box(ink,-22,-38,44,15);
+      for(const x of [-22,-7,8]){
+        box(dark,x,-42,14,10);box(mid,x,-41,12,7);box(light,x,-42,12,2);
+      }
+    }else{
+      shape(ink,[[-22,-23],[-22,-29],[-14,-37],[14,-37],[22,-29],[22,-23]]);
+      shape(mid,[[-21,-25],[-21,-29],[-13,-36],[13,-36],[21,-29],[21,-25]]);
+      stroke(light,-20,-29,-13,-35);box(light,-13,-36,20,1);
+      for(const x of [-10,8])box(dark,x,-35,2,5);
+    }
+    box(dark,-20,-29,40,25);box(mid,-19,-28,38,23);
+    box(light,-21,-30,42,1);box(dark,-21,-28,42,2);
+    for(const x of [-19,12]){
+      box(face,x,-25,7,18);box(light,x,-24,1,16);
+      for(let y=-23;y<-8;y+=5){box(dark,x,y,7,1);box(mid,x+(y%2===0?2:4),y+1,1,3);}
+      box(mid,x-1,-9,9,4);box(light,x-1,-9,9,1);
+    }
+    shape(ink,[[-12,-4],[-12,-19],[-9,-24],[-5,-26],[5,-26],[9,-24],[12,-19],[12,-4]]);
+    shape('#37434b',[[-10,-4],[-10,-18],[-7,-23],[-4,-24],[4,-24],[7,-23],[10,-18],[10,-4]]);
+    box('#232e37',-8,-16,16,9);box(dark,-10,-6,20,2);
+    box(dark,-3,-32,6,6);box(accent,-1,-31,2,4);box(accent,-2,-30,4,2);
+    for(const x of [-16,15]){box(dark,x-1,-22,3,8);box(accent,x,-21,1,4);}
+    box(light,-8,-3,16,1);box(mid,-11,0,23,1);
+  }
+  function drawRebirthMonument(g,pal,design){
+    const {box,blob,shape,stroke}=spriteKit(g,40,78);
+    const [dark,mid,light]=formats[pal].stone;
+    const accent=gateStyles[pal][1], outline='#243437';
+    blob('#16252965',3,2,33,7);
+    box(outline,-28,-8,56,9);box(dark,-28,-7,56,6);box(mid,-26,-10,52,4);box(light,-24,-10,48,1);
+    box(dark,-22,-16,44,7);box(mid,-21,-16,42,4);box(light,-20,-16,40,1);
+    for(const x of [-19,-12,12,19])box(dark,x,-14,1,3);
+    if(design===4){
+      // Relief in the canyon wall, with strata wrapping around the carved niche.
+      shape(outline,[[-38,-12],[-33,-47],[-24,-64],[12,-63],[25,-68],[36,-53],[38,-14]]);
+      shape(mid,[[-36,-14],[-31,-46],[-23,-62],[10,-61],[25,-66],[34,-53],[36,-15]]);
+      shape(light,[[-34,-28],[-30,-48],[-23,-62],[10,-61],[25,-66],[29,-60],[3,-54],[-22,-56]]);
+      shape(dark,[[20,-59],[28,-59],[34,-53],[36,-15],[21,-16],[23,-38]]);
+      for(const [x,y,n] of [[-30,-42,10],[-34,-31,12],[-36,-22,13],[17,-49,13],[23,-34,10],[22,-24,14]]){
+        box(dark,x,y,n,2);box(light,x,y+2,n-2,1);
+      }
+      shape(dark,[[-19,-16],[-17,-49],[-10,-57],[9,-57],[16,-49],[19,-16]]);
+      shape(light,[[-15,-17],[-11,-43],[-6,-47],[-7,-53],[7,-53],[9,-43],[14,-38],[15,-17]]);
+      shape(mid,[[1,-51],[7,-51],[7,-43],[14,-38],[15,-17],[5,-17],[4,-37],[-1,-41]]);
+      box(dark,-7,-49,12,2);box(dark,-4,-41,9,2);box(accent,-5,-31,11,2);box(dark,-1,-32,3,8);
+      return;
+    }
+    if(design===2){
+      blob(dark,0,-45,16,18);blob(mid,-1,-46,14,17);blob(accent,-1,-46,12,15);blob('#4d506d',0,-46,10,13);
+      for(const [x,y,s] of [[-26,-18,1],[-16,-16,.65],[25,-18,.9],[17,-15,.58]]){
+        const tip=y-Math.round(31*s), side=Math.round(6*s);
+        shape('#4f547e',[[x-side-2,y],[x-side,y-13],[x,tip],[x+side,y-14],[x+side+2,y]]);
+        shape('#8b84b7',[[x-side,y-2],[x-side+1,y-13],[x,tip+2],[x+side,y-14],[x+side,y-2]]);
+        shape('#c4e1dd',[[x,tip+2],[x+side,y-14],[x,y-10],[x-side+1,y-13]]);box('#c4e1dd',x-1,y-11,2,8);
+      }
+    }
+    const hem=design===1?19:16;
+    shape(outline,[[-hem,-16],[-13,-38],[-7,-46],[7,-46],[14,-39],[hem,-16]]);
+    shape(dark,[[-hem+1,-17],[-12,-37],[-6,-45],[6,-45],[13,-38],[hem-1,-17]]);
+    shape(mid,[[-hem+2,-17],[-11,-36],[-5,-43],[5,-43],[10,-36],[9,-17]]);
+    shape(light,[[-11,-18],[-7,-38],[-3,-41],[2,-38],[-2,-27],[-2,-18]]);
+    stroke(dark,4,-32,3,-18,2);stroke(dark,-7,-31,-10,-20);
+    box(dark,-7,-54,14,13);box(mid,-6,-55,12,12);box(light,-5,-54,8,9);
+    if(design!==2){box(dark,-4,-49,8,1);box(mid,-1,-47,4,2);}
+    shape(accent,[[-4,-34],[0,-38],[4,-34],[0,-30]]);box(light,-1,-35,2,2);
+    if(design===0){
+      shape(light,[[-7,-54],[-8,-60],[-4,-58],[0,-63],[4,-58],[7,-60],[7,-54]]);
+      box(accent,-6,-56,12,2);box(dark,-1,-59,2,2);
+      shape(dark,[[-18,-35],[-15,-43],[-8,-39],[-8,-30],[-16,-29]]);
+      shape(light,[[-17,-35],[-14,-41],[-9,-38],[-9,-31],[-16,-31]]);box(accent,-13,-37,2,5);
+    }else if(design===1){
+      shape(mid,[[-8,-51],[-7,-56],[5,-56],[8,-52],[6,-48],[-8,-48]]);box(light,-7,-53,12,2);
+      for(const x of [-15,8]){box(dark,x,-39,8,7);box(light,x,-40,7,2);}
+      box(outline,-11,-39,23,5);box(accent,-10,-39,21,2);box(dark,-2,-49,5,11);box(light,-2,-49,2,6);
+      shape(outline,[[-5,-35],[6,-35],[5,-19],[0,-10],[-4,-19]]);
+      shape('#ebefea',[[-3,-34],[4,-34],[3,-19],[0,-14],[-2,-19]]);box(mid,1,-33,2,14);
+      box('#c4dad8',-25,-10,14,2);box('#c4dad8',10,-16,10,2);
+    }else if(design===3){
+      for(const side of [-1,1]){
+        const points=[[side*28,-11],[side*19,-16],[side*17,-23],[side*10,-27],[side*13,-43],[side*9,-53]];
+        for(let i=1;i<points.length;i++)stroke('#423626',...points[i-1],...points[i],5);
+        for(let i=1;i<points.length;i++)stroke('#806646',...points[i-1],...points[i],2);
+        blob('#385a43',side*14,-24,5,3);blob('#72956b',side*14-1,-25,4,2);
+      }
+      box('#44694d',-6,-57,12,3);box('#86a976',-4,-59,7,2);
+      blob(dark,0,-31,6,3);box(accent,-1,-36,3,5);box(light,-2,-36,2,2);
+    }
+  }
+  function drawRelicPillar(g,pal){
+    const {box,blob,shape}=spriteKit(g,40,78);
+    const crypt=pal==='crypt';
+    const [trim,dark,mid,light]=crypt?['#272d36','#343b49','#565d6c','#8f98a1']:
+      [masonry[pal].wall[0],...formats[pal].stone];
+    blob('#14222660',2,1,9,4);
+    box(trim,-8,-5,16,6);box(dark,-8,-5,16,1);box(mid,-7,-7,14,3);
+    box(dark,-5,-28,10,22);box(mid,-4,-27,7,20);box(light,-3,-26,2,18);
+    for(let y=-22;y<-8;y+=5)box(dark,-4,y,8,1);
+    box(dark,-7,-29,14,4);box(light,-7,-30,14,1);
+    const accent=gateStyles[pal][1];
+    if(crypt||pal==='star'){
+      shape(mid,[[-4,-30],[0,-36],[4,-30]]);box(accent,0,-33,1,3);
+    }else if(pal==='root'||pal==='ruin'){
+      box(mid,-5,-32,10,2);box(formats[pal].plant[1],-6,-33,9,2);box(formats[pal].plant[2],-5,-34,4,1);
+    }else{
+      box(mid,-5,-33,10,3);box(light,-5,-33,10,1);box(accent,-2,-32,4,2);
+    }
+  }
+  const relicSprites=new Map();
+  function paintRelic(c,a,o){
+    const pal=a.r?.rooms?'crypt':a.r?.palette||'ruin',key=[pal,o.type,o.variant||0].join('/');
+    let sprite=relicSprites.get(key);
+    if(!sprite){
+      sprite=makeCanvas(80,88);const g=sprite.getContext('2d');
+      if(o.type==='gate')drawGate(g,pal);
+      else if(o.type==='monument')drawRebirthMonument(g,pal,o.variant);
+      else drawRelicPillar(g,pal);
+      relicSprites.set(key,sprite);
+    }
+    c.drawImage(sprite,o.x-40,o.y-78);
+  }
   // Posizione della fiamma rispetto alla base del lampione: [dx, dy, larghezza, altezza].
   function lampFlame(pal){
     if(pal==='grass'||pal==='root')return [-1,-27,3,4];
@@ -1062,6 +1202,7 @@
     return true;
   }
   function paint(c,a,o,t){
+    if(o.type==='gate'||o.type==='monument'||o.type==='pillar'){paintRelic(c,a,o);return;}
     if(a.selvaSprites&&paintSelvaSprite(c,a,o))return;
     if(a.sprites&&paintBiomeSprite(c,a,o,t))return;
     const {x,y,variant:v,type}=o,p=a.palette,top=p.plant,stone=p.stone;
@@ -1086,35 +1227,8 @@
       }
       return;
     }
-    if(type==='gate'){
-      shade(18,6);box(stone[0],-17,-23,34,24);box(stone[1],-15,-25,30,24);box(stone[2],-11,-28,22,4);
-      box('#22333e',-10,-14,20,14);box('#22333e',-7,-18,14,4);box('#f3ce8e',-14,-14,2,4);box('#f3ce8e',12,-14,2,4);
-      return;
-    }
-    if(type==='monument'){
-      shade(28,7);box(stone[0],-26,-9,52,10);box(stone[1],-24,-12,48,5);box(stone[2],-21,-13,42,2);
-      if(v===4){
-        shape(stone[0],[[-37,-12],[-27,-58],[27,-58],[39,-12]]);
-        shape(stone[1],[[-33,-15],[-24,-55],[23,-55],[34,-15]]);
-        for(let j=0;j<7;j++)box(stone[0],-27+j*7,-48+(j%2)*13,9,2);
-      }
-      shape(stone[1],[[-13,-14],[-7,-42],[7,-42],[14,-14]]);box(stone[2],-6,-43,12,8);box(stone[2],-5,-51,10,9);
-      box(stone[0],-2,-50,9,9);
-      if(v===1){box(stone[0],13,-60,4,44);box(stone[2],14,-60,2,41);box(stone[2],8,-40,14,3);}
-      if(v===2){
-        box(stone[2],-5,-51,10,9);
-        shape('#477c87',[[-19,-20],[-24,-43],[-29,-29],[-25,-15]]);
-        shape('#b7ebe0',[[-24,-42],[-24,-24],[-28,-28]]);
-        shape('#8c81bb',[[17,-17],[23,-48],[29,-31],[24,-14]]);
-        shape('#d5b8e3',[[23,-47],[24,-29],[28,-32]]);
-        box('#c4e5d7',-1,-33,3,8);
-        if(Math.sin(t*3)>.05){box('#f5f0cf',-19,-51,1,4);box('#f5f0cf',-21,-50,5,1);}
-      }
-      if(v===3)for(const n of [-1,1])shape(top[1],[[n*26,-11],[n*19,-27],[n*14,-22],[n*11,-42],[n*8,-21],[n*14,-15]]);
-      box(v===4?'#e8ae74':'#9dc6b5',-1,-30,3,4);return;
-    }
-    if(type==='lamp'||type==='pillar'||type==='well'||type==='ruin'){
-      const tall=type==='pillar'?22:type==='ruin'?13+v*2:type==='lamp'?16:6;
+    if(type==='lamp'||type==='well'||type==='ruin'){
+      const tall=type==='ruin'?13+v*2:type==='lamp'?16:6;
       shade(type==='well'?11:5,3);box(stone[0],-5,-tall,10,tall);box(stone[1],-4,-tall,6,tall-1);box(stone[2],-6,-tall-3,12,3);
       if(type==='lamp'){box('#d9ae6a',-3,-12,6,5);if(Math.sin(t*4+x)>.2)box('#ffe5a1',-1,-11,3,3);}
       if(type==='well')box(p.water,-4,-5,8,3);

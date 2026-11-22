@@ -1,9 +1,9 @@
 # PROGRESS.md — Stato del progetto
 
-> Ultimo aggiornamento 2026-11-22, Claude, Cava e Fenditura e risoluzione di ART-001 uniti a `main` per fast-forward (`cf86486` → `8da2400`) su approvazione dell'utente.
+> Ultimo aggiornamento 2026-11-22, Codex, rifinitura grafica su `codex/world-art-interni-santuario` a partire da `ec03eeb`.
 
 ## In corso
-_Nessuna modifica in corso._ Il branch `claude/world-art-cava-fenditura` è unito a `main` (2026-11-22, `8da2400`); il suo worktree `C:\Users\elaro\Downloads\Reincarnation-cava-fenditura` resta come copia di lavoro.
+Sono pronti gli interni di Velaris, i monumenti e i varchi continentali. La revisione grafica del Santuario della Marea Muta è tenuta in un incremento separato per poter valutare in modo indipendente il lavoro sul branch di Claude.
 
 ## Prossimo passo
 0. **Cava delle Braci e Fenditura Astrale; ART-001 risolto — unito a `main`** (Claude, 2026-11-22, fast-forward `cf86486` → `8da2400`, approvazione dell'utente; branch `claude/world-art-cava-fenditura`): rilievi di Codex recuperati dal worktree non committato `world-art-wide` (copia verificata in `C:\Users\elaro\Downloads\Codex-backup-2026-11-22-world-art-wide`), più profondità, lava, isole sospese, ombre e luce notturna; atmosfera prima degli avvisi di combattimento. Il worktree di Codex resta com'era: **Codex deve ripartire da `main` (`8da2400` o successivo)** e non applicare di nuovo il proprio diff, già recuperato o deliberatamente scartato. Prossimi incrementi grafici possibili: Santuario della Marea Muta, varchi e pilastri dei monumenti per bioma, interni di Velaris, collegamento di `flora`/`masonry` al Generatore Procedurale Urbano 2.0.
