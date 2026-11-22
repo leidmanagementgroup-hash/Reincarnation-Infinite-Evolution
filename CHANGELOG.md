@@ -2,8 +2,14 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-22] Differenzia le sale del Santuario della Marea Muta — Codex
+Incremento separato da `043b76c` sul branch `codex/world-art-interni-santuario` per facilitare il confronto con `claude/world-art-santuario`.
+### Modificato
+- Soglia, Deposito degli echi, Chiostro dei flutti e sala del trono hanno lastricati, rilievi, mosaici e sorgenti luminose propri. Il bacino è disegnato fuori dal pavimento percorribile; le colonne sono precalcolate (`legendary-land.js`).
+- Ricostruito `Reincarnation.html`. Le prove in Edge e i confronti con geometria e salvataggi precedenti sono registrati in `PROGRESS.md`.
+
 ## [2026-11-22] Identità dei monumenti e degli interni di Velaris — Codex
-Branch `codex/world-art-interni-santuario`, da `ec03eeb`.
+Branch `codex/world-art-interni-santuario`, da `ec03eeb`, commit `043b76c`.
 ### Modificato
 - Le cinque Statue della Rinascita hanno sagome e materiali legati al loro continente. Varchi e pilastri usano la tavolozza e l'architettura della zona; il disegno viene conservato in cache (`continents.js`).
 - Gli otto interni di Velaris hanno pavimenti, rivestimenti, arredi e luci riconoscibili. La luce è precalcolata, limitata alla stanza e rispetta il movimento ridotto (`urban-interiors.js`).

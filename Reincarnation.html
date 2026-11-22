@@ -4391,63 +4391,221 @@ window.ActorArt = (() => {
     rect(ctx,'#263345',x-1,y-2,3,3);
     rect(ctx,color,x-1,y+5,3);
   };
-  function buildMap(seed){
-    const map=make(width,height),ctx=map.getContext('2d'),rnd=seeded(seed^0x75b3ac1);
-    rect(ctx,'#101923',0,0,width,height);
-    for(let j=0;j<2600;j++){
-      const x=rnd()*width,y=rnd()*height;
-      rect(ctx,rnd()>.9?'#274356':'#16252d',x,y,1+rnd()*4,1);
+  // Una finitura per spazio: pietra salmastra, passerelle, archivio, chiostro e sala regale.
+  const surfaces=[
+    ['#2c4244','#374e4f','#4b6160','#213537'],
+    ['#293d45','#374e54','#52696a','#1e313a'],
+    ['#353d48','#444d58','#656971','#282f3d'],
+    ['#293d45','#374e54','#52696a','#1e313a'],
+    ['#2c4549','#395357','#59746f','#1d343d'],
+    ['#293d45','#374e54','#52696a','#1e313a'],
+    ['#333d50','#444d62','#68778a','#263040']
+  ];
+  const lights=[
+    {x:81,y:476,kind:'crystal'},{x:266,y:476,kind:'crystal'},
+    {x:475,y:422,kind:'fire'},{x:631,y:422,kind:'fire'},
+    {x:472,y:109,kind:'crystal'},{x:661,y:109,kind:'crystal'},
+    {x:874,y:80,kind:'spirit'},{x:1018,y:80,kind:'spirit'}
+  ];
+  window.WorldLight?.provide(key=>key===id,()=>({lights}),()=> 'under',()=> 'under');
+
+  function paintBasin(c,rnd){
+    rect(c,'#121f2b',0,0,width,height);
+    // Denti di roccia tra calette: il bacino circonda l'unione dei pavimenti.
+    const banks=[
+      [[0,0],[480,0],[434,44],[317,62],[284,111],[174,129],[123,198],[0,240]],
+      [[0,292],[110,305],[221,364],[247,400],[209,435],[89,436],[0,466]],
+      [[0,640],[141,633],[239,652],[321,618],[355,628],[382,668],[0,668]],
+      [[638,668],[695,612],[770,588],[805,520],[881,495],[981,499],[1015,441],[1120,421],[1120,668]],
+      [[694,0],[1120,0],[1120,209],[1091,161],[1081,78],[1044,43],[875,34],[825,14]]
+    ];
+    for(const bank of banks){
+      for(const [dy,tint] of [[9,'#223644'],[4,'#2c3d4b'],[0,'#1b2835']]){
+        poly(c,tint,bank.map(([x,y])=>[x,y+dy]));
+      }
     }
+    for(let i=0;i<1400;i++){
+      const x=rnd()*width,y=rnd()*height,span=2+rnd()*15;
+      rect(c,i%13===0?'#304755':i%3===0?'#223644':'#1a2a38',x,y,span);
+      if(i%18===0)rect(c,'#263d4b',x+span+2,y,3);
+    }
+    for(const [x,y] of [[339,481],[347,597],[405,329],[665,370],[750,294],[939,386]]){
+      for(let row=0;row<5;row++){
+        const dx=(row%2)*9,py=y+row*5,reach=26-2*Math.abs(2-row);
+        rect(c,'#223a47',x-reach+dx,py,reach*2);
+        rect(c,'#3b5966',x+dx-9,py,15-row,1);
+        rect(c,'#2f4c56',x+dx+12,py,7+row,1);
+      }
+    }
+  }
+
+  function paintMasonry(c,rnd){
     for(const [x,y,w,h] of chambers){
-      rect(ctx,'#1f3039',x-11,y-14,w+22,h+26);
-      rect(ctx,'#354959',x-7,y-11,w+14,h+17);
-      rect(ctx,'#56667a',x-4,y-10,w+8,3);
-      rect(ctx,'#4a5f70',x-4,y+h,w+8,4);
-      rect(ctx,'#243644',x-4,y+h+4,w+8,8);
-    }
-    for(const [x,y,w,h] of chambers)rect(ctx,'#2e404d',x,y,w+1,h+1);
-    const tints=['#30414f','#314554','#354758','#344854','#394b57','#34444f'];
-    for(let y=69;y<625;y+=13){
-      for(let x=66+(Math.floor(y/13)%2)*8;x<1060;x+=19){
-        if(!floor(x+3,y+2)||!floor(x+14,y+9))continue;
-        rect(ctx,tints[Math.floor(rnd()*tints.length)],x+2,y+2,14,9);
-        rect(ctx,'#4c5b65',x+3,y+2,12,1);
-        rect(ctx,'#233646',x+4,y+10,11,1);
-        if(rnd()>.92)rect(ctx,'#69807e',x+8,y+5,2);
+      // Le teste luminose e il lato in ombra definiscono la quota sul pelo dell'acqua.
+      rect(c,'#142330',x-15,y-17,w+31,h+34);
+      rect(c,'#294651',x-12,y-13,w+25,h+28);
+      rect(c,'#395663',x-8,y-12,w+17,h+20);
+      rect(c,'#546775',x-8,y-12,w+17,3);
+      rect(c,'#253742',x-8,y-5,w+17,h+16);
+      rect(c,'#475b64',x-4,y+h+1,w+9,3);
+      rect(c,'#283c48',x-4,y+h+4,w+9,8);
+      for(let dx=0;dx<w;dx+=22){
+        rect(c,'#263947',x+dx,y-9,1,7);
+        rect(c,'#1c2e3a',x+dx+8,y+h+4,1,6);
+        if(rnd()<.48)rect(c,'#718087',x+dx+2,y-11,5+rnd()*8);
       }
     }
-    for(const [x,y] of [[167,555],[547,529],[556,215]]){
-      poly(ctx,'#54646f',octagon(x,y,44,29));
-      poly(ctx,'#394452',octagon(x,y,41,26));
-      poly(ctx,'#425b63',octagon(x,y,32,21));
-      glyph(ctx,x,y,'#8cb6b0');
-    }
-    poly(ctx,'#9aacb1',octagon(dais.x,dais.y,100,117));
-    poly(ctx,'#576e80',octagon(dais.x,dais.y,98,114));
-    poly(ctx,'#253441',octagon(dais.x,dais.y,94,109));
-    poly(ctx,'#456472',octagon(dais.x,dais.y,79,89));
-    poly(ctx,'#314751',octagon(dais.x,dais.y,75,83));
-    for(let i=0;i<8;i++){
-      const a=i*Math.PI/4;
-      glyph(ctx,dais.x+Math.cos(a)*88,dais.y+Math.sin(a)*100,'#9ab7b1');
-    }
-    for(let y=154;y<=271;y+=13){
-      for(let x=870;x<984;x+=14){
-        if(Math.hypot((x-dais.x)/.9,y-dais.y)>61)continue;
-        rect(ctx,'#395059',x,y,11,9);rect(ctx,'#556d6f',x,y,10);
+    // In ordine: nelle giunzioni il pavimento copre i parapetti e mantiene aperti i passaggi.
+    for(const [i,[x,y,w,h]] of chambers.entries())rect(c,surfaces[i][0],x,y,w+1,h+1);
+    for(const [i,[left,top,w,h]] of chambers.entries()){
+      const [,stone,edge,shade]=surfaces[i],tile=i===4||i===6?24:20;
+      for(let y=top+3,row=0;y<top+h-11;y+=13,row++){
+        for(let x=left+2+(row%2)*Math.floor(tile/2);x<left+w-tile;x+=tile){
+          rect(c,stone,x,y,tile-2,11);
+          rect(c,edge,x+1,y,tile-4);
+          rect(c,shade,x+1,y+10,tile-3);
+          const mark=rnd();
+          if(mark<.3){rect(c,shade,x+3,y+6,4);rect(c,shade,x+7,y+7,2);}
+          if(mark>.82){rect(c,edge,x+tile-7,y+2,4);rect(c,edge,x+tile-6,y+3,2);}
+        }
       }
     }
+  }
+
+  function paintLantern(c,light){
+    const {x,y,kind}=light;
+    const rim=kind==='fire'?'#a88062':kind==='spirit'?'#77759c':'#538b8d';
+    const lamp=kind==='fire'?'#efbf88':kind==='spirit'?'#c5bde4':'#9fdbcb';
+    ellipse(c,'rgba(16,28,37,.5)',x,y+5,11,3);
+    rect(c,'#1d2836',x-6,y-11,13,17);
+    rect(c,rim,x-5,y-10,11,2);
+    rect(c,'#354352',x-4,y-8,9,10);
+    poly(c,lamp,[[x,y-7],[x+3,y-4],[x+3,y],[x,y+2],[x-3,y],[x-3,y-4]]);
+    rect(c,'#e2ebdb',x-1,y-5,2,3);
+    rect(c,rim,x-6,y+3,13,2);
+  }
+
+  function paintRooms(c){
+    // La rosa delle correnti identifica la soglia e orienta verso il corridoio.
+    const x=182,y=542;
+    poly(c,'#547174',octagon(x,y,36,24));
+    poly(c,'#263d46',octagon(x,y,33,21));
+    poly(c,'#49787b',[[x,y-17],[x+5,y-5],[x+25,y],[x+5,y+4],[x,y+17],[x-5,y+4],[x-25,y],[x-5,y-5]]);
+    glyph(c,x,y,'#83b4ad');
+    for(const [px,py] of [[167,486],[234,486],[167,606],[234,606]]){
+      rect(c,'#28464a',px-17,py-4,34,8);rect(c,'#5d8380',px-15,py-3,30,1);
+      for(let i=-13;i<14;i+=4)rect(c,'#68817e',px+i,py-2,1,4);
+    }
+
+    // Nel deposito i binari dismessi e le griglie sono a livello del lastricato.
+    for(const py of [481,567]){
+      rect(c,'#2d3440',458,py,188,10);
+      rect(c,'#656068',458,py+2,188);
+      rect(c,'#52505a',458,py+7,188);
+      for(let x=463;x<643;x+=11)rect(c,'#797071',x,py+2,2,6);
+    }
+    for(const px of [481,616]){
+      rect(c,'#637078',px-14,519,29,17);
+      rect(c,'#27343e',px-12,521,25,13);
+      for(let x=px-10;x<px+12;x+=4)rect(c,'#465158',x,522,2,11);
+      rect(c,'#7b7979',px-12,524,25);
+    }
+
+    // Un mosaico di correnti nel chiostro, con segni a tessere anziché ostacoli.
+    for(const [px,py] of [[555,181],[586,227],[556,271]]){
+      poly(c,'#527270',octagon(px,py,49,26));
+      poly(c,'#2e484d',octagon(px,py,46,23));
+      for(const dy of [-8,0,8]){
+        for(let j=-32;j<32;j+=4){
+          const wy=py+dy+Math.round(Math.sin(j*.14)*3);
+          rect(c,(j+32)%12===0?'#77a39a':'#537d78',px+j,wy,4,2);
+        }
+      }
+      glyph(c,px,py,'#a1c9b3');
+    }
+  }
+
+  function paintThroneCourt(c){
+    const {x,y}=dais;
+    poly(c,'#202c3e',octagon(x,y,105,121));
+    poly(c,'#708095',octagon(x,y-2,101,118));
+    poly(c,'#43546b',octagon(x,y-2,98,114));
+    poly(c,'#263444',octagon(x,y-1,93,108));
+    poly(c,'#71908d',octagon(x,y,76,88));
+    poly(c,'#3b5662',octagon(x,y,73,84));
+    poly(c,'#344958',octagon(x,y,68,79));
+    for(let row=0;row<9;row++){
+      for(let col=-3;col<=3;col++){
+        const tx=x+col*17+(row%2)*4,ty=y-60+row*13;
+        if(Math.abs(col*.3)+Math.abs(ty-y)/79>1.45)continue;
+        rect(c,'#405567',tx-7,ty,14,11);
+        rect(c,'#526978',tx-6,ty,12);
+      }
+    }
+    for(let i=0;i<12;i++){
+      const a=i*Math.PI/6;
+      glyph(c,x+Math.cos(a)*85,y+Math.sin(a)*98,i%3===0?'#b2b6c7':'#729991');
+    }
+    for(const span of [24,37]){
+      for(const dir of [-1,1]){
+        const inner=span-9;
+        poly(c,'#64817f',[[x,y+dir*span],[x+span,y],[x+inner,y],[x,y+dir*inner]]);
+        poly(c,'#64817f',[[x,y+dir*span],[x-span,y],[x-inner,y],[x,y+dir*inner]]);
+      }
+    }
+    glyph(c,x,y,'#8eb5a9');
+
+    // Spalliera incassata dietro il trono interattivo; i gradini fanno parte del lastricato.
+    const tx=throne.x,ty=throne.y;
+    ellipse(c,'rgba(17,24,37,.46)',tx,ty+8,31,9);
+    poly(c,'#5a687f',[[tx-24,ty-4],[tx-17,ty-14],[tx+17,ty-14],[tx+24,ty-4],[tx+24,ty+8],[tx-24,ty+8]]);
+    rect(c,'#303e51',tx-24,ty+3,49,5);rect(c,'#8493a5',tx-22,ty+3,45,1);
+    rect(c,'#798299',tx-18,ty-1,37,1);
+    for(const dir of [-1,1]){
+      const sx=tx+dir*20;
+      rect(c,'#253246',sx-4,ty-48,9,37);
+      rect(c,'#77859b',sx-4,ty-48,7,3);
+      rect(c,'#50617a',sx-3,ty-45,6,31);
+      rect(c,'#6c8492',sx-2,ty-43,2,22);
+      rect(c,'#77859b',sx-5,ty-15,11,3);
+    }
+    for(const [span,height,colour] of [[23,65,'#222c3f'],[20,61,'#788499'],[17,59,'#4c5c74'],[12,52,'#283d50']]){
+      poly(c,colour,[[tx-span,ty-40],[tx-span,ty-height+11],[tx-span*.45,ty-height+2],
+        [tx,ty-height],[tx+span*.45,ty-height+2],[tx+span,ty-height+11],[tx+span,ty-40]]);
+    }
+    glyph(c,tx,ty-47,'#9ebec5');
+    rect(c,'#465f74',tx-14,ty-36,29,6);
+    rect(c,'#667c90',tx-13,ty-36,27,1);
+  }
+
+  function columnSprite([edge,face,shade]){
+    const image=make(28,43),c=image.getContext('2d');
+    ellipse(c,'rgba(13,24,36,.62)',15,37,12,4);
+    poly(c,'#23313e',[[3,35],[6,29],[21,29],[23,35],[23,38],[3,38]]);
+    rect(c,edge,5,33,17,2);
+    rect(c,face,5,35,17,2);
+    rect(c,shade,7,8,14,25);
+    rect(c,face,8,7,9,25);
+    rect(c,edge,9,11,2,19);
+    rect(c,'#263544',18,12,1,18);
+    rect(c,edge,7,5,14,2);
+    rect(c,face,5,7,18,3);
+    glyph(c,14,18,edge);
+    return image;
+  }
+
+  function buildMap(seed){
+    const map=make(width,height),ctx=map.getContext('2d');
+    paintBasin(ctx,seeded(seed^0x75b3ac1));
+    paintMasonry(ctx,seeded(seed^0x43d2a9b));
+    paintRooms(ctx);
+    paintThroneCourt(ctx);
+    for(const light of lights)paintLantern(ctx,light);
     const thumb=make(224,134),thumbCtx=thumb.getContext('2d');
     thumbCtx.imageSmoothingEnabled=false;thumbCtx.drawImage(map,0,0,thumb.width,thumb.height);
-    const props=columns.map(([x,y],i)=>({x,y,draw:g=>{
-      const palette=i%2?['#8fa2ab','#596b80','#364858']:['#a2bebc','#698993','#405869'];
-      ellipse(g,'#24333e',x,y+1,11,4);
-      rect(g,palette[2],x-7,y-27,14,27);rect(g,palette[1],x-6,y-25,9,21);
-      rect(g,palette[0],x-7,y-28,14,3);rect(g,palette[0],x-5,y-24,2,16);
-      rect(g,'#2e3c49',x-7,y-12,14);
-      rect(g,palette[1],x-8,y-4,15,3);rect(g,palette[0],x-8,y-5,15,1);
-      glyph(g,x,y-16,palette[0]);
-    }}));
+    const images=[['#9c9083','#695f60','#4a4653'],['#9ab1a8','#587782','#344f5f'],
+      ['#9da7bb','#576d86','#394961']].map(columnSprite);
+    const props=columns.map(([x,y],i)=>({x,y,draw:g=>g.drawImage(images[i<4?0:i<8?1:2],x-13,y-36)}));
     return {map,thumb,props};
   }
   function portal(c,x,y,t,inside=false){
@@ -4484,7 +4642,7 @@ window.ActorArt = (() => {
     const player=actors[0];
     const visible=o=>o.x>=cam.x-60&&o.x<=cam.x+cam.w+60&&o.y>=cam.y-15&&o.y<=cam.y+cam.h+75;
     for(const o of map.props.concat(actors).filter(visible).sort((a,b)=>a.y-b.y)){
-      if(player&&map.props.includes(o)&&Math.abs(player.x-o.x)<13&&player.y<o.y&&player.y>o.y-28){
+      if(player&&map.props.includes(o)&&Math.abs(player.x-o.x)<13&&player.y<o.y&&player.y>o.y-32){
         c.save();c.globalAlpha=.45;o.draw(c);c.restore();
       }else o.draw(c);
     }
