@@ -21,6 +21,8 @@
     canyon:{dusk:'238,128,72',night:'42,24,62',depth:.48},
     under:{dusk:'0,0,0',night:'12,16,34',depth:.34,under:true},
     // Cava delle Braci: crepuscolo di brace e notte rossastra; Fenditura Astrale: viola profondo.
+    // Cripta delle Soglie: penombra calda e violacea di un sepolcro antico, rischiarata dai bracieri.
+    crypt:{dusk:'0,0,0',night:'22,12,24',depth:.4,under:true},
     // Santuario della Marea Muta: penombra marina costante, come un sotterraneo.
     tide:{dusk:'0,0,0',night:'6,22,42',depth:.3,under:true},
     ember:{dusk:'240,120,70',night:'46,18,32',depth:.46},
@@ -118,6 +120,7 @@
     shore:{n:14,day:'#ffffff',night:'#cfe3ff',streak:true,speed:[16,1]},
     canyon:{n:16,day:'#e7c08f',night:'#c99a75',streak:true,speed:[18,2]},
     under:{n:12,day:'#9aa7ad',night:'#9aa7ad',speed:[0,3]},
+    crypt:{n:18,day:'#e8c88a',night:'#e8c88a',twinkle:true,speed:[1,2]},
     tide:{n:22,day:'#9fe0d8',night:'#9fe0d8',twinkle:true,speed:[1,-6]}
   };
   const cloudImages=[];

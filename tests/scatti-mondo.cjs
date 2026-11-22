@@ -35,7 +35,8 @@ const SPOTS = {
   'azheryon-calis': ['dune-port', 454, 404], 'azheryon-damar': ['sunken-dunes', 850, 300],
   'cava': ['quarry', 558, 540], 'cava-ingresso': ['quarry', 300, 560], 'cava-forgia': ['quarry', 840, 430],
   'fenditura': ['rift', 731, 470], 'fenditura-osservatorio': ['rift', 425, 560], 'fenditura-cuore': ['rift', 1068, 300],
-  'cripta': ['ardel-crypt', 694, 500],
+  'cripta': ['ardel-crypt', 694, 500], 'cripta-anticamera': ['ardel-crypt', 200, 540],
+  'cripta-nomi': ['ardel-crypt', 675, 245], 'cripta-soglia': ['ardel-crypt', 1090, 270],
   // Santuario della Marea Muta: esiste solo in alcuni mondi, usare SEED=1116 (ingresso nel Passo dei Larici).
   'santuario-ingresso': ['frost-pass', 877, 330], 'santuario-soglia': ['nadir-vault', 190, 560],
   'santuario-deposito': ['nadir-vault', 547, 540], 'santuario-chiostro': ['nadir-vault', 570, 230],

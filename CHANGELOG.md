@@ -2,6 +2,14 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-22] World Art Overhaul, fase 4: Cripta, creature, combattimento e città — Claude
+Branch `claude/world-art-fase4` da `main` `972e31c` (non unito; nessun merge senza approvazione dell'utente). Incrementi separati e verificati uno per uno. Nessun file di `urban-life.js` o del pathfinding toccato (lavoro PERF-002 di Codex in corso nel worktree `perf-002-npc`).
+### Fase A · Cripta delle Soglie (`continents.js`, `world-light.js`)
+- Materiali diversi per sala: lastre d'arenaria con sentiero consumato e mosaico del patto (Anticamera), mattoni a spina di pesce con passatoia (corridoi), scacchiera di basalto e marmo a contrasto contenuto con la rosa delle otto chiavi d'oro (Sala delle Chiavi), lastre d'ardesia con un nome inciso su ciascuna e altare ad anello con il libro dei nomi e otto candele (Camera dei Nomi), basalto levigato con anelli e raggi d'oro e il cerchio della Soglia con due archi che si cercano (Ultima Soglia).
+- Pareti alte 20 px in arenaria con nicchie e urne, tavole incise e la porta sigillata in rilievo dell'Ultima Soglia; roccia viva con venature; ombre di contatto delle pareti; pavimenti ritagliati sul perimetro delle sale, corridoi sotto le sale.
+- Bracieri di bronzo al posto delle lampade (stessi punti), luce dei bracieri, dei tre pezzi centrali e del mosaico, strato emissivo di rune e intarsi; penombra calda e violacea (`crypt`) con pulviscolo dorato, distinta dalla penombra marina del Santuario.
+- Sale, oggetti, varco e punti invariati: la percorribilità resta «dentro una sala».
+
 ## [2026-11-22] Integrazione: Santuario, statue, varchi e interni di Velaris da Claude e Codex — Claude
 Branch `claude/integrazione-santuario-interni` da `main` `ec03eeb`: fast-forward su `claude/world-art-santuario` (`3bd7f6d`), commit di prova `scatti-mondo` per più build, poi merge di `codex/world-art-interni-santuario` (`e9f1146`) con scelta parte per parte (commit di merge `4d3d4c7`). Branch originali non modificati. **Unito a `main` per fast-forward il 2026-11-22 (`ec03eeb` → `ae2b5c7`) su approvazione dell'utente**; dopo l'unione HTML identico ai sorgenti e alla build combinata (SHA-256 `fd4bc3c8…`), sistemi urbani ed economici invariati, test Node e prove nel browser rieseguiti su `main` con esito positivo (verifica-integrazione, economia 158 e 147, percorsi 0 bloccati su 41 040, residenti 0, collisioni identiche a `ec03eeb`, browser 10/10, 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7, interni 12/12).
 ### Provenienza degli elementi

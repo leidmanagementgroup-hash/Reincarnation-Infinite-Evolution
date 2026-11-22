@@ -3,7 +3,7 @@
 > Ultimo aggiornamento 2026-11-22, Claude, integrazione di Santuario, statue, varchi e interni di Velaris (Claude e Codex) unita a `main` per fast-forward (`ec03eeb` → `ae2b5c7`) su approvazione dell'utente.
 
 ## In corso
-_Nessuna modifica in corso._ Il branch di integrazione `claude/integrazione-santuario-interni` è unito a `main` (2026-11-22, `ae2b5c7`). I branch `claude/world-art-santuario` (`3bd7f6d`) e `codex/world-art-interni-santuario` (`e9f1146`) restano invariati e sono assorbiti: **Claude e Codex devono ripartire da `main`**.
+**World Art Overhaul, fase 4** (Claude, 2026-11-22): branch `claude/world-art-fase4`, worktree `C:\Users\elaro\Downloads\Reincarnation-fase4`, base `main` `972e31c`. Fase A (Cripta delle Soglie) completata e verificata; seguono creature ed evoluzioni, effetti di combattimento, famiglie artistiche delle città. File: `continents.js`, `world-light.js`, moduli degli sprite e degli effetti, nuovo modulo per le città; **non** tocca `urban-life.js` né il pathfinding (PERF-002 di Codex nel worktree `perf-002-npc`).
 
 ## Prossimo passo
 0. **Integrazione Claude + Codex — unita a `main`** (2026-11-22, fast-forward `ec03eeb` → `ae2b5c7`, approvazione dell'utente; branch `claude/integrazione-santuario-interni`): contiene il Santuario combinato, le statue scelte per continente, i varchi di Claude, la Cripta e gli otto interni di Codex (tabella della provenienza in *Test e verifiche*). Claude e Codex ripartono da `main` e non da `claude/world-art-santuario` o `codex/world-art-interni-santuario`, già assorbiti. Prossimi incrementi possibili (da approvare): arredi narrativi della Cripta, sprite di creature ed evoluzioni, effetti di combattimento, profili artistici nel Generatore Procedurale Urbano 2.0.
