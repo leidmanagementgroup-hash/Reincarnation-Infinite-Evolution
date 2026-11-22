@@ -7,6 +7,12 @@ La campagna Dal Borgo al Varco fa parte di Vaelthoria, al centro del mondo. Dall
 
 Apri `Reincarnation.html` in un browser moderno. Grafica, musica sintetizzata e logica di gioco sono incorporate nel file HTML. Il browser conserva la partita in memoria locale. Dal menu Opzioni e comandi puoi esportare una copia JSON e importarla su un altro dispositivo. Il caricamento migra i salvataggi dalla v1 alla v6, compresa la v5 di GitHub. La vecchia attivazione di Vaelthoria vale per la Custode delle Origini nella Valle degli Antichi. Usa la copia JSON se sposti il file o cambi browser.
 
+### Visitare il Borgo dei Filoni
+
+Raggiungi il **Passo dei Larici** nella regione settentrionale di Nordharyn. Dal mercato del Borgo dei Filoni segui la strada verso est fino al cartello e premi **E** per entrare nel **Piazzale degli Argani**. Apri **M** per orientarti fra la piazza, la Corte dei Larici e il Cortile delle Botteghe. Con **E** puoi entrare nella locanda, nelle due botteghe, nella forgia e nella Casa della Cresta.
+
+Alla locanda puoi riposare fino al mattino. Le botteghe condividono il mercato dei Filoni e i suoi orari. Alla forgia trovi il banco di lavoro e la prova di forgiatura. Uscendo da un interno torni alla porta che hai usato per entrare.
+
 ### Esplorare Velaris
 
 - Apri **M**, entra nell’Atlante e scegli **Segna Velaris**. La strada passa dalla Valle degli Antichi alla Selva degli Alambicchi e da lì raggiunge la porta della città. Con **E** attraversi la porta ed entri negli edifici segnalati.
@@ -82,6 +88,7 @@ Dalla cartella dei sorgenti esegui `python build.py Reincarnation.html`. Lo scri
 | `expansion-world.js` | Cava delle Braci, Fenditura Astrale e passaggi regionali |
 | `continents.js` | Geografia delle nove nuove regioni e della Cripta delle Soglie, rotte, caricamento e monumenti |
 | `urban-exterior.js`, `urban-interiors.js`, `urban-world.js` | Quartieri e interni di Velaris, collisioni, mappa, percorsi e collegamenti con la Selva degli Alambicchi |
+| `filoni-sprites.js`, `urban-districts.js` | Piazzale degli Argani, atlante nordico, lotti, grafo, settori e cinque interni del Borgo dei Filoni |
 | `urban-life.js`, `urban-services.js` | Residenti, orari, commissioni, scorte urbane, fonte della piazza e servizi interattivi |
 | `sprites.js` | Sprite animati, forme evolute, icone e ritratti |
 | `expansion-species.js` | Stirpi aggiunte e forme evolutive avanzate |

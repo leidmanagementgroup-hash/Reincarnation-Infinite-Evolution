@@ -2,6 +2,13 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-22] Apri il Piazzale degli Argani al Borgo dei Filoni — Codex
+Branch `codex/generatore-urbano-filoni`, base `3ff458b`.
+### Aggiunto
+- Quartiere di Nordharyn con 13 lotti, piazza d'autore, strade e soglie connesse, cinque interni e tre residenti con turni diurni. Il nuovo passaggio parte dal borgo esistente senza spostare il mercato o i varchi storici.
+- Planimetria deterministica, collisioni e superfici per settore, cache a capienza limitata e mappa semplificata. L'atlante del quartiere riusa 14 sprite effettivi del World Art Overhaul e le sorgenti di illuminazione del motore.
+- Riposo, commercio sul mercato `filoni` e forgia attraverso i sistemi già presenti. Salvataggi v7 con ID separati per ciascuna porta e interno. HTML offline ricostruito, test e misure in `PROGRESS.md`.
+
 ## [2026-11-22] Integra PERF-002 su `main` — Codex
 Fast-forward autorizzato da `972e31c` ad `a4a7c20` (`codex/perf-002-npc`). Ricostruito `Reincarnation.html` e verificata l'identità byte per byte con il commit di integrazione e con una build indipendente (SHA-256 `907f4dc6…`).
 ### Verifica

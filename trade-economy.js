@@ -40,7 +40,8 @@
   const done=(text,extra={})=>({ok:true,changed:true,text,...extra});
   const minBig=(a,b)=>a<b?a:b;
   const shopNear=(s,p)=>s.region===p.region&&Math.hypot(s.player.x-p.x,s.player.y-p.y)<=p.range||
-    p.id==='velaris'&&!!window.UrbanWorld?.access(s,'shop');
+    p.id==='velaris'&&!!window.UrbanWorld?.kind(s.region)&&!!UrbanWorld.access(s,'shop')||
+    p.id==='filoni'&&!!window.UrbanDistricts?.roomKind(s.region)&&!!window.UrbanWorld?.access(s,'shop');
   const clock=s=>window.Calendar?.view(s.calendar,s.time,s.region)||
     {day:1+Math.floor((480+s.time*3)/1440),shopOpen:Math.floor(480+s.time*3)%1440>=420&&Math.floor(480+s.time*3)%1440<1200,seasonIndex:0};
 

@@ -42,6 +42,8 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 | 9 | `legendary-land.js` | `LegendaryLand`, `World` | Area del Santuario della Marea Muta (`nadir-vault`): bacino sommerso, piattaforme, colonne e rune in cache, strato emissivo e luci per `WorldLight` |
 | 10 | `urban-exterior.js` | `UrbanExterior` | Quartieri, edifici, canale, ponti e percorsi deterministici di Velaris (tratti verificati in modo esatto per il raggio del corpo); luce dal calendario, finestre, cristalli, riflessi, ombre e vegetazione animata (movimento ridotto rispettato) |
 | 11 | `urban-interiors.js` | `UrbanInteriors` | Sette interni visitabili e cache delle superfici |
+| 11a | `filoni-sprites.js` | `FiloniSprites` | Atlante pixel compilato dagli sprite nordici del World Art Overhaul a `3ff458b` |
+| 11b | `urban-districts.js` | `UrbanDistricts` | Registro del quartiere dei Filoni, profilo dei lotti, grafo, collisioni, superfici per settore, servizi e piccoli turni locali |
 | 12 | `urban-world.js` | `UrbanWorld, World` | Collegamenti con la Selva degli Alambicchi, rotte, collisioni e accesso ai servizi |
 | 13 | `calendar.js` | `Calendar` | Calendario persistente unico (giorno = 1800 s reali = 1440 min di gioco) |
 | 14 | `inventory.js` | `Inventory` | Magazzino a pile, quantità esatte, deposito |
@@ -124,6 +126,14 @@ Il formato v7 conserva `urban` (routine, scorte, memorie e commissioni), `cityWo
 In `continents.js` i cinque monumenti della rinascita (`monument`, variante = continente) e i loro pilastri hanno sagome e materiali propri; i varchi (`gate`) cambiano per bioma e mostrano un passaggio scuro. Nessuno di questi oggetti ha ingombro di collisione: posizioni, collegamenti e interazioni sono quelli di prima. Statue di Nordharyn e Azheryon e pilastri e varco della Cripta usano i disegni di Codex (`paintRelic`); gli altri gli sprite per bioma di Claude.
 
 Gli otto interni di Velaris (`urban-interiors.js`, lavoro di Codex) hanno pavimenti, rivestimenti, arredi e luci per tipo di sorgente precalcolati e limitati alla stanza, nel rispetto del movimento ridotto; coordinate, collisioni, accessi, servizi e dati di salvataggio sono invariati.
+
+### 3.5 Borgo dei Filoni · Piazzale degli Argani
+
+Il cartello a est del mercato nel Passo dei Larici apre il nuovo quartiere `city-filoni` (960×672 pixel logici). Il borgo preesistente continua a usare mappa, servizi e inventario del mercato `filoni`. I tredici lotti sono associati a chiavi permanenti. La piazza, gli argani e la cooperativa sono elementi d'autore. Varianti delle abitazioni e posizioni entro il lotto usano il seme e la revisione 1, con sequenze indipendenti per lotto e decorazione.
+
+Il grafo di strade e collegamenti alle soglie usa le stesse sagome di collisione indicizzate per settore del movimento locale. Sono generate bitmap da 256 px soltanto per i settori osservati. La cache conserva tutti quelli inquadrati con un margine ridotto. La carta usa una planimetria compatta. La luce esterna registra lampioni e finestre con `WorldLight`. Le cinque istanze interne riusano piante e arredi collaudati di Velaris, con nomi, accessi, semi di disegno e servizi associati al proprio edificio.
+
+I salvataggi continuano a usare il formato v7. `city-filoni` e gli interni sono registrati prima della validazione della partita. La disposizione si ricostruisce dal seme, senza salvare Canvas, grafo o sprite. Cambi futuri alla generazione devono mantenere la revisione 1 per queste coordinate o migrare esplicitamente le posizioni. I turni dei tre residenti usano il calendario e i percorsi locali. L'attività economica resta aggregata nell'unico mercato dei Filoni.
 
 ## 4. Meccaniche
 

@@ -97,7 +97,7 @@
     if(kind!=='fishing'){
       const raw=stations[kind],id={smithing:'forge',cooking:'inn-kitchen'}[kind],
         urban=id&&window.UrbanWorld?.site(s,id);
-      return urban?{...raw,...urban.point,region:s.region,name:id==='forge'?'Incudine di Velaris':'Cucina di Velaris'}:raw;
+      return urban?{...raw,...urban.point,region:s.region,name:urban.name||(id==='forge'?'Incudine di Velaris':'Cucina di Velaris')}:raw;
     }
     const point=shore[s.region];
     return point&&{region:s.region,x:point[0],y:point[1],name:point[2],tool:'rod',job:'fisher'};
@@ -236,7 +236,8 @@
   function sites(s){
     return ['fishing','cooking'].map(kind=>{
       const site=station(s,kind);
-      return site?.region===s.region&&!window.UrbanWorld?.kind(s.region)?{...site,id:kind,kind:'workshop',range:25,point:{x:site.x,y:site.y},text:site.name+' · '+labels[kind]}:null;
+      return site?.region===s.region&&!window.UrbanWorld?.kind(s.region)&&!window.UrbanDistricts?.roomKind(s.region)
+        ?{...site,id:kind,kind:'workshop',range:25,point:{x:site.x,y:site.y},text:site.name+' · '+labels[kind]}:null;
     }).filter(Boolean);
   }
   function view(s){

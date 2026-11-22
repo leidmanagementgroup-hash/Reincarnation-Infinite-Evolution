@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parent
 MODULES = (
     "world-light.js", "world.js", "expansion-world.js", "continents.js",
     "sprites.js", "expansion-species.js", "expansion-art.js", "continental-species.js", "legendary-land.js",
-    "urban-exterior.js", "urban-interiors.js", "urban-world.js",
+    "urban-exterior.js", "urban-interiors.js", "filoni-sprites.js", "urban-districts.js", "urban-world.js",
     "calendar.js", "inventory.js", "lantern.js", "growth.js", "world-life.js",
     "construction.js", "society.js", "guild.js", "trades-practice.js", "tradecraft.js",
     "daily-life.js", "market-flows.js", "trade-economy.js", "gear.js", "adaptive-combat.js", "legendary.js",

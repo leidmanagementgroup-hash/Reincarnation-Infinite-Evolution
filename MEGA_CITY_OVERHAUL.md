@@ -622,6 +622,12 @@ Il riferimento artistico e tecnico per la resa di materiali, architetture, luci,
 | 4 · Eventi, reputazione e leggi | Eventi stagionali, missioni narrative e segrete, reputazione locale e guardie. | Un evento segue calendario e ricaricamento. Una stessa azione ha conseguenze verificabili secondo le regole locali. Le proprietà personali resistono agli eventi. |
 | 5 · Altre città e capitali | Temi dei cinque continenti, insediamenti procedurali e luoghi unici, crescita degli insediamenti e profili multispecie. | I centri si distinguono per geografia, architettura e attività. Profili e modifiche persistono al cambio di regione. Aumentare dimensione e popolazione per tranche dopo le misure di prestazioni. |
 
+## Generatore Procedurale Urbano 2.0
+
+Il primo prototipo del branch `codex/generatore-urbano-filoni` aggiunge il Piazzale degli Argani al Borgo dei Filoni. Un varco nel Passo dei Larici collega il borgo storico alla nuova planimetria. Il profilo distingue rete stradale, lotti, servizi stabili e asset nordici. Il grafo leggero viene costruito al primo utilizzo, mentre le superfici di dettaglio vengono prodotte e riutilizzate per area visibile. Piazzale, cooperativa e accesso sono d'autore. Le varianti degli edifici e la vegetazione seguono il seme.
+
+La popolazione è limitata a tre residenti all'aperto con turni e agli addetti degli interni. Le due botteghe si appoggiano al mercato `filoni`. Il profilo non aggiunge un mercato o un nuovo formato di salvataggio. Ogni istanza interna ha un ID di lotto permanente e torna alla stessa porta. Per un secondo profilo servirà separare i confini settoriali dalla geografia dei Filoni, misurando il carico su mappe più estese e conservando la compatibilità del profilo 1. I risultati del primo collaudo sono in [PROGRESS.md](PROGRESS.md#primo-prototipo-dei-filoni).
+
 ## Passaggio di consegne
 
 PERF-002 introduce la preparazione scaglionata delle soste di Velaris. Le [sonde](PROGRESS.md#perf-002--routine-npc) distinguono il cambio del giorno, il recupero dopo un salto e il costo separato di simulazione, percorsi e Canvas. Le popolazioni sintetiche usano la planimetria attuale. Prima di aumentare la popolazione di una nuova città, ripetere le misure sui suoi distretti, controllare la capacità di strade e piazze e misurare percorsi e residenti visibili separatamente.
