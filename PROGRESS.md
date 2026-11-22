@@ -3,7 +3,7 @@
 > Ultimo aggiornamento 2026-11-22, Codex, prototipo giocabile dei Filoni sul branch `codex/generatore-urbano-filoni` da `3ff458b`.
 
 ## In corso
-_Nessuna modifica in corso._ Il prototipo dei Filoni è verificato sul branch dedicato e disponibile per revisione.
+_Nessuna modifica in corso._ Il prototipo dei Filoni è verificato sul branch dedicato al commit `6f025a7` e disponibile per revisione.
 
 ## Prossimo passo
 0. **Prototipo dei Filoni verificato**. Il Piazzale degli Argani è raggiungibile dal Passo dei Larici. Dopo la revisione del quartiere, il prossimo incremento potrà separare il profilo locale dal generatore e verificare un secondo insediamento su un altro continente. [Verifiche del prototipo](#primo-prototipo-dei-filoni).
