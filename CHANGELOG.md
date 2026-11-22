@@ -3,7 +3,7 @@
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
 ## [2026-11-22] Differenzia le sale del Santuario della Marea Muta — Codex
-Incremento separato da `043b76c` sul branch `codex/world-art-interni-santuario` per facilitare il confronto con `claude/world-art-santuario`.
+Commit `3c3df4d`, incremento separato da `043b76c` sul branch `codex/world-art-interni-santuario` per facilitare il confronto con `claude/world-art-santuario`.
 ### Modificato
 - Soglia, Deposito degli echi, Chiostro dei flutti e sala del trono hanno lastricati, rilievi, mosaici e sorgenti luminose propri. Il bacino è disegnato fuori dal pavimento percorribile; le colonne sono precalcolate (`legendary-land.js`).
 - Ricostruito `Reincarnation.html`. Le prove in Edge e i confronti con geometria e salvataggi precedenti sono registrati in `PROGRESS.md`.

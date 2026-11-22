@@ -3,7 +3,7 @@
 > Ultimo aggiornamento 2026-11-22, Codex, rifinitura grafica su `codex/world-art-interni-santuario` a partire da `ec03eeb`.
 
 ## In corso
-Verifica completata sul branch `codex/world-art-interni-santuario`. La revisione grafica del Santuario della Marea Muta è in un commit separato dagli interni e dai monumenti (`043b76c`) per poterla valutare in modo indipendente dal branch di Claude. La revisione è in attesa di approvazione per l'integrazione.
+Verifica completata sul branch `codex/world-art-interni-santuario`. La revisione grafica del Santuario della Marea Muta (`3c3df4d`) è separata dagli interni e dai monumenti (`043b76c`) per poterla valutare in modo indipendente dal branch di Claude. La revisione è in attesa di approvazione per l'integrazione.
 
 ## Prossimo passo
 0. **Cava delle Braci e Fenditura Astrale; ART-001 risolto — unito a `main`** (Claude, 2026-11-22, fast-forward `cf86486` → `8da2400`, approvazione dell'utente; branch `claude/world-art-cava-fenditura`): rilievi di Codex recuperati dal worktree non committato `world-art-wide` (copia verificata in `C:\Users\elaro\Downloads\Codex-backup-2026-11-22-world-art-wide`), più profondità, lava, isole sospese, ombre e luce notturna; atmosfera prima degli avvisi di combattimento. Il worktree di Codex resta com'era: **Codex deve ripartire da `main` (`8da2400` o successivo)** e non applicare di nuovo il proprio diff, già recuperato o deliberatamente scartato. Prossimi incrementi grafici possibili: Santuario della Marea Muta, varchi e pilastri dei monumenti per bioma, interni di Velaris, collegamento di `flora`/`masonry` al Generatore Procedurale Urbano 2.0.
