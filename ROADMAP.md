@@ -18,8 +18,9 @@
 - [x] **Economia urbana, Fase 3 (due unità)**: flussi di produzione, consumo, rotte e prezzi, registro delle merci, API per negozi futuri, profili per nuove città. Unita a `main` il 2026-11-21 (`4763426`).
 - [ ] Economia, passi successivi (da approvare): lista dinamica dei mercati in `Economy` (ECO-002), interfaccia di tendenze e merci in viaggio (ECO-003), mestieri dei residenti collegati a `MarketFlows.activity`, profondità dei mercati per dimensione (ECO-001), eventi e leggi come modificatori di `traits`/`routes` (Fase 4).
 - [x] **PERF-001**: `path()` medio da 5,9 a 0,78 ms e p95 da 21 a 2 ms, percorsi identici (unito a `main` il 2026-11-21, `a1e4c54`).
-- [x] **PERF-002**: assegnazione locale delle soste e preparazione distribuita dalle 22:00, verificata su `codex/perf-002-npc` fino a 500 residenti di prova. Integrazione su approvazione. Rimane sincrono il primo utilizzo di un giorno saltato o caricato senza un piano pronto, vedi [misure](PROGRESS.md#perf-002--routine-npc).
-- [ ] **Fase successiva —** Generatore Procedurale Urbano 2.0: generalizzare lotti, vie, confini e oggetti dell'annesso (oggi a coordinate fisse) partendo da `settlementTypes`, cache per settori e routine per quartiere.
+- [x] **PERF-002**: pianificazione delle soste per celle e preparazione distribuita dalle 22:00. Unito a `main` per fast-forward da `972e31c` ad `a4a7c20`. [Misure e regressioni su `main`](PROGRESS.md#perf-002-su-main).
+- [ ] **PERF-003 · Salto di calendario anticipato con popolazione elevata**: nel test con 500 residenti sintetici e 120 fotogrammi serali, il completamento sincrono porta ancora il picco CPU a 110 ms in Edge. Lavoro futuro separato dal cambio di giorno ordinario. Misurare anche il primo ingresso con il piano assente.
+- [ ] **Generatore Procedurale Urbano 2.0 — in attesa**: avviare su nuova autorizzazione. Generalizzare lotti, vie, confini e oggetti dell'annesso partendo da `settlementTypes`, cache per settori e routine per quartiere.
 - [x] BUG-011: risolto e unito a `main` (2026-11-21).
 - [ ] Verificare in partita il bilanciamento dei danni ai compagni (quanto spesso scendono in stato critico).
 - [x] Prima prova nel browser con Playwright: `tests/prova-browser.cjs` (menu principali, Atlante, Segna Velaris, salvataggi). Da estendere a combattimento, minigiochi e interni.

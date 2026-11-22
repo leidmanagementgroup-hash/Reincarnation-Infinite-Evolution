@@ -2,6 +2,13 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-22] Integra PERF-002 su `main` — Codex
+Fast-forward autorizzato da `972e31c` ad `a4a7c20` (`codex/perf-002-npc`). Ricostruito `Reincarnation.html` e verificata l'identità byte per byte con il commit di integrazione e con una build indipendente (SHA-256 `907f4dc6…`).
+### Verifica
+- Ripetuto il benchmark dei 95 residenti reali. Su `main`, pianificazione totale Node da 64,89 a 19,43 ms (mediana) e picco CPU in Edge a mezzanotte da 11,4 a 2,2 ms. Risultati e regressioni in `PROGRESS.md`.
+- Su `main`, test Node e 69 prove Edge superati. BUG-011 e PERF-001 verificati, geometria identica su 23 regioni, 28 confronti grafici identici e salvataggi precedenti caricati.
+- Registrato separatamente il salto anticipato a 500 residenti come **PERF-003**, lavoro futuro. Il Generatore Procedurale Urbano 2.0 rimane in attesa.
+
 ## [2026-11-22] PERF-002, pianificazione delle routine di Velaris — Codex
 Branch `codex/perf-002-npc`, base `972e31c`, commit `d980a80`.
 ### Corretto
