@@ -45,7 +45,7 @@
 - [ ] Rivedere il pilota prima del merge.
 - [x] Stesse regole estese alle otto regioni continentali, alla luce notturna del mondo aperto (anche Valle di Vela) e alla Cripta: branch `claude/world-art-overhaul` (Claude), unito a `main` il 2026-11-22 (`ad6daa4`).
 - [x] ART-001: lavoro non committato di Codex copiato e verificato, confrontato con `main` file per file e recuperato dove aggiunge qualcosa (branch `claude/world-art-cava-fenditura`, Claude, 2026-11-22).
-- [x] Cava delle Braci e Fenditura Astrale: profondità, lava, isole sospese, luce notturna (branch `claude/world-art-cava-fenditura`, da approvare).
+- [x] Cava delle Braci e Fenditura Astrale: profondità, lava, isole sospese, luce notturna (branch `claude/world-art-cava-fenditura`, unito a `main` il 2026-11-22, `8da2400`).
 - [ ] Santuario della Marea Muta, varchi e pilastri dei monumenti per bioma, interni di Velaris.
 - [ ] Collegare materiali, vegetazione e famiglie architettoniche ai profili del Generatore Procedurale Urbano 2.0.
 
