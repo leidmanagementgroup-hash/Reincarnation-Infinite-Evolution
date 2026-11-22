@@ -52,7 +52,8 @@
 - [ ] Estendere il metodo: Grifone, Fata ed Elementale; forme 3–4 delle nove stirpi originali (`advancedLegacy`); Umano e Nano per ultimi (aspetto dei residenti).
 - [x] Effetti di combattimento per elemento, colpo forte, schivata, impatti, boss e trasformazioni (fase 4 C, `combat-fx.js` ed etichetta visiva `fxTag` in `engine.js`, stesso branch, da approvare).
 - [ ] Seguiti della fase C: elemento per singola tecnica dove il nome lo chiede più della stirpe; suono per elemento.
-- [ ] Famiglie architettoniche per continente come catalogo separato per il Generatore Procedurale Urbano 2.0 (fase 4 D, non iniziata).
+- [x] Famiglie architettoniche per continente come catalogo separato per il Generatore Procedurale Urbano 2.0 (fase 4 D, `city-families.js`, già nei borghi continentali, stesso branch, da approvare).
+- [ ] Seguiti della fase D: ruoli dedicati (locanda, magazzino, tempio), porta sul fianco, componenti caratteristici in partita (colonnato, torre di guardia, serra, passerella, molo) quando il generatore assegna i lotti.
 - [ ] Collegare materiali, vegetazione e famiglie architettoniche ai profili del Generatore Procedurale Urbano 2.0.
 
 ## Priorità Media — Contenuti ★

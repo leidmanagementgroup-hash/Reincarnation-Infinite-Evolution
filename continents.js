@@ -1424,6 +1424,8 @@
   }
   // Posizione della fiamma rispetto alla base del lampione: [dx, dy, larghezza, altezza].
   function lampFlame(pal){
+    const fam=familySprite(pal,'lamp',0);
+    if(fam?.flame)return fam.flame;
     if(pal==='grass'||pal==='root')return [-1,-27,3,4];
     if(pal==='star'||pal==='fae')return [-1,-22,3,3];
     if(pal==='ruin')return [-1,-19,3,3];
@@ -1460,9 +1462,28 @@
   }
   const biomeOf=rid=>advanced[rid]?.rooms?'crypt':advanced[rid]?.palette;
   window.WorldLight?.provide(rid=>!!advanced[rid]&&current?.r.id===rid,lightSources,biomeOf,biomeOf);
+  // Famiglie architettoniche per continente (city-families.js, fase 4 D): casa, bottega (seconda casa), sala, banchi,
+  // pozzo e lampioni dei borghi con le impronte di sempre; senza il modulo resta il disegno precedente.
+  // La Selva degli Alambicchi (tavolozza `fae`) resta il pilota di Codex con i suoi sprite, lampioni e pozzo compresi.
+  const familySpec=(type,v)=>type==='hall'?{w:50,variant:v}:type==='house'?{w:40,stories:v===2?1:2,variant:v}:{variant:v};
+  function familySprite(pal,type,v){
+    const fam=pal!=='fae'&&['house','hall','stall','well','lamp'].includes(type)&&window.CityFamilies?.familyOf(pal);
+    return fam?CityFamilies.render(fam[0],fam[1],type==='house'&&v===2?'workshop':type,familySpec(type,v)):null;
+  }
   function paintBiomeSprite(c,a,o,t){
     const pal=a.r.palette,type=o.type;
     let key=null,draw=null;
+    const fam=familySprite(pal,type,o.variant);
+    if(fam){
+      a.sprites.set(type==='lamp'?'lamp':type+'/'+o.variant,fam.image);
+      c.drawImage(fam.image,o.x-fam.ax,o.y-fam.ay);
+      if(type==='lamp'){
+        const lit=Math.sin(t*4+o.x)>-.6,[dx,dy,fw,fh]=lampFlame(pal);
+        const col=pal==='star'||pal==='fae'?['#9ff0ff','#e6ffff']:['#f2a046','#ffe3a0'];
+        tile(c,col[0],o.x+dx,o.y+dy,fw,fh);if(lit)tile(c,col[1],o.x+dx+1,o.y+dy+(fh>3?1:0),1,2);
+      }
+      return true;
+    }
     if(['leaf','pine','umbrella','palm','rock','shrub','stone'].includes(type)){
       const size=Math.floor(hash(o.x,o.y,7259)*3),v=o.variant%6;
       const kind=type==='shrub'||type==='stone'?type:pal==='star'&&type==='leaf'?'tree':'tree';

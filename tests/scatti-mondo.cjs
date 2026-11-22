@@ -50,7 +50,10 @@ const SPOTS = {
   'varco-vaelthoria': ['ancient-valley', 704, 150], 'varco-nordharyn': ['frost-pass', 1150, 470],
   'varco-myrathen': ['verdant-canopy', 1150, 470], 'varco-voryndhal': ['golden-savanna', 1150, 470],
   'varco-azheryon': ['dune-port', 1150, 470], 'varco-valle': ['valley', 1220, 650],
-  'velaris-piazza': ['city-velaris', 940, 740]
+  'velaris-piazza': ['city-velaris', 940, 740],
+  // Borghi delle famiglie architettoniche (fase 4 D): stessa pianta in ogni regione, con il centro a 454,404.
+  'nordharyn-hadrin': ['winter-citadel', 454, 404], 'myrathen-siderea': ['moon-grove', 454, 404],
+  'voryndhal-fronde': ['root-sanctuary', 454, 404], 'azheryon-damar-borgo': ['sunken-dunes', 454, 404]
 };
 const scenes = (sceneFilter ? sceneFilter.split(',') : Object.keys(SPOTS)).filter(k => SPOTS[k]);
 

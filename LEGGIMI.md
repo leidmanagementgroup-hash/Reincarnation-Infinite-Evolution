@@ -30,6 +30,7 @@ Apri `Reincarnation.html` in un browser moderno. Grafica, musica sintetizzata e 
 - Nella Cava delle Braci la lava resta incandescente anche di notte e scalda la roccia vicina; nella Fenditura Astrale le isole sospese mostrano la roccia che pende nel vuoto. Le terrazze hanno l’orlo illuminato verso di te: i bordi praticabili si riconoscono a colpo d’occhio.
 - Neve leggera, lucciole, spore, scintille e polvere cambiano da un bioma all’altro; di giorno le ombre delle nuvole scorrono sul terreno. Con **effetti ridotti** (Opzioni) o con la riduzione del movimento del sistema le particelle e le nuvole si fermano e le luci non pulsano.
 - In combattimento ogni stirpe e ogni creatura ha un elemento che si riconosce dagli effetti: fiamme e braci, spruzzi d'acqua, schegge di ghiaccio, saette, ombre risucchiate, raggi di luce o colpi fisici. Il terzo colpo della combo ha un'onda d'urto e un numero più grande; la schivata riuscita lascia una scia azzurra; i boss cambiano aura a ogni fase. Avvisi di pericolo e numeri restano sempre sopra agli effetti. Con **effetti ridotti** o con la riduzione del movimento del sistema restano solo simboli fermi.
+- I borghi dei continenti hanno un'architettura propria: case di travertino e graticcio con coppi in Vaelthoria, frontoni ripidi d'ardesia, casaforte e imbocco di miniera in Nordharyn, legno scuro, vetrate e cupole di rame verderame in Myrathen, case fra le radici e loggia sotto la grande radice in Voryndhal, terrazze, portici, cupole e tende carovaniere in Azheryon. Le collisioni sono quelle di sempre.
 
 ### Vita quotidiana
 
@@ -81,6 +82,7 @@ Dalla cartella dei sorgenti esegui `python build.py Reincarnation.html`. Lo scri
 | `world-light.js` | Luce del mondo aperto: tinte di crepuscolo e notte per continente, finestre accese, aloni di lanterne e cristalli, particelle e ombre di nuvole per bioma |
 | `world.js` | Geografia della regione, percorsi, elementi procedurali, collisioni e mappa |
 | `expansion-world.js` | Cava delle Braci, Fenditura Astrale e passaggi regionali |
+| `city-families.js` | Famiglie architettoniche per continente: case, botteghe, sale, banchi, pozzi e lampioni dei borghi |
 | `continents.js` | Geografia delle nove nuove regioni e della Cripta delle Soglie, rotte, caricamento e monumenti |
 | `urban-exterior.js`, `urban-interiors.js`, `urban-world.js` | Quartieri e interni di Velaris, collisioni, mappa, percorsi e collegamenti con la Selva degli Alambicchi |
 | `urban-life.js`, `urban-services.js` | Residenti, orari, commissioni, scorte urbane, fonte della piazza e servizi interattivi |
