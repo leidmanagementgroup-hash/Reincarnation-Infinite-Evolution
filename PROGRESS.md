@@ -1,11 +1,12 @@
 # PROGRESS.md — Stato del progetto
 
-> Ultimo aggiornamento 2026-11-23, Claude, unione dell'operazione «RPG Evolution» su `main` dopo il collaudo di Calis e Filoni (Codex).
+> Ultimo aggiornamento 2026-11-23, Claude, operazione «Living World 2.0» sul branch `claude/living-world-2` (incremento 0). `main` resta `96eb9be`.
 
 ## In corso
-Nessun intervento attivo. Calis e Filoni sono visitabili su `main`; l'operazione RPG Evolution è unita a `main`. Lo sviluppo di nuove città resta in attesa.
+**Operazione Living World 2.0** (Claude, branch `claude/living-world-2`, worktree `C:\Users\elaro\Downloads\Reincarnation-living-world`, base `main` `96eb9be`): piano e stato in `LIVING_WORLD.md`. File che toccherà: nuovo `world-memory.js` (e in seguito un modulo di richieste contestuali), poche righe di `engine.js`, `panels.js`, `interface.js`, `build.py` (riga dei moduli dopo `reputation.js`), `trade-economy.js` per LW-ECO-01/02, `tests/`. Non tocca `urban-life.js` né i file del generatore urbano di Codex. Calis e Filoni sono visitabili su `main`; lo sviluppo di nuove città resta in attesa.
 
 ## Prossimo passo
+0. **Operazione Living World 2.0** (Claude, 2026-11-23, branch `claude/living-world-2`): incremento 0 fatto (audit con quattro revisori, matrice, difetti verificati, architettura, benchmark). Prossimo: incremento 1, memoria e conseguenze con Tessa (`world-memory.js`, campo `s.memory`). Trappole: i dati nuovi non devono mai far rifiutare il salvataggio (LW-SAV-01); non scrivere nei registri di Society, Velaris, Conflicts o Reputation. Decisioni aperte per l'utente: profilo termico della Viverna di brina (LW-SPC-01) e canali a prezzo fisso. Nessun merge senza consenso.
 0. **Operazione RPG Evolution unita a `main`** (Claude, 2026-11-23, autorizzazione dell'utente): merge di `claude/rpg-evolution` (`1feec7f`) su `7488642` nel branch `claude/integrazione-rpg-evolution` (commit `b1dc116`), poi fast-forward di `main` `7488642` → `b1dc116`, pubblicato. Branch originali, worktree e backup conservati. Codice senza conflitti, registri conciliati, serie completa (anche Filoni e Calis) superata sulla build unita. Problemi aperti RPG-001…RPG-004 in *Problemi conosciuti*; restano fuori dall'operazione gli sprite delle forme 3–4 prese in prestito, la biologia di Umano e Scheletro (decisione dell'utente) e i critici.
 0. **Porto di Calis su `main`**. Fast-forward autorizzato da `df21ad7` a `fff2484`. La stessa build contiene Calis e Filoni. Prima di una futura espansione di scala misurare attraversamento dei settori, memoria e routine lontane. [Collaudo e benchmark su main](#porto-di-calis-e-filoni-su-main).
 0. **Piazzale degli Argani su `main`** (Codex, 2026-11-22, autorizzazione dell'utente, fast-forward `f2febd1` → `24d33eb`). Il Piazzale e il Porto di Calis usano il medesimo generatore urbano. [Verifiche su main](#piazzale-degli-argani-su-main).

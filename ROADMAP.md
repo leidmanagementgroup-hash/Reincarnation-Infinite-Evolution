@@ -59,6 +59,16 @@
 - [ ] Seguiti della fase D: ruoli dedicati (locanda, magazzino, tempio), porta sul fianco, componenti caratteristici in partita (colonnato, torre di guardia, serra, passerella, molo) quando il generatore assegna i lotti.
 - [ ] Collegare materiali, vegetazione e famiglie architettoniche ai profili del Generatore Procedurale Urbano 2.0.
 
+## Operazione Living World 2.0 (branch `claude/living-world-2`, piano in `LIVING_WORLD.md`)
+- [x] Incremento 0: audit, matrice, difetti verificati, architettura, benchmark di riferimento.
+- [ ] Incremento 1: memoria e conseguenze (Tessa, testimoni, promessa, opportunità, persistenza).
+- [ ] Incremento 2: economia e professioni (LW-ECO-01/02, ciclo forgia → mercato, fabbro e mercante).
+- [ ] Incremento 3: tre eventi contestuali senza doppie ricompense.
+- [ ] Incremento 4: identità di Slime, Goblin e Viverna di brina senza nuove regole.
+- [ ] Incremento 5: conseguenze nel tempo e regole regionali dei cinque continenti.
+- [ ] Incremento 6: revisione, prove complete, sessione lunga, benchmark, rapporto finale.
+- Decisioni dell'utente: profilo termico della Viverna di brina (LW-SPC-01); canali a prezzo fisso (banco delle sementi, bottega della fattoria, residenti che comprano minerale).
+
 ## Operazione RPG Evolution (branch `claude/rpg-evolution`, piano in `RPG_EVOLUTION.md`)
 - [x] Incremento 0: rapporto, matrice, rischi, benchmark di riferimento.
 - [x] Incremento 1: RISK-011 risolto (difetto della prova) e `verifica-esperienza.cjs`.

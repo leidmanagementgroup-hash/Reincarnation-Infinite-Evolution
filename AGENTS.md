@@ -63,6 +63,7 @@ Cartella principale (non esistono sottocartelle sorgente):
 - `MEGA_CITY_OVERHAUL.md` — piano ufficiale dell’Aggiornamento 5, con requisiti, fasi e criteri di verifica.
 - `PIANO_GRAFICO.md` — direzione artistica e tecnica con ambiti e verifiche della prova grafica.
 - `RPG_EVOLUTION.md` — operazione «RPG Evolution» (gameplay e qualità): rapporto iniziale, matrice, rischi, incrementi e benchmark.
+- `LIVING_WORLD.md` — operazione «Living World 2.0» (mondo che ricorda e reagisce): matrice dei sistemi, difetti verificati, architettura delle interconnessioni, incrementi; audit integrale in `LIVING_WORLD_AUDIT.md`.
 
 ## 4. Regole di sviluppo
 

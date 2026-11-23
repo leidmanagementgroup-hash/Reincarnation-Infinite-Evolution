@@ -1,0 +1,132 @@
+# Operazione Living World 2.0 — il mondo vive, ricorda e reagisce
+
+Piano e registro dell'operazione «Living World 2.0» (richiesta dell'utente del 2026-11-23). Branch `claude/living-world-2`, worktree `C:\Users\elaro\Downloads\Reincarnation-living-world`, base `main` `96eb9be` (verificato sul remoto). Nessuna modifica a `main`, nessun merge senza consenso. L'audit dettagliato dei quattro revisori è in [LIVING_WORLD_AUDIT.md](LIVING_WORLD_AUDIT.md).
+
+Vincoli permanenti di questa operazione:
+- Non ripetere il lavoro di RPG Evolution (`RPG_EVOLUTION.md`): avvisi, combo, avanzamento evolutivo, soglie dell'innata, coda dei messaggi, consigli, accessibilità.
+- Non toccare il lavoro urbano di Codex: `urban-districts.js`, `urban-sector-layout.js`, `urban-lab.js`, `urban-lab-start.js`, `urban-profiles.js`, planimetrie, cache dei settori, worktree di Codex. `urban-life.js` resta in sola lettura (routine, PERF-003).
+- Assegnazione casuale delle stirpi, requisiti delle evoluzioni, rarità, bilanciamento, rapporto fra le quattro valute, biologia di Umano e Scheletro: invariati salvo decisione dell'utente.
+- Morte permanente degli NPC, resurrezione rara, Statue della Rinascita solo per il giocatore.
+- Quantità esatte (BigInt), determinismo (nessun `Math.random` nelle conseguenze), un solo file HTML offline, salvataggi precedenti caricabili.
+
+## Incremento 0 — Rapporto tecnico iniziale
+
+### Stato del repository (verificato il 2026-11-23)
+- `origin/main` = `96eb9be` (RPG Evolution unita sopra Calis e Filoni).
+- `codex/urban-scale` (laboratorio Confluenza, 25/50/100/250 edifici, commit `b92caef`) **non è integrato** in `main`. Tocca `build.py` (riga 10 di `MODULES`, opzione `--urban-lab`), `urban-world.js` (1 riga), `urban-districts.js`, i nuovi `urban-sector-layout.js`, `urban-lab.js`, `urban-lab-start.js` e i documenti. Il laboratorio rinomina la chiave `reincarnation.lumora.save.` solo dentro `engine.js`: questa operazione non scrive chiavi `localStorage` con quel prefisso fuori da `engine.js`.
+- Un nuovo modulo di questa operazione va in `MODULES` dopo `reputation.js` (riga 14): righe diverse da quella di Codex, separate da righe invariate, quindi l'unione futura non entra in conflitto su `build.py`.
+
+### Metodo
+Quattro revisori in sola lettura con perimetri distinti (simulazione e salvataggi; NPC e relazioni; economia e professioni; specie, progressione e missioni), poi verifica diretta dei punti decisivi con il motore reale in Node. Dove un'affermazione dei revisori è stata verificata, smentita o ridimensionata è scritto qui sotto; il resto è marcato «dal codice».
+
+### Matrice dei sistemi
+
+Legenda: ✅ funzionante · 👁 funzionante ma poco visibile · 🔌 implementato ma scollegato · 🟡 parziale · ⛔ assente.
+
+| Sistema | File | Dati salvati | Stato | Note verificate |
+|---|---|---|---|---|
+| Calendario e meteo | `calendar.js` | `calendar{seed,offset}` | ✅ | nessun evento di «cambio giorno»: i sistemi giornalieri confrontano il giorno da soli |
+| Passo del mondo | `engine.js` `step` | — | ✅ | impulso ogni ~1,15 s (`life.nextPulse`): `Life`, `Society`, `Build`, `Economy`, `Legendary`, `Daily`; `Conflicts` e `UrbanLife` per fotogramma |
+| Azioni del giocatore → sistemi | `engine.js` `record()` | — | ✅ | chiama in modo fisso `Growth`, `Life`, `Daily`, `Reputation`, `Guild`; `Game.onEvent` ha un solo ascoltatore (l'interfaccia). Non esiste un bus degli eventi |
+| Registro delle azioni del giocatore | — | — | ⛔ | solo frammenti: `conflicts.events` (≤32), `life.news` (≤8), memorie per abitante |
+| Cronaca di Lùmora (diario) | `world-life.js` | `life.news` | 🔌 | eventi a orario fisso a rotazione, non legati al giocatore |
+| Mestieri (17) | `world-life.js` | `life.xp` | 🟡 | effetti meccanici solo per fabbro, pescatore, contadino, allevatore, cuoco; il mercante ha solo esperienza; falegname, sarto, alchimista, erborista, cacciatore sono nomi con esperienza |
+| Incarichi quotidiani e offerta del giorno | `daily-life.js` | `daily.quests`, `offerClaimed` | 👁 | l'offerta nasce da carenze reali (`Economy.shortage`), lupi e meteo: unico precedente di evento contestuale; protetta dal doppio pagamento |
+| Commissioni di Ivo, Calis, Velaris, gilda | `engine.js`, `daily-life.js`, `urban-life.js`, `guild.js` | stato proprio | 👁 | doppio pagamento impedito; il diario non mostra gilda e Velaris |
+| Abitanti con memoria (Society) | `society.js` | `society.people[id].memories` (≤16) | 🟡 | ricordi solo `chat`/`trade`/`gift`; fiducia = numero di tipi distinti (≤5), non scende mai; tempi in secondi reali; personalità solo testo salvo `interest` |
+| Nerea, Tessa, Ivo | `world-life.js`, `engine.js` | solo stato fisico (`conflicts`) | 🟡 | identità stabile (`elder`, `merchant`, `smith`), nessuna memoria del giocatore |
+| Residenti di Velaris | `urban-life.js` (sola lettura) | `urban.people` (≤8 ricordi) | 🟡 | fiducia calcolata ma mai usata |
+| Reputazione | `reputation.js` | `reputation.standings` (±100), titoli, limiti giornalieri | 👁 | effetto solo su prezzi (±2) e titoli; nessun NPC la legge |
+| Testimoni e diffusione delle notizie | `npc-conflicts.js` | `witnessed` | ⛔ | solo la negligenza vista dal giocatore (−1 alla città); nessuna conoscenza per NPC |
+| Conflitti, morte, soccorso, rito | `npc-conflicts.js` | `conflicts` | ✅ | morte permanente protetta dalla validazione; rito unico (62%, un solo risorto) |
+| Famiglia (corteggiamento, matrimonio, adozione) | `society.js` | `society.partner`, figli | 🟡 | da sconosciuti a sposati in ~3 minuti reali; dopo la morte del coniuge non ci si può più sposare (D-2, dal codice) |
+| Gilda e compagni | `guild.js` | `guild` | ✅ | compagni mortali (GAME_DESIGN §4.9); membro morto resta in squadra (D-7, dal codice) |
+| Mercati e flussi | `trade-economy.js`, `market-flows.js` | `economy` (BigInt in stringa) | 👁 | produzione, consumo, deperimento, 8 rotte, registro esatto: simulati davvero; tendenze e merci in viaggio invisibili (ECO-003) |
+| API `Economy.quote/deliver/procure/flowReport` | `trade-economy.js` | — | 🔌 | nessun chiamante nel gioco |
+| Prezzo degli scambi del giocatore | `trade-economy.js` `trade` | — | ⚠️ | **difetto critico verificato (LW-ECO-01)** |
+| Forgia e qualità | `tradecraft.js`, `trades-practice.js` | `workshop` | 🟡 | lame `blade-0…3` per qualità; la qualità non cambia il prezzo (dal codice e dalla prova del revisore) |
+| Economia dei borghi | `society.js` | `society.towns` | 🔌 | i nove borghi arrivano al livello massimo col solo passare del tempo (dal codice) |
+| Canali a prezzo fisso | `world-life.js`, `construction.js`, `society.js` | — | 🔌 | banco delle sementi (+1 essenza), bottega della fattoria, residenti che comprano minerale: aggirano il mercato (decisione dell'utente) |
+| Stirpi (44) e predisposizioni | `growth.js`, `continental-species.js`, `expansion-species.js` | `player.race`, `growth` | ✅ | sorteggio pesato: Slime 14,4%, Goblin 12,0%, Viverna di brina 0,32% |
+| Identità della specie fuori dal combattimento | `daily-life.js`, `society.js`, `gear.js` | — | 👁 | bisogni e temperatura per specie, età di corteggiamento, etichette di slot: presenti ma senza numeri visibili; volo, nuoto, terreno, prezzi e reazioni sociali per specie assenti |
+| Missioni contestuali generalizzate | — | — | ⛔ | embrione in `Daily.offers` |
+| Regole per continente | — | — | ⛔ | dati per regione sparsi; i cinque mercati corrispondono già ai cinque continenti |
+| Persistenza | `engine.js` `parseSave` | v7, `saveKeys` v7…v1 | ✅ / ⚠️ | ogni sezione che non supera il ripristino fa scartare tutto il salvataggio: il gioco ripiega sulla chiave più vecchia (verificato in `savedCandidate`) |
+
+### Interconnessioni attuali
+
+```
+azione del giocatore ──► engine.record() ──► Growth (evoluzione) · Life (mestieri) · Daily (incarichi) · Reputation · Guild
+scambio al mercato ──► Economy.trade ──► scorte del mercato ──► MarketFlows (registro, flussi esterni)
+giorno di calendario ──► MarketFlows (produzione, consumo, rotte) ──► prezzi ──► Daily.dailyOffer (carenze)
+pattuglie e mostri ──► Conflicts (ferite, morte) ──► Reputation (negligenza vista) · lutto ──► prezzi +1
+Society (memorie per abitante) ──┐
+UrbanLife (memorie di Velaris) ──┼─► nessun sistema le legge per cambiare opportunità o prezzi
+Reputation ──────────────────────┘   (solo sconto ±2 e titoli)
+```
+Mancano: chi ha visto un'azione, che cosa ne ricorda un NPC preciso, conseguenze che cambiano le opportunità, effetti differiti nel tempo.
+
+### Difetti confermati e rilievi
+
+| ID | Sistema | Descrizione | Verifica |
+|---|---|---|---|
+| **LW-ECO-01** | Economia | Il prezzo di uno scambio è calcolato una sola volta sulla scorta di partenza e moltiplicato per tutta la quantità: vendendo un lotto a scorta bassa e ricomprandolo subito a scorta alta si guadagna a ogni ciclo. Calis, minerale: da 10 unità il ciclo rende; con 1000 unità +2000 Scintille a ciclo, 100 cicli +200 000, merce invariata, registro in pari | **verificato** (simulazione con le API reali) |
+| LW-ECO-02 | Economia | Le vendite del giocatore non hanno il tetto di magazzino che `deliver` rispetta: le unità oltre la capacità vengono pagate e poi distrutte all'alba | dal codice e dalla prova del revisore |
+| LW-ECO-03 | Economia | Merci fuori dal profilo del mercato (lame, piatti, attrezzi) non si consumano mai: un mercato invaso resta depresso per sempre | dal codice e dalla prova del revisore |
+| LW-ECO-04 | Forgia | La qualità della lama non cambia il prezzo (la regola riconosce solo «eccellente/pregiato/magistrale/leggendario») | dal codice |
+| LW-ECO-05 | Mestieri | L'esperienza del mercante conta le transazioni, non quantità o margine: grado massimo in ~23 scambi da una unità | dal codice |
+| LW-SOC-01 | Società | Vedovanza irreversibile: dopo la morte del coniuge non ci si risposa né si adotta (D-2) | dal codice |
+| LW-SOC-02 | Società | Giorno dei ricordi errato nel pannello (`panels.js`, `m.at/480` invece di `m.day`) (D-4) | dal codice |
+| LW-SOC-03 | Gilda | Membro morto resta nella squadra (D-7); compagno ferito non disegnato (D-3); punti vita dei compagni incoerenti (D-6) | dal codice |
+| LW-SOC-04 | Borgo | L'agenda di Tessa e Ivo resta visibile dopo la loro morte (D-5) | dal codice |
+| LW-NPC-01 | Conflitti | **Ridimensionato.** Il revisore stimava 14–16 abitanti su 18 morti in 6 ore senza `Game.step`. Con il motore reale (`Game.step`, giocatore fermo al borgo, seme 19425): 1 morto in 6 ore; in 48 ore 4 morti (tre guardie e Nerea), nessuno dei 18 abitanti. Le morti lontane esistono e sono volute; resta da misurare in partita quanto pesino sui legami | **verificato** (ridimensionato) |
+| LW-LIFE-01 | Cronaca | La «Cronaca di Lùmora» mostra quattro eventi a rotazione, non ciò che accade | dal codice |
+| LW-SOC-05 | Borghi | L'economia dei nove borghi raggiunge il livello massimo col solo tempo | dal codice |
+| LW-QST-01 | Diario | Il diario non mostra incarico di gilda e commissione di Velaris; l'offerta del giorno può cambiare nella stessa giornata; il messaggio di accettazione della missione di Nerea nomina sempre il primo passo | dal codice |
+| LW-SPC-01 | Specie | La Viverna di brina usa il profilo dei draghi di fuoco: soffre il freddo (×1,24) e quasi non sente il caldo. **Correggerla cambia il bilanciamento: decisione dell'utente** | dal codice |
+| LW-SPC-02 | Specie | Corteggiamento nascosto finché non c'è la forma matura, senza spiegazione; refuso «una Scintilla aggiuntivo» (`engine.js:70`); etichette di slot generiche per Grifone, Fata e Orso; `trainedTerrain` salvato e mai letto | dal codice |
+| LW-SAV-01 | Salvataggi | Ogni sezione nuova che non supera il ripristino fa scartare l'intero salvataggio e il gioco carica la chiave precedente: i dati nuovi devono sempre normalizzarsi, mai rifiutare | **verificato** (`savedCandidate`) |
+
+Problemi già registrati, classificati come richiesto (nessun sistema riscritto per affrontarli):
+
+| ID | Classe | Decisione |
+|---|---|---|
+| RPG-001 messaggi tardivi | interfaccia, minore | da affrontare solo se un incremento aggiunge messaggi: i nuovi avvisi di questa operazione usano frasi brevi e non si sommano a ogni fotogramma |
+| RPG-002 settore del colpo più stretto del colpo reale | leggibilità, a favore del giocatore | fuori perimetro |
+| RPG-003 avvisi dei boss sopra gli ostacoli | leggibilità, preesistente | fuori perimetro |
+| RPG-004 verifiche manuali e accessibilità | verifica | le nuove interfacce di questa operazione usano `esc()`, pulsanti con testo e la stessa trappola del fuoco |
+| PERF-003 picchi nei salti di calendario | prestazioni, lavoro futuro | non toccato (`urban-life.js` in sola lettura); le nuove conseguenze differite lavorano solo al cambio di giorno e con costo limitato |
+
+Decisioni lasciate all'utente: profilo termico della Viverna di brina (LW-SPC-01); se instradare nel mercato o limitare i canali a prezzo fisso (banco delle sementi con +1 essenza, bottega della fattoria, residenti che comprano minerale); biologia di Umano e Scheletro (invariata).
+
+### Architettura delle nuove interconnessioni
+
+```
+                 ┌──────────────── WorldMemory (world-memory.js, s.memory) ────────────────┐
+azione ─► engine ┤ episodi {npc, tipo, giorno, fonte: diretta | testimone}                    │
+                 │ conoscenza: solo chi partecipa o è presente (raggio d'ascolto, vivo,      │
+                 │   al suo posto); il resto passa solo dalla reputazione pubblica esistente │
+                 │ opinione derivata (non salvata): pesi per tipo, decadimento nel tempo,    │
+                 │   al massimo un episodio per tipo e giorno, al massimo tre per tipo        │
+                 │ promesse con scadenza; opportunità aperte/chiuse dall'opinione            │
+                 └──► dialoghi e pannelli · Economy.deliver/quote · Reputation · Daily      ┘
+impulso (~1,15 s) ─► WorldMemory.tick: solo scadenze, lavoro solo al cambio di giorno
+```
+Principi: dati nuovi in un campo nuovo di primo livello (`s.memory`, `schema:1`), mai nei registri esistenti (Society, Velaris, Conflicts, Reputation), così i salvataggi nuovi restano leggibili anche dalle versioni precedenti; ripristino che normalizza e scarta le voci invalide, mai il salvataggio; nessun lavoro per fotogramma; nessun NPC onnisciente.
+
+### Piano degli incrementi
+
+| Incremento | Contenuto | Stato |
+|---|---|---|
+| 0 | Audit, matrice, interconnessioni, difetti, benchmark e piano | ✅ |
+| 1 | Memoria e conseguenze: Tessa ricorda l'aiuto durante una carenza reale di erbe, con testimoni (Nerea, Ivo) solo se presenti; promessa con scadenza; opportunità che si apre e si chiude; salvataggio e ripristino | da fare |
+| 2 | Economia e professioni: correzione di LW-ECO-01/02 (prezzo per unità, tetto di magazzino), ciclo forgia → lama → mercato → effetto misurabile → opportunità; percorsi verticali di fabbro e mercante con `Economy.quote/deliver` e reputazione | da fare |
+| 3 | Missioni ed eventi: modulo leggero di richieste contestuali che generalizza l'offerta del giorno; tre eventi integrati, senza doppie ricompense | da fare |
+| 4 | Specie e progressione: Slime, Goblin, Viverna di brina; vantaggi e limiti già presenti resi visibili e collegati ad attività, senza nuove regole | da fare |
+| 5 | Mondo simulato: conseguenze nel tempo, regole regionali parametrizzate sui cinque continenti, attività lontane risolte al cambio di giorno | da fare |
+| 6 | Revisione incrociata, prove complete, sessione lunga, salvataggi, benchmark, rapporto finale | da fare |
+
+### Prove e benchmark di riferimento (`main` `96eb9be`)
+- Serie completa nel worktree di questa operazione, tutto superato: `verifica-integrazione`, `verifica-esperienza` 10/10, `verifica-avvisi` 8/8, economia 158 e 147, `economia-flussi-2`, percorsi 0 bloccati su 41 040, residenti 0, `verifica-filoni` e `verifica-calis` 55 semi, `confronto-mondo` (34 regioni) identico, PERF-002 181 scene, salvataggi incrociati; Edge: `prova-browser` 10/10, Velaris 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7, interni 12/12, creature 7/7, combattimento 9/9, famiglie 6/6, progressione 7/7, interfaccia 8/8, Filoni (15 visite), Calis (12 visite).
+- `sonda-sessione` 6 minuti in Edge visibile: fotogramma mediana 0,2–0,4 ms, p95 0,5–4,2 ms, massimo 5,3–26,5 ms, nessun fotogramma oltre 33 ms, memoria JS 10,3–18,6 MB, salvataggio 0,2–0,3 ms (28–40 KB), primo ingresso in Vaelthoria 54,3 ms.
+- Prove che mancano e verranno aggiunte: conseguenze del giocatore (stesso seme e stato → stesso esito; ripristino; nessun doppio pagamento; nessuna merce infinita; nessun NPC che ricorda ciò che non ha potuto sapere; NPC morto che non torna), percorso end-to-end in Edge con azioni reali.

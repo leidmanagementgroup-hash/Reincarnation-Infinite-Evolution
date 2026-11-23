@@ -2,6 +2,18 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-23] Operazione Living World 2.0, incremento 0: audit e piano — Claude
+Branch `claude/living-world-2` da `main` `96eb9be` (worktree `Reincarnation-living-world`).
+### Documentazione
+- `LIVING_WORLD.md`: stato del repository (`codex/urban-scale` non integrato, file toccati da Codex e punto sicuro per un nuovo modulo in `build.py`), matrice dei sistemi con classificazione, interconnessioni attuali, difetti con ID stabili (LW-ECO-01…, LW-SOC-01…, LW-NPC-01, LW-SPC-01…, LW-SAV-01), classificazione di RPG-001…004 e PERF-003, decisioni lasciate all'utente, architettura di `WorldMemory`, piano degli incrementi 0–6, benchmark di riferimento.
+- `LIVING_WORLD_AUDIT.md`: rapporti integrali dei quattro revisori in sola lettura (simulazione e salvataggi; NPC e relazioni; economia e professioni; specie, progressione e missioni).
+- `AGENTS.md`: nuovi documenti nell'elenco.
+### Verifica
+- **LW-ECO-01 confermato** con le API reali: vendere e ricomprare subito un lotto rende a ogni ciclo (Calis, minerale: +2000 Scintille per 1000 unità, +200 000 in 100 cicli, merce invariata).
+- **D-1 ridimensionato** con `Game.step` (giocatore fermo al borgo, seme 19425): 1 morto in 6 ore, 4 in 48 ore (tre guardie e Nerea), nessuno dei 18 abitanti (il revisore ne stimava 14–16 in 6 ore senza il motore reale).
+- Rischio dei salvataggi confermato in `savedCandidate`: una sezione che non supera il ripristino fa ripiegare sulla chiave precedente.
+- Serie completa su `96eb9be` nel nuovo worktree superata; `sonda-sessione` 6 minuti: nessun fotogramma oltre 33 ms, salvataggio 28–40 KB.
+
 ## [2026-11-23] Unione dell'operazione RPG Evolution su `main` — Claude
 Autorizzata dall'utente («Sì, unisci»). Commit di unione `b1dc116`, fast-forward di `main` `7488642` → `b1dc116`, pubblicato. Verificato sulla build unita: serie completa Node ed Edge, comprese `verifica-filoni`, `verifica-calis`, `prova-browser-filoni` e `prova-browser-calis`; `confronto-mondo` identico a `7488642`; salvataggi incrociati 6/6 fra `f2febd1`, `7488642` e la build unita. Branch `claude/integrazione-rpg-evolution` da `main` `7488642` (Calis e Filoni di Codex), merge di `claude/rpg-evolution` (`1feec7f`). Codice unito senza conflitti (anche `interface.js` e `panels.js`); conflitti solo nei registri: in `CHANGELOG.md` tenute entrambe le serie di voci, in `PROGRESS.md` tenute le note di entrambi e la riga RISK-011 combinata (osservazioni di Codex dopo `24d33eb`/`fff2484` più la risoluzione dell'incremento 1). `Reincarnation.html` ricostruito.
 
