@@ -2,6 +2,15 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-23] Banco di prova della popolazione — Claude
+Branch `claude/banco-popolazione` (da `main` `e5b825b`), solo prove e documentazione: nessun sorgente del gioco modificato, `Reincarnation.html` invariato.
+### Aggiunto
+- `tests/banco-popolazione.cjs`: banco in Edge con 25–500 residenti di Velaris (riusa la popolazione sintetica di `tests/benchmark-npc.cjs` senza modificarla), costo per fotogramma di ogni sistema in tre finestre, fotogramma del salto di tempo, memoria JS via protocollo DevTools e salvataggio; timer isolato tramite pagina servita con COOP/COEP senza rete.
+### Documentazione
+- Nuovo problema PERF-004 (picco al primo fotogramma dopo un salto di tempo) in `PROGRESS.md` e `ROADMAP.md`.
+### Verifica
+- Edge 158 con finestra visibile (GPU), seme 19425, due giri alternati di `main` `e5b825b` (A) e della build unita con `codex/urban-scale` (B, albero temporaneo dell'unione simulata): 24 scenari, nessun errore JavaScript, nessun residente fuori dalla griglia, nessun intervallo fra fotogrammi oltre 33 ms nelle finestre normali, timer isolato (risoluzione di pochi µs). Intervalli = minimo–massimo fra i quattro scenari (2 build × 2 giri) di ogni dimensione: A e B coincidono entro il rumore. Risultati: (1) con il tempo che scorre normalmente il costo resta lontano dal bilancio di 60 Hz anche con 500 residenti (giorno p95 ≈ 1 ms, sera p95 ≈ 1,5 ms, mezzanotte ≈ 0,5 ms; i picchi serali isolati fino a 6–10 ms sono sotto i 16,7 ms); (2) simulazione e sistemi di gioco pesano pochissimo per fotogramma (`Game.step` ≈ 0,02 ms; residenti, economia, abitanti, conflitti e Living World sotto 0,005 ms in media): il costo che cresce con la popolazione è disegno, raccolta degli attori e interfaccia (da 0,24 a 0,64 ms al giorno fra 25 e 500 residenti); (3) Living World oggi non dipende dalla popolazione: memoria e voci riguardano tre NPC; (4) il salvataggio resta 34,9 KB e 0,11 ms a ogni dimensione (i residenti si ricavano dal seme e non si salvano); la memoria JS cresce di circa 2 KB per residente; (5) **PERF-004**: il primo fotogramma dopo un salto del calendario ricalcola il percorso di ogni residente visibile in cammino (37 percorsi con i 95 nativi, 97 con 250, 200 con 500): 11–12 ms oggi, 15–17 ms con 250 residenti (al limite del fotogramma) e 25–26 ms con 500 (un fotogramma perso). Capita dopo il sonno, entrando in città dopo ore o caricando una partita; (6) la build unita con Codex non cambia i costi di Velaris. Revisione indipendente del banco: dieci osservazioni, tutte recepite.
+
 ## [2026-11-23] Living World 2.0: prove Edge di Calis, cambusa e gilda — Claude
 Branch `claude/living-world-prove-edge` (da `main` `beb8bf5`), solo prove e documentazione: nessun sorgente del gioco modificato, `Reincarnation.html` invariato. Commit `99ee41a`, portato su `main` per avanzamento rapido (`beb8bf5` → `99ee41a`) su autorizzazione dell'utente; sulla cartella di `main` passano `verifica-integrazione`, `prova-browser-calis-lw` 6/6 e `prova-browser-gilda-lw` 7/7.
 ### Aggiunto
