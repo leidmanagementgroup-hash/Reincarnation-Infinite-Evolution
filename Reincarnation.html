@@ -13364,7 +13364,7 @@ window.Lantern = (() => {
     return moved;
   }
 
-  window.Economy={create,restore,wallet,view,command,tick,sites,use,actors,shortage,supplyVelarisMarket,flowReport,profiles,quote,deliver,procure};
+  window.Economy={create,restore,wallet,view,command,tick,sites,use,actors,shortage,supplyVelarisMarket,flowReport,profiles,quote,deliver,procure,tradeAllowed};
 })();
 
 
@@ -14750,7 +14750,7 @@ window.Lantern = (() => {
      salire l'opinione senza fine, e un torto si può recuperare con azioni coerenti nel tempo.
      Dati in `s.memory` (schema 1). Il ripristino scarta le voci non valide e non rifiuta mai il salvataggio (LW-SAV-01).
      Prototipo: Tessa, mercante del Borgo di Vela, e la carenza reale di erbe di rugiada del mercato di Vela. */
-  const SCHEMA=1,MAX_EPISODES=60,HEARING=100,HALF_LIFE=10,PER_KIND=3,PROMISE_NEED=3,GIVE_MAX=3;
+  const SCHEMA=1,MAX_EPISODES=60,PER_NPC=20,HEARING=100,HALF_LIFE=10,PER_KIND=3,PROMISE_NEED=3,GIVE_MAX=3;
   const TRUST=1.5,DISTRUST=-1.5;
   const people={
     merchant:{name:'Tessa',region:'valley'},
@@ -14781,10 +14781,16 @@ window.Lantern = (() => {
     if(!object(raw)||raw.schema!==SCHEMA)return m;
     const now=s?.calendar?today(s):Infinity;
     if(Array.isArray(raw.episodes)){
-      for(const e of raw.episodes.slice(-MAX_EPISODES)){
+      // Dal più recente al più vecchio, al massimo 20 per persona e 60 in tutto (rev-LW6-M3); si guardano le ultime 600 voci.
+      const count={},keep=[];
+      for(const e of raw.episodes.slice(-10*MAX_EPISODES).reverse()){
+        if(keep.length>=MAX_EPISODES)break;
         if(object(e)&&own(people,e.npc)&&own(kinds,e.kind)&&int(e.day,0,now)&&(e.source==='self'||e.source==='witness'||e.source==='rumor')&&
-          !m.episodes.some(x=>x.npc===e.npc&&x.kind===e.kind&&x.day===e.day))m.episodes.push({npc:e.npc,kind:e.kind,day:e.day,source:e.source});
+          (count[e.npc]||0)<PER_NPC&&!keep.some(x=>x.npc===e.npc&&x.kind===e.kind&&x.day===e.day)){
+          count[e.npc]=(count[e.npc]||0)+1;keep.push({npc:e.npc,kind:e.kind,day:e.day,source:e.source});
+        }
       }
+      m.episodes=keep.reverse();
     }
     const p=raw.promise;
     if(object(p)&&p.npc==='merchant'&&p.item==='herb'&&int(p.need,1,PROMISE_NEED)&&int(p.given,0,p.need)&&int(p.day,0,now)&&int(p.due,p.day,p.day+1))
@@ -14802,11 +14808,17 @@ window.Lantern = (() => {
     return Conflicts.point(s,id,Life.npcPoint(s,id,World.points[id]));
   }
   const alive=(s,id)=>Conflicts.condition(s,id)?.status!=='dead';
+  // Tetto per persona (rev-LW6-M3): i ricordi di un NPC non cancellano quelli degli altri; 3 persone × 20 = 60 al massimo.
+  function trim(list,npc){
+    let n=list.filter(e=>e.npc===npc).length;
+    for(let i=0;n>PER_NPC&&i<list.length;)if(list[i].npc===npc){list.splice(i,1);n--;}else i++;
+    if(list.length>MAX_EPISODES)list.splice(0,list.length-MAX_EPISODES);
+  }
   function remember(s,npc,kind,source,day=today(s)){
     const m=state(s);
     if(m.episodes.some(e=>e.npc===npc&&e.kind===kind&&e.day===day))return false;
     m.episodes.push({npc,kind,day,source});
-    if(m.episodes.length>MAX_EPISODES)m.episodes.splice(0,m.episodes.length-MAX_EPISODES);
+    trim(m.episodes,npc);
     return true;
   }
   // Testimoni: gli altri NPC conosciuti presenti entro il raggio d'ascolto dal luogo dell'episodio.
@@ -14919,6 +14931,7 @@ window.Lantern = (() => {
      c'era già oggi. */
   function note(s,npc,kind,options={}){
     if(!own(people,npc)||!own(kinds,kind))return false;
+    if(!alive(s,npc))return false; // chi è morto non sente più voci né ricorda nuove imprese (rev-LW6-M1)
     const day=Number.isInteger(options.day)&&options.day>=0&&options.day<=today(s)?options.day:today(s);
     if(!remember(s,npc,kind,options.source==='rumor'?'rumor':'self',day))return false;
     if(!options.witnesses)return [];
@@ -14932,6 +14945,8 @@ window.Lantern = (() => {
     const day=today(s);
     if(day<=p.due)return [];
     m.promise=null;
+    // Se alla scadenza chi attendeva è in stato critico o impegnato altrove, la promessa si scioglie senza colpa (rev-LW6-M5).
+    if(Conflicts.takesOver(s,p.npc))return ['La promessa a '+people[p.npc].name+' è sciolta: in questi giorni non poteva riceverti.'];
     remember(s,p.npc,'promise-broken','self',p.due+1);
     window.Renown?.deed(s,{kind:'community',sign:-1,market:'vela',text:'Ha mancato la parola data a Tessa'});
     return [people[p.npc].name+' ha atteso invano le erbe promesse: se ne ricorderà.'];
@@ -14987,14 +15002,18 @@ window.Lantern = (() => {
     const st=state(s).smith,level=Life.level(s,'smith'),day=today(s);
     const tier=st.orders>=ARMORY.trusted?2:1;
     const onBench=BLADES.reduce((n,id)=>n+stockOf(s,ARMORY.market,id),0n);
-    const blade=BLADES.slice(tier).find(id=>Inventory.quantity(s,id)>0n)||null;
+    // Stessa regola della vendita al banco: una lama equipaggiata non si consegna (rev-LW6-E1: salvataggio non più caricabile).
+    const owned=BLADES.slice(tier).filter(id=>Inventory.quantity(s,id)>0n);
+    const blade=owned.find(id=>Economy.tradeAllowed(s,Inventory.definition(s,id)))||null;
     const quote=blade&&Economy.quote(s,ARMORY.market,blade);
-    // Il compenso non supera mai il prezzo d'acquisto della stessa lama meno 1: comprarla al banco per consegnarla non rende.
+    // Il compenso non supera il prezzo d'acquisto attuale della stessa lama meno 1 (calcolato sulla scorta di adesso, non su
+    // quella dopo l'acquisto: per un fornitore di fiducia può restare 1 Scintilla di margine, ma le lame sul banco arrivano
+    // solo dalle vendite del giocatore e il banco ne consuma una al giorno, quindi non si crea un ciclo).
     const pay=quote?Math.max(1,Math.min(Math.round(quote.sell*ARMORY.pay[tier-1]),quote.buy-1)):0;
     const why=level<ARMORY.minLevel?'L’armeria ordina solo a fabbri almeno Praticanti (forgia ancora qualche lama).':
       st.lastDay===day?'Hai già consegnato l’ordine di oggi.':
       onBench>=BigInt(ARMORY.want)?'Il banco ha lame a sufficienza ('+onBench+'): l’armeria non ordina.':
-      !blade?'Serve una lama di qualità almeno '+QUALITY[tier]+'.':'';
+      !blade?(owned.length?'Togli prima la lama equipaggiata: l’armeria accetta solo lame libere.':'Serve una lama di qualità almeno '+QUALITY[tier]+'.'):'';
     return {name:ARMORY.name,market:ARMORY.market,level,orders:st.orders,tier,minQuality:QUALITY[tier],onBench:String(onBench),want:ARMORY.want,
       blade,bladeName:blade?Inventory.definition(s,blade)?.name:null,pay,available:!why,why,
       standing:st.orders>=ARMORY.trusted?'Fornitore di fiducia dell’armeria':st.orders?'Fabbro conosciuto ai Filoni':'Sconosciuto all’armeria',
@@ -15076,7 +15095,7 @@ window.Lantern = (() => {
       const n=BigInt(v.size);
       if(!Inventory.take(s,v.good,n))return fail(v.why||'Merce insufficiente.');
       const moved=Economy.deliver(s,CARGO.market,v.good,n);
-      if(moved!==n){Inventory.add(s,v.good,n-moved);if(moved>0n)Economy.procure(s,CARGO.market,v.good,moved);return fail('Il magazzino del porto non può accogliere l’intero carico.');}
+      if(moved!==n){if(moved>0n)Economy.procure(s,CARGO.market,v.good,moved);Inventory.add(s,v.good,n);return fail('Il magazzino del porto non può accogliere l’intero carico.');}
       s.player.gold+=v.pay;st.merchant.contracts++;st.merchant.lastDay=day;
       window.Renown?.deed(s,{kind:'commerce',market:CARGO.market,text:'Ha consegnato un carico di '+v.goodName+' al Registro di Calis'});
       const promoted=st.merchant.contracts===CARGO.partner;
@@ -15108,6 +15127,9 @@ window.Lantern = (() => {
   const today=s=>Calendar.absoluteDays(s.calendar,s.time);
   const clampPay=n=>Math.max(15,Math.min(40,Math.round(n)));
   const sell=(s,market,id)=>Economy.quote(s,market,id)?.sell||0;
+  // Tetto contro «compra al banco e consegna» (come l'armeria e i carichi): il compenso resta sotto il costo d'acquisto delle
+  // stesse merci al mercato della richiesta (il prezzo per unità sale mentre la scorta cala, quindi n×prezzo attuale è un minimo).
+  const underCost=(s,market,id,n,pay)=>{const q=Economy.quote(s,market,id);return q?.buy>0?Math.max(1,Math.min(pay,n*q.buy-1)):pay;};
 
   function npcHere(s,id,range=48){
     if(s.region!=='valley'||!World.points?.[id]||Conflicts.takesOver(s,id))return false;
@@ -15117,7 +15139,7 @@ window.Lantern = (() => {
   const npcAlive=(s,id)=>Conflicts.condition(s,id)?.status!=='dead';
 
   const templates=[
-    {id:'wool-cloaks',name:'Lana per le mantelle d’inverno',from:'Ivo · bottega del Borgo di Vela',where:'Borgo di Vela, da Ivo',
+    {id:'wool-cloaks',npc:'smith',name:'Lana per le mantelle d’inverno',from:'Ivo · bottega del Borgo di Vela',where:'Borgo di Vela, da Ivo',
       need:'Porta a Ivo 2 unità di lana: le cucirà in mantelle per chi parte al freddo.',days:2,cooldown:6,
       // Freddo in arrivo (autunno o inverno) oppure lana davvero scarsa al mercato di Vela; Ivo vivo.
       when:s=>{
@@ -15127,7 +15149,7 @@ window.Lantern = (() => {
       },
       goal:{kind:'deliver',item:'wool',amount:2},
       atSource:s=>npcHere(s,'smith'),sourceHint:'Avvicinati a Ivo nel Borgo di Vela.',
-      reward:s=>clampPay(2*sell(s,'vela','wool')+6),
+      reward:s=>underCost(s,'vela','wool',2,clampPay(2*sell(s,'vela','wool')+6)),
       // Conseguenze: la lana torna al mercato di Vela (registro esatto) e Ivo ricorda l'aiuto, con i testimoni presenti.
       complete:(s,notes)=>{
         const moved=Economy.deliver(s,'vela','wool',2);
@@ -15148,13 +15170,14 @@ window.Lantern = (() => {
         const market=Economy.profiles.find(p=>p.continent===World.regions?.[s.region]?.continent)?.id||'vela';
         window.Renown?.deed(s,{kind:'craft',market,text:'Ha sistemato gli attrezzi di una squadra della gilda'});},fail:()=>{}},
     {id:'galley-herbs',name:'Erbe per la cambusa',from:'Registro dei Carichi di Calis',where:'Porto di Calis, Registro dei Carichi',
-      need:'Vendi almeno 3 erbe di rugiada insieme all’Emporio delle Sette Vele, poi torna al Registro dei Carichi.',days:2,cooldown:4,
+      need:'Porta 3 erbe di rugiada al Registro dei Carichi: finiranno nella cambusa delle navi e nelle scorte del porto.',days:2,cooldown:4,
       // Solo con una vera carenza di erbe al mercato di Calis.
       when:s=>Economy.shortage(s,'calis','herb')>=.4?'':'Alla cambusa di Calis le erbe non mancano.',
-      goal:{kind:'event',event:'trade',target:1,match:meta=>meta.market==='calis'&&meta.item==='herb'&&meta.direction==='sell'&&BigInt(meta.quantity||0)>=3n},
+      // Consegna vera (rev-LW6-E2): prima bastava una vendita di 3 erbe all'Emporio, anche di erbe appena comprate allo stesso banco.
+      goal:{kind:'deliver',item:'herb',amount:3},
       atSource:s=>!!window.UrbanWorld?.access(s,'cargo-board'),sourceHint:'Torna al Registro dei Carichi di Calis.',
-      reward:()=>16,
-      complete:(s,notes)=>{notes.push('Le navi partono con la cambusa piena.');window.Renown?.deed(s,{kind:'commerce',market:'calis',text:'Ha rifornito la cambusa delle navi di Calis'});},fail:()=>{}}
+      reward:s=>underCost(s,'calis','herb',3,16),
+      complete:(s,notes)=>{const moved=Economy.deliver(s,'calis','herb',3);notes.push('Le navi partono con la cambusa piena'+(moved>0n?' · le erbe entrano nelle scorte del porto':''));window.Renown?.deed(s,{kind:'commerce',market:'calis',text:'Ha rifornito la cambusa delle navi di Calis'});},fail:()=>{}}
   ];
   const lookup=Object.fromEntries(templates.map(t=>[t.id,t]));
 
@@ -15178,6 +15201,8 @@ window.Lantern = (() => {
   function status(s,t,day=today(s)){
     const r=state(s),a=r.active[t.id];
     if(a){
+      // Scaduta ma non ancora chiusa dall'impulso (dopo un caricamento o un salto di tempo): non si riscuote più (rev-LW6-E4).
+      if(day>a.until)return {state:'expired',until:a.until,progress:a.progress,why:'Il tempo è scaduto: si chiuderà senza compenso.'};
       const ready=t.goal.kind==='deliver'?Inventory.quantity(s,t.goal.item)>=BigInt(t.goal.amount):a.progress>=t.goal.target;
       return {state:ready?'ready':'active',until:a.until,progress:a.progress};
     }
@@ -15243,6 +15268,8 @@ window.Lantern = (() => {
     for(const [id,a] of Object.entries(r.active)){
       if(day<=a.until)continue;
       const t=lookup[id];delete r.active[id];r.claimed[id]=day; // scaduta: pausa come dopo un completamento, senza compenso
+      // Chi aveva chiesto è morto: la richiesta si scioglie senza colpa, come le promesse a Tessa (rev-LW6-M2).
+      if(t.npc&&!npcAlive(s,t.npc)){out.push('Richiesta annullata · '+t.name+' · non c’è più nessuno ad attenderla');continue;}
       const notes=[];t.fail(s,notes);
       out.push('Richiesta scaduta · '+t.name+(notes.length?' · '+notes.join(' · '):''));
     }
@@ -15386,7 +15413,7 @@ window.Lantern = (() => {
     if(Array.isArray(raw.deeds))for(const d of raw.deeds.slice(-MAX_DEEDS)){
       if(object(d)&&int(d.id,0,r.seq)&&kinds.includes(d.kind)&&(d.sign===1||d.sign===-1)&&own(realms,d.market)&&int(d.day,0,now)&&
         typeof d.text==='string'&&d.text.length<=160&&typeof d.heard==='boolean'&&!r.deeds.some(x=>x.id===d.id))
-        r.deeds.push({id:d.id,kind:d.kind,sign:d.sign,market:d.market,day:d.day,text:d.text,heard:d.heard});
+        r.deeds.push({id:d.id,kind:d.kind,sign:d.sign,market:d.market,day:d.day,text:d.text,heard:d.heard||d.market==='vela'}); // rev-LW6-M6
     }
     return r;
   }
@@ -19262,10 +19289,10 @@ window.Lantern = (() => {
     const s=Game.s;if(!window.Requests||!s)return '';
     const list=Requests.view(s).filter(r=>!only||r.id===only).filter(r=>only||r.state!=='closed'||r.done);
     if(!list.length)return '';
-    const states={open:'Disponibile oggi',active:'In corso',ready:'Pronta da riscuotere',rest:'Completata di recente',closed:'Non disponibile'};
+    const states={open:'Disponibile oggi',active:'In corso',ready:'Pronta da riscuotere',rest:'Completata di recente',closed:'Non disponibile',expired:'Scaduta'};
     return h('Richieste del mondo')+list.map(r=>{
-      const timing=r.left!==null?' · '+(r.left>0?'scade fra '+r.left+(r.left===1?' giorno':' giorni'):'scade oggi'):' · durata '+r.days+(r.days===1?' giorno':' giorni');
-      const text=[states[r.state],r.from,r.need,r.state==='active'||r.state==='ready'?r.goal:'',r.reward+' Scintille'+timing,r.why,(r.state==='open'||r.state==='ready')&&!r.atSource?r.sourceHint:''].filter(Boolean).join(' · ');
+      const timing=r.left!==null?' · '+(r.left<0?'tempo scaduto':r.left>0?'scade fra '+r.left+(r.left===1?' giorno':' giorni'):'scade oggi'):' · durata '+r.days+(r.days===1?' giorno':' giorni');
+      const text=[states[r.state],r.from,r.need,r.state==='active'||r.state==='ready'?r.goal:'',r.state==='rest'?'':r.reward+' Scintille'+timing,r.why,(r.state==='open'||r.state==='ready')&&!r.atSource?r.sourceHint:''].filter(Boolean).join(' · ');
       const control=r.state==='open'?cmd('Accetta','requests',{op:'accept',id:r.id},!r.atSource):r.state==='ready'?cmd('Riscuoti','requests',{op:'claim',id:r.id},!r.atSource,'primary'):'';
       return row(r.name,text,control);
     }).join('');

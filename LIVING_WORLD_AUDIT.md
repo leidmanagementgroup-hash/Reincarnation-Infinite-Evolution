@@ -746,3 +746,26 @@ L'obiettivo è generalizzare `Daily.offers` e la commissione di Velaris **senza 
 | Marcatori e diario unificati | parziale |
 | Eventi contestuali generalizzati | assente (embrione in `Daily.offers`) |
 
+
+
+## Revisione incrociata finale (incremento 6, 2026-11-23)
+
+Due revisori indipendenti in sola lettura sul diff `96eb9be..6209a1a`, con script di conferma sul motore reale (in `scratchpad/review-eco` e `scratchpad/review-mem`, fuori dal repository).
+
+| Codice | Gravità | Difetto (revisore) | Correzione | Prova |
+|---|---|---|---|---|
+| rev-LW6-E1 | alta | L'Armeria del Passo accettava la lama **equipaggiata**: dopo la consegna `workshop.weapon` puntava a una lama non più posseduta, `Tradecraft.restore` rifiutava il salvataggio e la partita non si caricava più | `careers.js` usa la stessa regola della vendita al banco (`Economy.tradeAllowed`, ora esportata in sola lettura): una lama equipaggiata non si consegna, con il motivo nel pannello | `verifica-revisione-lw` 1 (con mutazione) |
+| rev-LW6-E2 | media | «Erbe per la cambusa» si completava con qualunque vendita di 3 erbe all'Emporio di Calis, anche di erbe appena comprate allo stesso banco (circa +9 Scintille ogni 4 giorni a scorte invariate); un contratto del Registro di erbe completava anche la richiesta | la richiesta chiede ora di **portare 3 erbe al Registro dei Carichi** (consegna vera con `Economy.deliver` nelle scorte del porto), come la lana di Ivo | `verifica-richieste` 8 |
+| rev-LW6-E3 | bassa | «Lana per le mantelle»: comprare 2 lane a Vela e consegnarle rendeva da 0 a +9 Scintille ogni 6 giorni | compenso limitato al costo d'acquisto delle stesse merci al mercato della richiesta meno 1 (stessa regola di armeria e carichi), anche per la cambusa | `verifica-richieste` 11 (tre semi) |
+| rev-LW6-E4 | bassa | Una richiesta scaduta ma non ancora chiusa dall'impulso (dopo un caricamento o un salto di tempo) si poteva riscuotere | nuovo stato «Scaduta»: niente riscossione, la chiude l'impulso | `verifica-revisione-lw` 2 (con mutazione) |
+| rev-LW6-E5 | bassa, latente | L'annullamento di un contratto del Registro per magazzino pieno distruggeva le unità già entrate | si ritirano dal porto le unità entrate e lo zaino torna intero | `verifica-revisione-lw` 3 (magazzino simulato, con mutazione) |
+| rev-LW6-E7 | bassa | Il commento sul tetto del compenso dell'armeria non diceva il vero (si confronta con il prezzo alla scorta attuale) | commento corretto; non sfruttabile (le lame sul banco arrivano solo dal giocatore e il banco ne consuma una al giorno) | lettura |
+| rev-LW6-M1 | media | Un NPC **morto** sentiva ancora le voci da altri continenti e le «ricordava» | `WorldMemory.note` rifiuta chi è morto | `verifica-revisione-lw` 4 (con mutazione) |
+| rev-LW6-M2 | media | Se Ivo moriva durante «Lana per le mantelle», alla scadenza il giocatore riceveva colpa e cattiva fama | la richiesta si scioglie senza colpa («non c'è più nessuno ad attenderla»), come le promesse a Tessa | `verifica-revisione-lw` 5 (con mutazione) |
+| rev-LW6-M3 | bassa | Il tetto unico di 60 ricordi faceva sparire i ricordi di una persona sotto quelli di un'altra | al massimo 20 ricordi per persona (60 in tutto), anche al ripristino | `verifica-revisione-lw` 6 (con mutazione) |
+| rev-LW6-M5 | bassa | Una promessa a Tessa scaduta mentre era in stato critico (consegna impossibile) dava colpa al giocatore | se alla scadenza Tessa non può riceverti, la promessa si scioglie senza colpa | `verifica-revisione-lw` 7 (con mutazione) |
+| rev-LW6-M6 | bassa | Un salvataggio modificato con un'impresa di Vela `heard:false` faceva nascere una «voce» da Vela a Vela | al ripristino le imprese nate a Vela sono già note a Vela | `verifica-revisione-lw` 8 (con mutazione) |
+| rev-LW6-M4 | bassa, **decisione** | Fama a buon mercato: a inizio partita Vela ha 10 erbe su 12, quindi una consegna di 1 erba al giorno a Tessa conta come aiuto nella carenza e Vaelthoria arriva a «Rinomato» in circa 2 giorni | **non corretta**: cambia il bilanciamento di regole già approvate (che cosa è una carenza). Alternative in *Problemi rimasti* | — |
+| rev-LW6-E6 | bassa | Con il magazzino di Vela quasi pieno la lana di Ivo non torna tutta al mercato | accettato: Ivo la usa per le mantelle (il testo lo dice); il registro dei flussi resta in pari | — |
+
+Controllato e trovato corretto: tratto piatto di `lotPrice` e nessun ciclo vendi/ricompra; nessun ciclo «compro a Calis e consegno al Registro» per nessuna merce, scorta o dimensione; tetto del borsello e del magazzino; una consegna al giorno per armeria e Registro; chiusura delle richieste prima del pagamento; ripristini che scartano voci non valide senza rifiutare il salvataggio (anche `__proto__`, 100 000 voci, giorni futuri); nessun `Math.random` nuovo; testimoni solo vivi, al loro posto, nella regione ed entro 100 px; voci mai prima dei giorni di viaggio; numeri di `lineage.js` uguali al motore; `Society.mature` con la stessa regola; nessun doppio escape; nessuna modifica a `urban-life.js`, alle forme di crescita, a `continental-species.js`, alle statue o a `npc-conflicts.js`.

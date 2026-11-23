@@ -36,10 +36,10 @@
     const s=Game.s;if(!window.Requests||!s)return '';
     const list=Requests.view(s).filter(r=>!only||r.id===only).filter(r=>only||r.state!=='closed'||r.done);
     if(!list.length)return '';
-    const states={open:'Disponibile oggi',active:'In corso',ready:'Pronta da riscuotere',rest:'Completata di recente',closed:'Non disponibile'};
+    const states={open:'Disponibile oggi',active:'In corso',ready:'Pronta da riscuotere',rest:'Completata di recente',closed:'Non disponibile',expired:'Scaduta'};
     return h('Richieste del mondo')+list.map(r=>{
-      const timing=r.left!==null?' · '+(r.left>0?'scade fra '+r.left+(r.left===1?' giorno':' giorni'):'scade oggi'):' · durata '+r.days+(r.days===1?' giorno':' giorni');
-      const text=[states[r.state],r.from,r.need,r.state==='active'||r.state==='ready'?r.goal:'',r.reward+' Scintille'+timing,r.why,(r.state==='open'||r.state==='ready')&&!r.atSource?r.sourceHint:''].filter(Boolean).join(' · ');
+      const timing=r.left!==null?' · '+(r.left<0?'tempo scaduto':r.left>0?'scade fra '+r.left+(r.left===1?' giorno':' giorni'):'scade oggi'):' · durata '+r.days+(r.days===1?' giorno':' giorni');
+      const text=[states[r.state],r.from,r.need,r.state==='active'||r.state==='ready'?r.goal:'',r.state==='rest'?'':r.reward+' Scintille'+timing,r.why,(r.state==='open'||r.state==='ready')&&!r.atSource?r.sourceHint:''].filter(Boolean).join(' · ');
       const control=r.state==='open'?cmd('Accetta','requests',{op:'accept',id:r.id},!r.atSource):r.state==='ready'?cmd('Riscuoti','requests',{op:'claim',id:r.id},!r.atSource,'primary'):'';
       return row(r.name,text,control);
     }).join('');

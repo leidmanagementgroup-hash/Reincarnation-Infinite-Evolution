@@ -390,6 +390,6 @@
     return moved;
   }
 
-  window.Economy={create,restore,wallet,view,command,tick,sites,use,actors,shortage,supplyVelarisMarket,flowReport,profiles,quote,deliver,procure};
+  window.Economy={create,restore,wallet,view,command,tick,sites,use,actors,shortage,supplyVelarisMarket,flowReport,profiles,quote,deliver,procure,tradeAllowed};
 })();
 

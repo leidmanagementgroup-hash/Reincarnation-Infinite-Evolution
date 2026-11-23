@@ -1,7 +1,7 @@
 // Richieste del mondo (Living World 2.0, incremento 3), motore reale in Node senza browser.
 // Uso:   node tests/verifica-richieste.cjs        (ONLY=2,7 per eseguire solo alcuni passi)
 // Tre eventi contestuali: «Lana per le mantelle» (Ivo, carenza di lana a Vela o stagione fredda), «Gli attrezzi della squadra»
-// (gilda, fabbro Praticante, due lavori alla forgia), «Erbe per la cambusa» (Calis, carenza reale di erbe, vendita all'Emporio).
+// (gilda, fabbro Praticante, due lavori alla forgia), «Erbe per la cambusa» (Calis, carenza reale di erbe, 3 erbe consegnate al Registro dei Carichi).
 // Controlla: condizioni verificabili, offerta stabile per tutta la giornata, accettazione e riscossione solo presso la fonte,
 // nessun doppio pagamento, pausa prima di ripresentarsi, scadenza con conseguenza, merci al mercato con il registro in pari,
 // memoria di Ivo e dei testimoni, reputazione, salvataggio e ripristino, salvataggi senza `requests` o danneggiati,
@@ -159,7 +159,7 @@ check('7. Gli attrezzi della squadra: iscrizione alla gilda e fabbro Praticante;
   return 'riparazioni 2/2, +24 Scintille';
 });
 
-check('8. Erbe per la cambusa: carenza reale a Calis, vendita all’Emporio, riscossione al Registro dei Carichi', () => {
+check('8. Erbe per la cambusa: carenza reale a Calis, 3 erbe consegnate al Registro dei Carichi (non basta rivendere all’Emporio)', () => {
   const s = newGame();
   travelTo('city-calis'); // quartiere del porto: il Registro dei Carichi è all'aperto, l'Emporio è un interno
   const short = Economy.shortage(s, 'calis', 'herb');
@@ -168,17 +168,38 @@ check('8. Erbe per la cambusa: carenza reale a Calis, vendita all’Emporio, ris
   Object.assign(s.player, { x: board.point.x, y: board.point.y + 4 }); steps(2);
   assert.equal(view('galley-herbs').state, 'open', view('galley-herbs').why);
   assert.equal(req('accept', 'galley-herbs'), true, toasts.at(-1));
-  travelTo('city-calis-tide-market'); // dentro l'Emporio delle Sette Vele
+  // Una vendita all'Emporio non basta più (rev-LW6-E2: si potevano rivendere erbe appena comprate allo stesso banco).
+  travelTo('city-calis-tide-market');
   const shop = scope.UrbanWorld.site(s, 'shop'); assert(shop, 'banco dell’Emporio non trovato');
   Object.assign(s.player, { x: shop.point.x, y: shop.point.y + 4 }); steps(2);
   if (!Calendar.view(s.calendar, s.time, s.region).shopOpen) { atHour(10); Object.assign(s.player, { x: shop.point.x, y: shop.point.y + 4 }); steps(2); }
   Inventory.add(s, 'herb', 3);
-  const sale = Game.command('economy', { op: 'sell', id: 'herb', amount: '3' }); assert(sale, 'vendita non riuscita: ' + toasts.at(-1));
-  assert.equal(view('galley-herbs').state, 'ready');
+  assert(Game.command('economy', { op: 'sell', id: 'herb', amount: '3' }), 'vendita non riuscita: ' + toasts.at(-1));
+  assert.equal(view('galley-herbs').state, 'active', 'una vendita all’Emporio completa ancora la richiesta');
+  // Consegna vera: 3 erbe portate al Registro (preparazione dichiarata: erbe aggiunte, raccolte altrove).
+  Inventory.add(s, 'herb', 3);
   travelTo('city-calis'); Object.assign(s.player, { x: board.point.x, y: board.point.y + 4 }); steps(2);
-  const gold = s.player.gold; assert.equal(req('claim', 'galley-herbs'), true, toasts.at(-1)); assert.equal(s.player.gold, gold + 16);
+  assert.equal(view('galley-herbs').state, 'ready');
+  const before = BigInt(Economy.quote(s, 'calis', 'herb').stock), pay = view('galley-herbs').reward, buy = Economy.quote(s, 'calis', 'herb').buy;
+  const gold = s.player.gold; assert.equal(req('claim', 'galley-herbs'), true, toasts.at(-1)); assert.equal(s.player.gold, gold + pay);
+  assert(pay <= 16 && pay < 3 * buy, `compenso ${pay} contro acquisto ${3 * buy}`);
+  assert.equal(String(Inventory.quantity(s, 'herb')), '0'); assert.equal(BigInt(Economy.quote(s, 'calis', 'herb').stock), before + 3n);
   assert.deepEqual([...audit()], []);
-  return 'carenza ' + Math.round(short * 100) + '%, vendita all’Emporio, +16 Scintille';
+  return 'carenza ' + Math.round(short * 100) + '%, vendita all’Emporio ignorata, consegna al Registro +' + pay + ' Scintille, scorta ' + before + '→' + (before + 3n);
+});
+
+check('11. Nessun guadagno «compra al banco e consegna»: lana di Vela e erbe di Calis comprate costano più del compenso', () => {
+  const out = [];
+  for (const [id, market, n] of [['wool-cloaks', 'vela', 2], ['galley-herbs', 'calis', 3]]) {
+    for (const seed of [19425, 7, 555]) {
+      const s = newGame(seed), item = id === 'wool-cloaks' ? 'wool' : 'herb';
+      if (market === 'calis') { const k = BigInt(Economy.quote(s, 'calis', 'herb').stock) - 2n; if (k > 0n) Economy.procure(s, 'calis', 'herb', k); }
+      const q = Economy.quote(s, market, item), pay = view(id).reward;
+      assert(pay < n * q.buy, `${id} seme ${seed}: compenso ${pay} contro ${n}×${q.buy}`);
+      out.push(`${id} ${pay}<${n * q.buy}`);
+    }
+  }
+  return out.join(', ');
 });
 
 check('9. Salvataggio e ripristino; salvataggi senza `requests` o danneggiati', () => {

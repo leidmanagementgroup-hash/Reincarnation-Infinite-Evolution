@@ -35,7 +35,7 @@
     if(Array.isArray(raw.deeds))for(const d of raw.deeds.slice(-MAX_DEEDS)){
       if(object(d)&&int(d.id,0,r.seq)&&kinds.includes(d.kind)&&(d.sign===1||d.sign===-1)&&own(realms,d.market)&&int(d.day,0,now)&&
         typeof d.text==='string'&&d.text.length<=160&&typeof d.heard==='boolean'&&!r.deeds.some(x=>x.id===d.id))
-        r.deeds.push({id:d.id,kind:d.kind,sign:d.sign,market:d.market,day:d.day,text:d.text,heard:d.heard});
+        r.deeds.push({id:d.id,kind:d.kind,sign:d.sign,market:d.market,day:d.day,text:d.text,heard:d.heard||d.market==='vela'}); // rev-LW6-M6
     }
     return r;
   }

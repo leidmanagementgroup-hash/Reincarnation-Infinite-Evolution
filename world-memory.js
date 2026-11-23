@@ -9,7 +9,7 @@
      salire l'opinione senza fine, e un torto si può recuperare con azioni coerenti nel tempo.
      Dati in `s.memory` (schema 1). Il ripristino scarta le voci non valide e non rifiuta mai il salvataggio (LW-SAV-01).
      Prototipo: Tessa, mercante del Borgo di Vela, e la carenza reale di erbe di rugiada del mercato di Vela. */
-  const SCHEMA=1,MAX_EPISODES=60,HEARING=100,HALF_LIFE=10,PER_KIND=3,PROMISE_NEED=3,GIVE_MAX=3;
+  const SCHEMA=1,MAX_EPISODES=60,PER_NPC=20,HEARING=100,HALF_LIFE=10,PER_KIND=3,PROMISE_NEED=3,GIVE_MAX=3;
   const TRUST=1.5,DISTRUST=-1.5;
   const people={
     merchant:{name:'Tessa',region:'valley'},
@@ -40,10 +40,16 @@
     if(!object(raw)||raw.schema!==SCHEMA)return m;
     const now=s?.calendar?today(s):Infinity;
     if(Array.isArray(raw.episodes)){
-      for(const e of raw.episodes.slice(-MAX_EPISODES)){
+      // Dal più recente al più vecchio, al massimo 20 per persona e 60 in tutto (rev-LW6-M3); si guardano le ultime 600 voci.
+      const count={},keep=[];
+      for(const e of raw.episodes.slice(-10*MAX_EPISODES).reverse()){
+        if(keep.length>=MAX_EPISODES)break;
         if(object(e)&&own(people,e.npc)&&own(kinds,e.kind)&&int(e.day,0,now)&&(e.source==='self'||e.source==='witness'||e.source==='rumor')&&
-          !m.episodes.some(x=>x.npc===e.npc&&x.kind===e.kind&&x.day===e.day))m.episodes.push({npc:e.npc,kind:e.kind,day:e.day,source:e.source});
+          (count[e.npc]||0)<PER_NPC&&!keep.some(x=>x.npc===e.npc&&x.kind===e.kind&&x.day===e.day)){
+          count[e.npc]=(count[e.npc]||0)+1;keep.push({npc:e.npc,kind:e.kind,day:e.day,source:e.source});
+        }
       }
+      m.episodes=keep.reverse();
     }
     const p=raw.promise;
     if(object(p)&&p.npc==='merchant'&&p.item==='herb'&&int(p.need,1,PROMISE_NEED)&&int(p.given,0,p.need)&&int(p.day,0,now)&&int(p.due,p.day,p.day+1))
@@ -61,11 +67,17 @@
     return Conflicts.point(s,id,Life.npcPoint(s,id,World.points[id]));
   }
   const alive=(s,id)=>Conflicts.condition(s,id)?.status!=='dead';
+  // Tetto per persona (rev-LW6-M3): i ricordi di un NPC non cancellano quelli degli altri; 3 persone × 20 = 60 al massimo.
+  function trim(list,npc){
+    let n=list.filter(e=>e.npc===npc).length;
+    for(let i=0;n>PER_NPC&&i<list.length;)if(list[i].npc===npc){list.splice(i,1);n--;}else i++;
+    if(list.length>MAX_EPISODES)list.splice(0,list.length-MAX_EPISODES);
+  }
   function remember(s,npc,kind,source,day=today(s)){
     const m=state(s);
     if(m.episodes.some(e=>e.npc===npc&&e.kind===kind&&e.day===day))return false;
     m.episodes.push({npc,kind,day,source});
-    if(m.episodes.length>MAX_EPISODES)m.episodes.splice(0,m.episodes.length-MAX_EPISODES);
+    trim(m.episodes,npc);
     return true;
   }
   // Testimoni: gli altri NPC conosciuti presenti entro il raggio d'ascolto dal luogo dell'episodio.
@@ -178,6 +190,7 @@
      c'era già oggi. */
   function note(s,npc,kind,options={}){
     if(!own(people,npc)||!own(kinds,kind))return false;
+    if(!alive(s,npc))return false; // chi è morto non sente più voci né ricorda nuove imprese (rev-LW6-M1)
     const day=Number.isInteger(options.day)&&options.day>=0&&options.day<=today(s)?options.day:today(s);
     if(!remember(s,npc,kind,options.source==='rumor'?'rumor':'self',day))return false;
     if(!options.witnesses)return [];
@@ -191,6 +204,8 @@
     const day=today(s);
     if(day<=p.due)return [];
     m.promise=null;
+    // Se alla scadenza chi attendeva è in stato critico o impegnato altrove, la promessa si scioglie senza colpa (rev-LW6-M5).
+    if(Conflicts.takesOver(s,p.npc))return ['La promessa a '+people[p.npc].name+' è sciolta: in questi giorni non poteva riceverti.'];
     remember(s,p.npc,'promise-broken','self',p.due+1);
     window.Renown?.deed(s,{kind:'community',sign:-1,market:'vela',text:'Ha mancato la parola data a Tessa'});
     return [people[p.npc].name+' ha atteso invano le erbe promesse: se ne ricorderà.'];

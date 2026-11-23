@@ -124,7 +124,7 @@ Principi: dati nuovi in un campo nuovo di primo livello (`s.memory`, `schema:1`)
 | 3 | Missioni ed eventi: modulo leggero di richieste contestuali che generalizza l'offerta del giorno; tre eventi integrati, senza doppie ricompense | ✅ |
 | 4 | Specie e progressione: Slime, Goblin, Viverna di brina; vantaggi e limiti già presenti resi visibili e collegati ad attività, senza nuove regole | ✅ |
 | 5 | Mondo simulato: conseguenze nel tempo, regole regionali parametrizzate sui cinque continenti, attività lontane risolte al cambio di giorno | ✅ |
-| 6 | Revisione incrociata, prove complete, sessione lunga, salvataggi, benchmark, rapporto finale | da fare |
+| 6 | Revisione incrociata, prove complete, sessione lunga, salvataggi, benchmark, rapporto finale | ✅ |
 
 ### Prove e benchmark di riferimento (`main` `96eb9be`)
 - Serie completa nel worktree di questa operazione, tutto superato: `verifica-integrazione`, `verifica-esperienza` 10/10, `verifica-avvisi` 8/8, economia 158 e 147, `economia-flussi-2`, percorsi 0 bloccati su 41 040, residenti 0, `verifica-filoni` e `verifica-calis` 55 semi, `confronto-mondo` (34 regioni) identico, PERF-002 181 scene, salvataggi incrociati; Edge: `prova-browser` 10/10, Velaris 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7, interni 12/12, creature 7/7, combattimento 9/9, famiglie 6/6, progressione 7/7, interfaccia 8/8, Filoni (15 visite), Calis (12 visite).
@@ -184,3 +184,98 @@ Nuovo modulo `world-renown.js` (`Renown`, dopo `lineage.js`) e campo `s.renown` 
 Limiti dichiarati: prototipo di regole regionali, non diplomazia né guerre; le voci raggiungono come NPC solo Tessa, Ivo e Nerea (gli abitanti di Society e Velaris non vengono toccati); la fama regionale per ora è informativa e agisce attraverso la memoria del borgo, non su prezzi o reputazione.
 
 Verifiche: build `8d48e7fb…`. Node: `verifica-integrazione` OK, `verifica-esperienza` 10/10, `verifica-avvisi` 8/8, `verifica-memoria` 11/11, `verifica-mestieri` 10/10, `verifica-richieste` 10/10, `verifica-stirpi` 9/9, `verifica-voci` 9/9 (nuova), economia 158 e 147, `economia-flussi-2` codice 0, percorsi 0 bloccati su 41 040, residenti 0, `verifica-filoni` e `verifica-calis` 55 semi, `confronto-mondo` identico a `main` `96eb9be`, PERF-002 181 scene equivalenti, `verifica-salvataggi-incrociati` 2/2. Edge: `prova-browser` 10/10, Velaris 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7, interni 12/12, creature 7/7, combattimento 9/9, famiglie 6/6, progressione 7/7, interfaccia 8/8, memoria 7/7, mestieri 6/6, richieste 6/6, stirpi 5/5, `prova-browser-voci` 5/5 (nuova), Filoni (15 visite), Calis (12 visite). `sonda-sessione` 6 minuti: mediana 0,2–0,3 ms, p95 0,5–4,3 ms, massimo 5,2–26,9 ms, nessun fotogramma oltre 33 ms, memoria 8,8–24,4 MB a dente di sega (13,7 MB all'ultimo minuto), salvataggio 0,2–0,4 ms (28–41 KB).
+
+## Incremento 6 — Qualità, integrazione e rapporto finale
+
+### Revisione incrociata
+Due revisori indipendenti in sola lettura hanno esaminato il diff `96eb9be..HEAD` (economia, mestieri e richieste; memoria, voci, stirpe e salvataggi), con script di conferma sul motore reale. Undici difetti corretti, due accettati o lasciati all'utente. I testi completi sono in `LIVING_WORLD_AUDIT.md`.
+
+| Codice | Gravità | Difetto (revisore) | Correzione | Prova |
+|---|---|---|---|---|
+| rev-LW6-E1 | alta | L'Armeria del Passo accettava la lama **equipaggiata**: dopo la consegna `workshop.weapon` puntava a una lama non più posseduta, `Tradecraft.restore` rifiutava il salvataggio e la partita non si caricava più | `careers.js` usa la stessa regola della vendita al banco (`Economy.tradeAllowed`, ora esportata in sola lettura): una lama equipaggiata non si consegna, con il motivo nel pannello | `verifica-revisione-lw` 1 (con mutazione) |
+| rev-LW6-E2 | media | «Erbe per la cambusa» si completava con qualunque vendita di 3 erbe all'Emporio di Calis, anche di erbe appena comprate allo stesso banco (circa +9 Scintille ogni 4 giorni a scorte invariate); un contratto del Registro di erbe completava anche la richiesta | la richiesta chiede ora di **portare 3 erbe al Registro dei Carichi** (consegna vera con `Economy.deliver` nelle scorte del porto), come la lana di Ivo | `verifica-richieste` 8 |
+| rev-LW6-E3 | bassa | «Lana per le mantelle»: comprare 2 lane a Vela e consegnarle rendeva da 0 a +9 Scintille ogni 6 giorni | compenso limitato al costo d'acquisto delle stesse merci al mercato della richiesta meno 1 (stessa regola di armeria e carichi), anche per la cambusa | `verifica-richieste` 11 (tre semi) |
+| rev-LW6-E4 | bassa | Una richiesta scaduta ma non ancora chiusa dall'impulso (dopo un caricamento o un salto di tempo) si poteva riscuotere | nuovo stato «Scaduta»: niente riscossione, la chiude l'impulso | `verifica-revisione-lw` 2 (con mutazione) |
+| rev-LW6-E5 | bassa, latente | L'annullamento di un contratto del Registro per magazzino pieno distruggeva le unità già entrate | si ritirano dal porto le unità entrate e lo zaino torna intero | `verifica-revisione-lw` 3 (magazzino simulato, con mutazione) |
+| rev-LW6-E7 | bassa | Il commento sul tetto del compenso dell'armeria non diceva il vero (si confronta con il prezzo alla scorta attuale) | commento corretto; non sfruttabile (le lame sul banco arrivano solo dal giocatore e il banco ne consuma una al giorno) | lettura |
+| rev-LW6-M1 | media | Un NPC **morto** sentiva ancora le voci da altri continenti e le «ricordava» | `WorldMemory.note` rifiuta chi è morto | `verifica-revisione-lw` 4 (con mutazione) |
+| rev-LW6-M2 | media | Se Ivo moriva durante «Lana per le mantelle», alla scadenza il giocatore riceveva colpa e cattiva fama | la richiesta si scioglie senza colpa («non c'è più nessuno ad attenderla»), come le promesse a Tessa | `verifica-revisione-lw` 5 (con mutazione) |
+| rev-LW6-M3 | bassa | Il tetto unico di 60 ricordi faceva sparire i ricordi di una persona sotto quelli di un'altra | al massimo 20 ricordi per persona (60 in tutto), anche al ripristino | `verifica-revisione-lw` 6 (con mutazione) |
+| rev-LW6-M5 | bassa | Una promessa a Tessa scaduta mentre era in stato critico (consegna impossibile) dava colpa al giocatore | se alla scadenza Tessa non può riceverti, la promessa si scioglie senza colpa | `verifica-revisione-lw` 7 (con mutazione) |
+| rev-LW6-M6 | bassa | Un salvataggio modificato con un'impresa di Vela `heard:false` faceva nascere una «voce» da Vela a Vela | al ripristino le imprese nate a Vela sono già note a Vela | `verifica-revisione-lw` 8 (con mutazione) |
+| rev-LW6-M4 | bassa, **decisione** | Fama a buon mercato: a inizio partita Vela ha 10 erbe su 12, quindi una consegna di 1 erba al giorno a Tessa conta come aiuto nella carenza e Vaelthoria arriva a «Rinomato» in circa 2 giorni | **non corretta**: cambia il bilanciamento di regole già approvate (che cosa è una carenza). Alternative in *Problemi rimasti* | — |
+| rev-LW6-E6 | bassa | Con il magazzino di Vela quasi pieno la lana di Ivo non torna tutta al mercato | accettato: Ivo la usa per le mantelle (il testo lo dice); il registro dei flussi resta in pari | — |
+
+Mutazioni: ripristinando a turno ciascuna delle otto correzioni E1, E4, E5, M1, M2, M3, M5, M6 la prova corrispondente fallisce (la M3 dopo aver reso più varia la prova, che prima non la vedeva).
+
+### Scenario finale end-to-end (Edge, azioni reali, seme 19425)
+`tests/prova-browser-scenario.cjs`, 9/9, eseguito due volte con lo stesso seme e **lo stesso esito numero per numero** (lame, Scintille, giorni, opinioni, fama):
+1. nuova partita: nessun ricordo, nessuna voce, fabbro al livello 0;
+2. **mestiere e produzione con meccanica reale**: Cappa venduta e 4 minerali comprati al mercato di Vela, due lame forgiate al banco di Ivo con il minigioco (mouse premuto per scaldare, colpi nel ritmo, tempra) → due lame «perfetto», fabbro livello 4;
+3. viaggio ai Filoni varco dopo varco, **consegna all'Armeria del Passo** (+30 Scintille, lame sul banco 0→1); il mondo registra l'ordine e la notizia parte da Nordharyn; un secondo clic nello stesso giorno non paga;
+4. ritorno a Vela: **Ivo non sa ancora nulla** (la voce è in viaggio, arriverà il giorno 3);
+5. **nuova opportunità e incarico**: Ivo chiede lana per le mantelle → «Accetta» → 2 lane comprate → «Riscuoti» (+19/+20 Scintille, Lanterne 0→2, lana a Vela 1→3, opinione di Ivo 0→2); il pulsante sparisce;
+6. due notti alla locanda: il giorno 2 Ivo non sa nulla, il giorno 3 la voce da Nordharyn arriva e Ivo la ricorda «per sentito dire» (opinione 2,7);
+7. «Salva partita» dal menu (Esc), ricarica della pagina e «Continua il viaggio»: memoria, mestieri, richieste, voci, reputazione, borsello e zaino identici (42 KB);
+8. dieci notti dopo: opinione di Ivo 2,7→1,4, fama a Nordharyn 3,8→2,7, un solo ricordo della voce, nessun ordine o pagamento ripetuto, nessuna Scintilla dal nulla;
+9. nessun errore JavaScript.
+
+Catena causale verificata: forgia → armeria → voce lungo le rotte → Ivo. La richiesta della lana **non** nasce dalla consegna all'armeria: nasce dalla stagione fredda o dalla carenza di lana a Vela (condizione dichiarata della richiesta). Ivo arriva a «Ti stima» sommando richiesta e voce. Gli spostamenti fino ai varchi, ai banchi e agli NPC sono teletrasporti dichiarati.
+
+### Sonde di costo (`tests/sonda-costi.cjs`, Node, stessa macchina, uno alla volta)
+| Misura | `main` `96eb9be` | `claude/living-world-2` |
+|---|---|---|
+| Simulazione per fotogramma (`Game.step`), media/p95: Valle 44 attori | 0,019/0,027 ms | 0,019/0,028 ms |
+| Filoni, Velaris, Calis (32 attori) | 0,017–0,018/0,022–0,024 ms | 0,017/0,023 ms |
+| Impulso: `Economy.tick` | 0,002 ms | 0,002–0,004 ms |
+| Impulso: `WorldMemory.tick` + `Requests.tick` + `Renown.tick` (stato saturo: 60 ricordi, 40 voci) | — | 0,0001 + 0,0008 + 0,0011 ms |
+| Viste del diario e dei dialoghi (sature): richieste, voci, memoria, Tessa, mestieri | — | 0,03–0,06 ms ciascuna |
+| `Game.view(true)` | 0,088 ms | 0,08–0,12 ms |
+| Salvataggio a inizio partita / saturo | 29,3 KB | 29,6 KB / 37,6 KB (memoria 3,9 KB + voci 4,5 KB al massimo) |
+| `exportSave` media | 0,07 ms | 0,07–0,09 ms |
+| 30 giorni simulati con il passo reale, due giri | 365–388 ms, 37,1 KB | 363–370 ms, 37,4 KB |
+| Memoria del processo dopo 30 giorni (secondo giro) | +0,2 MB | +0,2 MB |
+| Stesso seme → stessa impronta dello stato finale | sì | sì |
+
+Geometria urbana, collisioni e numero di NPC sono **identici** a `main` (`confronto-mondo`, PERF-002, Filoni e Calis): l'operazione non tocca generatore, planimetrie, cache dei settori né `urban-life.js`. Il disegno si misura nel browser.
+
+### Sessione lunga e benchmark prima/dopo (Edge visibile, `tests/sonda-sessione.cjs`, 12 minuti di gioco per build, stessa partita)
+| | `main` `96eb9be` | `claude/living-world-2` |
+|---|---|---|
+| Fotogramma mediana/p95 (Valle) | 0,3/4,2–4,4 ms | 0,3/4,1–4,2 ms |
+| Fotogramma mediana/p95 (Vaelthoria) | 0,2/0,4–0,5 ms | 0,2/0,4–0,5 ms |
+| Massimo per minuto | 4,9–26,7 ms | 5,0–24,8 ms |
+| Fotogrammi oltre 33 ms | 0 | 0 |
+| Memoria JS (dente di sega) | 11,9–29,4 MB | 8,8–26,7 MB |
+| Salvataggio | 0,1–0,6 ms, 28→44 KB | 0,2–0,3 ms, 28→44 KB |
+| Ingresso in Vaelthoria (primo/seguenti) | 54,6 / 1,2–1,4 ms | 55,4 / 1,2–1,4 ms |
+Nessuna differenza misurabile; la memoria non cresce nel tempo in nessuna delle due build. Nessun retry automatico: ogni prova è stata eseguita una volta, i numeri sono quelli del primo giro (lo scenario finale è stato ripetuto apposta per il determinismo).
+
+### Unione simulata (nessun merge eseguito)
+- con `origin/main` (`96eb9be`): il branch ne discende, avanzamento rapido possibile, nessun conflitto;
+- con `codex/urban-scale` (`b92caef`, basato su `7488642`, **non integrato**): il codice si unisce senza conflitti (anche `build.py`, `engine.js`, `panels.js`, `interface.js`); conflitti solo nei registri `CHANGELOG.md` e `PROGRESS.md`. Sulla build unita (albero temporaneo fuori dal repository, nessun branch creato) passano `verifica-integrazione`, `verifica-esperienza` 10/10, `verifica-avvisi` 8/8, `verifica-memoria` 11/11, `verifica-mestieri` 10/10, `verifica-richieste` 11/11, `verifica-stirpi` 9/9, `verifica-voci` 9/9, `verifica-revisione-lw` 8/8, `verifica-scala-urbana` (250 edifici, 1 250 percorsi), salvataggi incrociati con `main` 2/2, e in Edge lo scenario finale 9/9, interfaccia 8/8, progressione 7/7 e `prova-browser-scala-urbana` con i laboratori da 25 a 250 edifici (ingresso 10–11 ms, CPU p95 0,4–0,6 ms, rAF p95 4,3 ms, salvataggi del laboratorio isolati). L'unione vera va fatta su un branch separato e conciliando a mano i due registri.
+
+## Rapporto finale (15 punti)
+1. **Rapporto iniziale**: incremento 0 di questo documento (stato del repository, metodo con quattro revisori, matrice, difetti LW-*, architettura, piano, benchmark di riferimento).
+2. **Matrice**: incremento 0, *Matrice dei sistemi*. Stato finale: memoria del mondo, mestieri e richieste collegano economia, NPC, reputazione e fama; le voci collegano i cinque continenti al borgo; specie e stirpe diventano visibili senza regole nuove.
+3. **Architettura**: cinque moduli nuovi dopo `reputation.js` in `build.py` — `world-memory.js` (`s.memory`), `careers.js` (`s.careers`), `world-requests.js` (`s.requests`), `lineage.js` (senza stato), `world-renown.js` (`s.renown`). Ogni stato ha `schema:1`, tetti fissi e un ripristino che scarta le voci non valide senza mai rifiutare il salvataggio. Tutto si aggiorna nell'impulso a bassa frequenza già esistente (`WorldMemory.tick`, `Requests.tick`, `Renown.tick` dopo `Economy.tick`) o all'apertura dei pannelli; nessun secondo pianificatore, PERF-001/002/003 intatti.
+4. **Incrementi**: 0 audit `035da20`; 1 memoria e conseguenze `8ceed83`; 2 economia e professioni `ab76ee1`; 3 richieste del mondo `8cbf756`; 4 identità della stirpe `3789647`; 5 voci e fama regionale `6209a1a`; 6 revisione, scenario, sonde e rapporto (questo commit).
+5. **Funzionalità giocabili**: Tessa ricorda chi l'aiuta nella carenza di erbe (testimoni, promessa, pozione messa da parte a emporio chiuso); prezzi a lotti senza guadagni infiniti e qualità della lama nel prezzo; Armeria del Passo per il fabbro e Registro dei Carichi per il mercante, taccuino dei prezzi visti; tre richieste del mondo (lana per Ivo, attrezzi della squadra, erbe per la cambusa); identità della stirpe nel pannello C; voci e fama nei cinque continenti nel diario (L).
+6. **File modificati** (`git diff --stat 96eb9be..claude/living-world-2`): nuovi `world-memory.js`, `careers.js`, `world-requests.js`, `lineage.js`, `world-renown.js`, `LIVING_WORLD.md`, `LIVING_WORLD_AUDIT.md` e 13 prove in `tests/`; modificati `engine.js`, `panels.js`, `economy-panel.js`, `trade-economy.js`, `society.js`, `daily-life.js`, `interface.js`, `build.py`, `tests/verifica-salvataggi-incrociati.cjs`, `Reincarnation.html` e la documentazione condivisa. Non toccati: `urban-districts.js`, `urban-sector-layout.js`, `urban-lab*.js`, `urban-profiles.js`, `urban-life.js`, planimetrie, cache dei settori, worktree di Codex.
+7. **Screenshot**: generati dalle prove in Edge fuori dal repository (`scenario-1-forgia`, `scenario-2-armeria`, `scenario-3-ivo`, `scenario-4-voce` e quelli degli incrementi 1–5), inviati all'utente; si rigenerano passando una cartella come secondo argomento alle prove `prova-browser-*.cjs`.
+8. **Test automatici (Node)**: `verifica-memoria` 11, `verifica-mestieri` 10, `verifica-richieste` 11, `verifica-stirpi` 9, `verifica-voci` 9, `verifica-revisione-lw` 8, `sonda-costi` (determinismo), più tutta la serie esistente. Mutazioni verificate negli incrementi 1–6.
+9. **Test Edge**: `prova-browser-memoria` 7, `-mestieri` 6 (forgia reale), `-richieste` 6, `-stirpi` 5, `-voci` 5, **`-scenario` 9**, più tutta la serie esistente (vedi *Verifiche*).
+10. **Benchmark prima/dopo**: tabelle qui sopra; nessuna differenza misurabile per fotogramma, simulazione, salvataggio o memoria.
+11. **Compatibilità dei salvataggi**: stessa chiave v7, nessun cambio di `version`. I salvataggi di `main` si caricano e ricevono campi vuoti; quelli del branch si caricano su `main`, che conserva i campi sconosciuti (`verifica-salvataggi-incrociati` 2/2 nei due sensi). Campi danneggiati (null, stringhe, 100 000 voci, giorni futuri, `__proto__`, id duplicati) tornano vuoti o validi senza rifiutare il salvataggio. Il ripristino del salvataggio con una lama equipaggiata consegnata non può più accadere (rev-LW6-E1).
+12. **Build**: `python build.py Reincarnation.html`, 52 moduli, 2 084 030 byte, offline in un solo file.
+13. **Commit e branch**: branch `claude/living-world-2` su `origin`, base `main` `96eb9be`; `main` non modificato, nessun merge, branch e backup intatti.
+14. **Problemi rimasti** (nessuno bloccante):
+    - LW-SPC-01 profilo termico della Viverna di brina — decisione dell'utente;
+    - canali a prezzo fisso (banco delle sementi, bottega della fattoria, residenti che comprano minerale, LW-ECO-05/A3-05) e esperienza del mercante per transazione (A3-06) — decisione dell'utente;
+    - rev-LW6-M4 fama a buon mercato: alternative (a) contare come carenza solo scorte sotto il 60% dell'obiettivo, come le richieste (≥0,4); (b) una sola impresa di comunità per luogo ogni 3 giorni; (c) lasciare così, perché la fama oggi è informativa e agisce solo come voce al borgo — decisione dell'utente;
+    - B-D1…B-D4 (diario senza incarico di gilda e commissione di Velaris, offerta di `Daily` che cambia nella giornata, testo di Nerea, «Lettura del patto» ripetibile) e RPG-001 (messaggi in ritardo, visibile nelle prove a tempo compresso);
+    - verificati solo in Node, non in Edge: contratti del Registro di Calis, «Gli attrezzi della squadra» e «Erbe per la cambusa»;
+    - le voci raggiungono come NPC solo Tessa, Ivo e Nerea; la fama non agisce su prezzi o reputazione; le promesse testuali delle stirpi restano senza regola nuova; nessuna prova con centinaia di residenti (l'operazione non aggiunge NPC: i numeri valgono per le scene esistenti, 32–44 attori).
+15. **Raccomandazioni**: il branch è pronto per l'integrazione su `main` **solo con la tua autorizzazione**: avanzamento rapido possibile da `96eb9be`. Per `codex/urban-scale` fare l'unione su un branch separato (`claude/integrazione-living-world`) quando Codex lo considera pronto: il codice si unisce senza conflitti e le prove passano sulla build unita; restano da conciliare solo `CHANGELOG.md` e `PROGRESS.md`. Poi, in ordine: decidere M4, LW-SPC-01 e i canali a prezzo fisso; estendere le voci agli abitanti di Society e Velaris; aggiungere le prove Edge mancanti per Calis e gilda.
+
+Verifiche: Build `59818db6…` (2 084 030 byte). Node: `verifica-integrazione` OK, `verifica-esperienza` 10/10, `verifica-avvisi` 8/8, `verifica-memoria` 11/11, `verifica-mestieri` 10/10, `verifica-richieste` 11/11, `verifica-stirpi` 9/9, `verifica-voci` 9/9, `verifica-revisione-lw` 8/8 (nuova), economia 158 e 147, `economia-flussi-2` codice 0, percorsi 0 bloccati su 41 040, residenti fermi sovrapposti 0, Filoni (55 semi, 715 itinerari) e Calis (55 semi, 770 percorsi) OK, `confronto-mondo` contro `main` `96eb9be` identico (34 regioni, 10 490 088 campioni), PERF-002 181 scene equivalenti. Edge: `prova-browser` 10/10, Velaris est 12/12, economia OK, mondo 15/15, cava 6/6, santuario 7/7, interni 12/12, creature 7/7, combattimento 9/9, famiglie 6/6, progressione 7/7, interfaccia 8/8, salvataggi incrociati 2/2, memoria 7/7, mestieri 6/6, richieste 6/6, stirpi 5/5, voci 5/5, **scenario finale 9/9** (nuovo), Filoni e Calis nel browser OK (fotogramma p95 0,4 ms come `main`).

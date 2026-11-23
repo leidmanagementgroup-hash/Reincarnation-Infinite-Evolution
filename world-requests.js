@@ -16,6 +16,9 @@
   const today=s=>Calendar.absoluteDays(s.calendar,s.time);
   const clampPay=n=>Math.max(15,Math.min(40,Math.round(n)));
   const sell=(s,market,id)=>Economy.quote(s,market,id)?.sell||0;
+  // Tetto contro «compra al banco e consegna» (come l'armeria e i carichi): il compenso resta sotto il costo d'acquisto delle
+  // stesse merci al mercato della richiesta (il prezzo per unità sale mentre la scorta cala, quindi n×prezzo attuale è un minimo).
+  const underCost=(s,market,id,n,pay)=>{const q=Economy.quote(s,market,id);return q?.buy>0?Math.max(1,Math.min(pay,n*q.buy-1)):pay;};
 
   function npcHere(s,id,range=48){
     if(s.region!=='valley'||!World.points?.[id]||Conflicts.takesOver(s,id))return false;
@@ -25,7 +28,7 @@
   const npcAlive=(s,id)=>Conflicts.condition(s,id)?.status!=='dead';
 
   const templates=[
-    {id:'wool-cloaks',name:'Lana per le mantelle d’inverno',from:'Ivo · bottega del Borgo di Vela',where:'Borgo di Vela, da Ivo',
+    {id:'wool-cloaks',npc:'smith',name:'Lana per le mantelle d’inverno',from:'Ivo · bottega del Borgo di Vela',where:'Borgo di Vela, da Ivo',
       need:'Porta a Ivo 2 unità di lana: le cucirà in mantelle per chi parte al freddo.',days:2,cooldown:6,
       // Freddo in arrivo (autunno o inverno) oppure lana davvero scarsa al mercato di Vela; Ivo vivo.
       when:s=>{
@@ -35,7 +38,7 @@
       },
       goal:{kind:'deliver',item:'wool',amount:2},
       atSource:s=>npcHere(s,'smith'),sourceHint:'Avvicinati a Ivo nel Borgo di Vela.',
-      reward:s=>clampPay(2*sell(s,'vela','wool')+6),
+      reward:s=>underCost(s,'vela','wool',2,clampPay(2*sell(s,'vela','wool')+6)),
       // Conseguenze: la lana torna al mercato di Vela (registro esatto) e Ivo ricorda l'aiuto, con i testimoni presenti.
       complete:(s,notes)=>{
         const moved=Economy.deliver(s,'vela','wool',2);
@@ -56,13 +59,14 @@
         const market=Economy.profiles.find(p=>p.continent===World.regions?.[s.region]?.continent)?.id||'vela';
         window.Renown?.deed(s,{kind:'craft',market,text:'Ha sistemato gli attrezzi di una squadra della gilda'});},fail:()=>{}},
     {id:'galley-herbs',name:'Erbe per la cambusa',from:'Registro dei Carichi di Calis',where:'Porto di Calis, Registro dei Carichi',
-      need:'Vendi almeno 3 erbe di rugiada insieme all’Emporio delle Sette Vele, poi torna al Registro dei Carichi.',days:2,cooldown:4,
+      need:'Porta 3 erbe di rugiada al Registro dei Carichi: finiranno nella cambusa delle navi e nelle scorte del porto.',days:2,cooldown:4,
       // Solo con una vera carenza di erbe al mercato di Calis.
       when:s=>Economy.shortage(s,'calis','herb')>=.4?'':'Alla cambusa di Calis le erbe non mancano.',
-      goal:{kind:'event',event:'trade',target:1,match:meta=>meta.market==='calis'&&meta.item==='herb'&&meta.direction==='sell'&&BigInt(meta.quantity||0)>=3n},
+      // Consegna vera (rev-LW6-E2): prima bastava una vendita di 3 erbe all'Emporio, anche di erbe appena comprate allo stesso banco.
+      goal:{kind:'deliver',item:'herb',amount:3},
       atSource:s=>!!window.UrbanWorld?.access(s,'cargo-board'),sourceHint:'Torna al Registro dei Carichi di Calis.',
-      reward:()=>16,
-      complete:(s,notes)=>{notes.push('Le navi partono con la cambusa piena.');window.Renown?.deed(s,{kind:'commerce',market:'calis',text:'Ha rifornito la cambusa delle navi di Calis'});},fail:()=>{}}
+      reward:s=>underCost(s,'calis','herb',3,16),
+      complete:(s,notes)=>{const moved=Economy.deliver(s,'calis','herb',3);notes.push('Le navi partono con la cambusa piena'+(moved>0n?' · le erbe entrano nelle scorte del porto':''));window.Renown?.deed(s,{kind:'commerce',market:'calis',text:'Ha rifornito la cambusa delle navi di Calis'});},fail:()=>{}}
   ];
   const lookup=Object.fromEntries(templates.map(t=>[t.id,t]));
 
@@ -86,6 +90,8 @@
   function status(s,t,day=today(s)){
     const r=state(s),a=r.active[t.id];
     if(a){
+      // Scaduta ma non ancora chiusa dall'impulso (dopo un caricamento o un salto di tempo): non si riscuote più (rev-LW6-E4).
+      if(day>a.until)return {state:'expired',until:a.until,progress:a.progress,why:'Il tempo è scaduto: si chiuderà senza compenso.'};
       const ready=t.goal.kind==='deliver'?Inventory.quantity(s,t.goal.item)>=BigInt(t.goal.amount):a.progress>=t.goal.target;
       return {state:ready?'ready':'active',until:a.until,progress:a.progress};
     }
@@ -151,6 +157,8 @@
     for(const [id,a] of Object.entries(r.active)){
       if(day<=a.until)continue;
       const t=lookup[id];delete r.active[id];r.claimed[id]=day; // scaduta: pausa come dopo un completamento, senza compenso
+      // Chi aveva chiesto è morto: la richiesta si scioglie senza colpa, come le promesse a Tessa (rev-LW6-M2).
+      if(t.npc&&!npcAlive(s,t.npc)){out.push('Richiesta annullata · '+t.name+' · non c’è più nessuno ad attenderla');continue;}
       const notes=[];t.fail(s,notes);
       out.push('Richiesta scaduta · '+t.name+(notes.length?' · '+notes.join(' · '):''));
     }

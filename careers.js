@@ -43,14 +43,18 @@
     const st=state(s).smith,level=Life.level(s,'smith'),day=today(s);
     const tier=st.orders>=ARMORY.trusted?2:1;
     const onBench=BLADES.reduce((n,id)=>n+stockOf(s,ARMORY.market,id),0n);
-    const blade=BLADES.slice(tier).find(id=>Inventory.quantity(s,id)>0n)||null;
+    // Stessa regola della vendita al banco: una lama equipaggiata non si consegna (rev-LW6-E1: salvataggio non più caricabile).
+    const owned=BLADES.slice(tier).filter(id=>Inventory.quantity(s,id)>0n);
+    const blade=owned.find(id=>Economy.tradeAllowed(s,Inventory.definition(s,id)))||null;
     const quote=blade&&Economy.quote(s,ARMORY.market,blade);
-    // Il compenso non supera mai il prezzo d'acquisto della stessa lama meno 1: comprarla al banco per consegnarla non rende.
+    // Il compenso non supera il prezzo d'acquisto attuale della stessa lama meno 1 (calcolato sulla scorta di adesso, non su
+    // quella dopo l'acquisto: per un fornitore di fiducia può restare 1 Scintilla di margine, ma le lame sul banco arrivano
+    // solo dalle vendite del giocatore e il banco ne consuma una al giorno, quindi non si crea un ciclo).
     const pay=quote?Math.max(1,Math.min(Math.round(quote.sell*ARMORY.pay[tier-1]),quote.buy-1)):0;
     const why=level<ARMORY.minLevel?'L’armeria ordina solo a fabbri almeno Praticanti (forgia ancora qualche lama).':
       st.lastDay===day?'Hai già consegnato l’ordine di oggi.':
       onBench>=BigInt(ARMORY.want)?'Il banco ha lame a sufficienza ('+onBench+'): l’armeria non ordina.':
-      !blade?'Serve una lama di qualità almeno '+QUALITY[tier]+'.':'';
+      !blade?(owned.length?'Togli prima la lama equipaggiata: l’armeria accetta solo lame libere.':'Serve una lama di qualità almeno '+QUALITY[tier]+'.'):'';
     return {name:ARMORY.name,market:ARMORY.market,level,orders:st.orders,tier,minQuality:QUALITY[tier],onBench:String(onBench),want:ARMORY.want,
       blade,bladeName:blade?Inventory.definition(s,blade)?.name:null,pay,available:!why,why,
       standing:st.orders>=ARMORY.trusted?'Fornitore di fiducia dell’armeria':st.orders?'Fabbro conosciuto ai Filoni':'Sconosciuto all’armeria',
@@ -132,7 +136,7 @@
       const n=BigInt(v.size);
       if(!Inventory.take(s,v.good,n))return fail(v.why||'Merce insufficiente.');
       const moved=Economy.deliver(s,CARGO.market,v.good,n);
-      if(moved!==n){Inventory.add(s,v.good,n-moved);if(moved>0n)Economy.procure(s,CARGO.market,v.good,moved);return fail('Il magazzino del porto non può accogliere l’intero carico.');}
+      if(moved!==n){if(moved>0n)Economy.procure(s,CARGO.market,v.good,moved);Inventory.add(s,v.good,n);return fail('Il magazzino del porto non può accogliere l’intero carico.');}
       s.player.gold+=v.pay;st.merchant.contracts++;st.merchant.lastDay=day;
       window.Renown?.deed(s,{kind:'commerce',market:CARGO.market,text:'Ha consegnato un carico di '+v.goodName+' al Registro di Calis'});
       const promoted=st.merchant.contracts===CARGO.partner;

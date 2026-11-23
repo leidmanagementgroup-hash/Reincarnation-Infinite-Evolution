@@ -2,6 +2,22 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-23] Operazione Living World 2.0, incremento 6: revisione incrociata, scenario finale e rapporto — Claude
+Branch `claude/living-world-2` (`careers.js`, `world-requests.js`, `world-memory.js`, `world-renown.js`, `trade-economy.js`, `panels.js`, prove, documentazione). Commit dell'incremento 5: `6209a1a`.
+### Corretto
+- rev-LW6-E1 (alta): l'Armeria del Passo non accetta più la lama equipaggiata, che rendeva il salvataggio non più caricabile (`careers.js`; `Economy.tradeAllowed` esportata in sola lettura da `trade-economy.js`).
+- rev-LW6-E2/E3: «Erbe per la cambusa» chiede ora 3 erbe portate al Registro dei Carichi (non basta rivendere all'Emporio); compenso di lana e cambusa sotto il costo d'acquisto delle stesse merci (`world-requests.js`).
+- rev-LW6-E4: richiesta scaduta non più riscuotibile prima dell'impulso (stato «Scaduta», `world-requests.js`, `panels.js`); compenso non mostrato per le richieste in pausa.
+- rev-LW6-E5: annullare un contratto del Registro restituisce tutta la merce (`careers.js`).
+- rev-LW6-M1/M2/M5: un NPC morto non ricorda più voci; se Ivo muore la richiesta si scioglie senza colpa; promessa a Tessa sciolta se alla scadenza non poteva riceverti (`world-memory.js`, `world-requests.js`).
+- rev-LW6-M3/M6: al massimo 20 ricordi per persona, anche al ripristino; le imprese nate a Vela non tornano a Vela come voce (`world-memory.js`, `world-renown.js`).
+### Aggiunto
+- `tests/prova-browser-scenario.cjs` (scenario finale in Edge, 9 passi), `tests/verifica-revisione-lw.cjs` (8 regressioni con mutazioni), `tests/sonda-costi.cjs` (simulazione, impulso, serializzazione, sessione lunga simulata, determinismo); `verifica-richieste` 8 riscritta e 11 nuova.
+### Documentazione
+- Rapporto finale in 15 punti, benchmark prima/dopo, sessione lunga e unione simulata in `LIVING_WORLD.md`; revisione in `LIVING_WORLD_AUDIT.md`.
+### Verifica
+- Build `59818db6…` (2 084 030 byte). Node: `verifica-integrazione` OK, `verifica-esperienza` 10/10, `verifica-avvisi` 8/8, `verifica-memoria` 11/11, `verifica-mestieri` 10/10, `verifica-richieste` 11/11, `verifica-stirpi` 9/9, `verifica-voci` 9/9, `verifica-revisione-lw` 8/8 (nuova), economia 158 e 147, `economia-flussi-2` codice 0, percorsi 0 bloccati su 41 040, residenti fermi sovrapposti 0, Filoni (55 semi, 715 itinerari) e Calis (55 semi, 770 percorsi) OK, `confronto-mondo` contro `main` `96eb9be` identico (34 regioni, 10 490 088 campioni), PERF-002 181 scene equivalenti. Edge: `prova-browser` 10/10, Velaris est 12/12, economia OK, mondo 15/15, cava 6/6, santuario 7/7, interni 12/12, creature 7/7, combattimento 9/9, famiglie 6/6, progressione 7/7, interfaccia 8/8, salvataggi incrociati 2/2, memoria 7/7, mestieri 6/6, richieste 6/6, stirpi 5/5, voci 5/5, **scenario finale 9/9** (nuovo), Filoni e Calis nel browser OK (fotogramma p95 0,4 ms come `main`). Sonda di costo e sessione di 12 minuti in Edge senza differenze misurabili rispetto a `main`. Unione simulata con `codex/urban-scale`: il codice si unisce senza conflitti (anche `build.py`, `engine.js`, `panels.js`, `interface.js`); conflitti solo nei registri `CHANGELOG.md` e `PROGRESS.md`. Sulla build unita (albero temporaneo fuori dal repository, nessun branch creato) passano `verifica-integrazione`, `verifica-esperienza` 10/10, `verifica-avvisi` 8/8, `verifica-memoria` 11/11, `verifica-mestieri` 10/10, `verifica-richieste` 11/11, `verifica-stirpi` 9/9, `verifica-voci` 9/9, `verifica-revisione-lw` 8/8, `verifica-scala-urbana` (250 edifici, 1 250 percorsi), salvataggi incrociati con `main` 2/2, e in Edge lo scenario finale 9/9, interfaccia 8/8, progressione 7/7 e `prova-browser-scala-urbana` con i laboratori da 25 a 250 edifici (ingresso 10–11 ms, CPU p95 0,4–0,6 ms, rAF p95 4,3 ms, salvataggi del laboratorio isolati). L'unione vera va fatta su un branch separato e conciliando a mano i due registri.
+
 ## [2026-11-23] Operazione Living World 2.0, incremento 5: voci e fama regionale — Claude
 Branch `claude/living-world-2` (`world-renown.js` nuovo, `world-memory.js`, `careers.js`, `world-requests.js`, `engine.js`, `panels.js`, `build.py`, prove). Commit dell'incremento 4: `3789647`.
 ### Aggiunto
