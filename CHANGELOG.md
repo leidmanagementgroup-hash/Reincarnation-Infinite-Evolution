@@ -5,7 +5,7 @@ Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGEN
 ## [2026-11-23] Prova la scala multisettore a Confluenza — Codex
 
 ### Aggiunto
-- Il branch `codex/urban-scale` parte da `7488642`. Il generatore prepara strade e lotti deterministici, carica collisioni e decorazioni per rione a richiesta e collega i rioni con un grafo gerarchico (`urban-sector-layout.js`, `urban-districts.js`, `urban-world.js`).
+- Il branch `codex/urban-scale` parte da `7488642`, commit del collaudo `3f3add9`. Il generatore prepara strade e lotti deterministici, carica collisioni e decorazioni per rione a richiesta e collega i rioni con un grafo gerarchico (`urban-sector-layout.js`, `urban-districts.js`, `urban-world.js`).
 - L'opzione `--urban-lab` produce quattro build offline da 25, 50, 100 e 250 edifici, con cinque famiglie architettoniche, interni e salvataggi locali separati (`urban-lab.js`, `urban-lab-start.js`, `build.py`). Ricostruito `Reincarnation.html` per la campagna.
 
 ### Verificato
