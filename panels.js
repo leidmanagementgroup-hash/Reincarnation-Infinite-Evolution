@@ -3,6 +3,26 @@
   const esc=v=>String(v??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
   const disabled=flag=>flag?' disabled':'';
   function btn(label,action,style='',value=null) {return '<button class="btn '+style+'" data-do="'+action+'"'+(value===null?'':' data-value="'+esc(value)+'"')+'>'+esc(label)+'</button>';}
+  // Memoria del mondo (Living World 2.0): che cosa ricorda Tessa e che cosa ne deriva. Testo sempre con esc().
+  function tessaMemory(p){
+    const s=Game.s;if(!window.WorldMemory||!s)return '';
+    const m=WorldMemory.merchantView(s),rules=WorldMemory.rules;
+    let out=h('Tessa ti ricorda')+'<p>'+esc(m.level)+(m.recent.length?'':' · non avete ancora storie in comune')+'</p>';
+    out+=m.recent.map(e=>row('Giorno '+e.day,(e.bad?'⚠ ':'')+e.text)).join('');
+    const need=m.short>0?'L’emporio è a corto di erbe di rugiada ('+m.stock+' su '+m.target+').':'Le erbe di rugiada non mancano.';
+    out+=row('Erbe per l’emporio',need+(m.give.ok?'':' '+m.give.why),cmd(m.give.ok?'Consegna '+m.give.count+' · +'+m.give.pay+' Scintille':'Consegna','tieGive','',!m.give.ok),icon('herb'));
+    if(m.promise)out+=row('La tua parola',m.promise.given+' su '+m.promise.need+' erbe · '+m.promise.dueLabel);
+    else if(m.short>0)out+=row('La tua parola',m.distrust?'«Dopo l’ultima volta preferisco non contarci.»':'Prometti '+rules.PROMISE_NEED+' erbe entro domani sera. Mancare la parola pesa più di un aiuto.',cmd('Prometti','tiePromise','',!m.canPromise));
+    const r=m.reserve;
+    out+=row('Pozione messa da parte',r.open?(r.shopOpen?'A emporio chiuso Tessa ti tiene una pozione al giorno, allo stesso prezzo.':r.used?'Già ritirata oggi.':'Tessa l’ha tenuta per te.'):'Quando Tessa si fiderà di te, terrà una pozione per le ore di chiusura.',
+      cmd('Ritira · '+Game.rules.potionPrice+' Scintille','tieReserve','',!r.open||r.shopOpen||r.used||p.gold<Game.rules.potionPrice),icon('potion'));
+    return out;
+  }
+  function npcMemory(id){
+    const s=Game.s,who=window.WorldMemory&&s?WorldMemory.view(s).find(x=>x.id===id):null;
+    if(!who||!who.episodes.length)return '';
+    return h(who.name+' ricorda')+who.episodes.map(e=>row('Giorno '+e.day,(e.bad?'⚠ ':'')+e.text+(e.source==='witness'?' (l’ha visto di persona)':''))).join('');
+  }
   function cmd(label,action,value='',off=false,style='') {return '<button class="btn '+style+'" data-cmd="'+esc(action)+'" data-value="'+esc(typeof value==='object'?JSON.stringify(value):value)+'"'+disabled(off)+'>'+esc(label)+'</button>';}
   const picture=(kind,n=64,evo=0)=>'<canvas data-art="portrait" data-kind="'+esc(kind)+'" data-evo="'+evo+'" width="'+n+'" height="'+n+'"></canvas>';
   const portrait=(kind,n=64,evo=0)=>'<div class="portraitCell">'+picture(kind,n,evo)+'</div>';
@@ -218,18 +238,19 @@
         if(s.quest===0)html+=actions(cmd('Accetta la missione','accept','',false,'primary'));
         if(s.quest===3)html+=actions(cmd('Concludi il primo capitolo','reward','',false,'primary'));
         if(stage===4)html+=actions(cmd('Concludi la campagna','finish','',false,'primary'));
-        html+=actions(btn('Torna al borgo','close'));break;}
+        html+=npcMemory('elder')+actions(btn('Torna al borgo','close'));break;}
       case 'merchant':
         html=npc('merchant','Tessa · mercante','Il ponte regge ancora. Se vai oltre la radura, porta con te un po’ di linfa.')+
           row('Emporio · 07:00–20:00',Economy.wallet(p.gold).label+(v.calendar.shopOpen?'':' · Chiuso'))+
           row('Pozione di linfa','Una dose di linfa curativa.',cmd('Acquista · '+rules.potionPrice+' Scintille','buyPotion','',p.gold<rules.potionPrice||!v.calendar.shopOpen),icon('potion'))+
           row('Talismano di Vela','Attacco +3 · Difesa +1',cmd(p.inventory.charm?'Acquistato':'Acquista · '+rules.charmPrice+' Scintille','buyCharm','',p.gold<rules.charmPrice||p.inventory.charm>0||!v.calendar.shopOpen),icon('ward'))+
+          tessaMemory(p)+
           actions(btn('Mercato regionale e banca','economy'));break;
       case 'smith':
         html=npc('smith','Ivo · fabbro di Vela','Se macini il minerale fino a farne polvere, la linfa trattiene il suo calore per tutta la notte.')+row('Distilla due pozioni',rules.craftHerb+' erbe di rugiada e '+rules.craftOre+' minerale lucente.',cmd('Distilla','craft','',p.inventory.herb<rules.craftHerb||p.inventory.ore<rules.craftOre),icon('potion'))+
           '<div class="stats">'+stat('Erbe',p.inventory.herb||0)+stat('Minerali',p.inventory.ore||0)+'</div>'+h('Commissione del fabbro')+'<p>'+esc(v.sideQuest)+'</p>'+
           (s.sideQuest===0?actions(cmd('Accetta incarico','sideAccept','',false,'primary')):s.sideQuest===1?actions(cmd('Consegna '+rules.sideHerb+' erbe','sideReward','',p.inventory.herb<rules.sideHerb,'primary')):'')+
-          actions(btn('Forgia al banco di Ivo','workshop','','smithing'),btn('Ripara o incanta','gear'));break;
+          npcMemory('smith')+actions(btn('Forgia al banco di Ivo','workshop','','smithing'),btn('Ripara o incanta','gear'));break;
       case 'victory':
         kicker.textContent='Capitolo I · compiuto';html=npc('boss','Orveth, il Cervo Cavo','Le corna si accendono un’ultima volta. Dal cavo nel suo petto cade un seme. Quando lo tocchi, sotto il borgo tornano a pulsare le radici.')+
           '<p class="lead">Dal seme partono radici nuove. Seguile verso il passo a est, che ora conduce alla Cava delle Braci.</p><div class="stats">'+stat('Livello',p.level)+stat('Creature vinte',p.kills)+stat('Reputazione',p.rep)+'</div>'+actions(btn('Continua il viaggio','resume','primary'),btn('Apri la mappa','map'));break;

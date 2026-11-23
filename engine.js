@@ -236,6 +236,7 @@
     s.reputation=Reputation.restore(undefined,s);
     s.urban=UrbanLife.create(seed);
     s.cityWorks=UrbanServices.create();
+    s.memory=WorldMemory.create();
     p.hp=stats().hpMax;p.mp=stats().mpMax;
     resetTransient();save();return true;
   }
@@ -770,7 +771,7 @@
     if(!s)return false;
     Inventory.sync(s);
     const p=s.player,inv=p.inventory;
-    const location={accept:'elder',reward:'elder',finish:'elder',buyPotion:'merchant',buyCharm:'merchant',craft:'smith',sideAccept:'smith',sideReward:'smith'}[name];
+    const location={accept:'elder',reward:'elder',finish:'elder',buyPotion:'merchant',buyCharm:'merchant',tieGive:'merchant',tiePromise:'merchant',tieReserve:'merchant',craft:'smith',sideAccept:'smith',sideReward:'smith'}[name];
     const archive=location==='elder'&&elderRecord();
     if(location){
       const nearby=nearNpc(location)||archive&&distance(p,World.points.elder)<=48;
@@ -801,6 +802,18 @@
         p.gold-=cost;if(potion)p.potions++;else inv.charm=1;
         record('trade',1,{kind:name});
         text=potion?'Pozione acquistata.':'Talismano acquistato. Puoi equipaggiarlo dall’inventario.';sound='coin';break;}
+      // Memoria del mondo (Living World 2.0): erbe a Tessa durante la carenza, promessa, pozione messa da parte.
+      case 'tieGive':case 'tiePromise':{
+        const r=WorldMemory.command(s,name==='tieGive'?'give':'promise');
+        if(!r.ok)return refuse(r.text);
+        if(r.trade)record('trade',1,r.trade.info);
+        text=r.text;sound=r.sound||'ui';break;}
+      case 'tieReserve':{
+        const r=WorldMemory.reserve(s);
+        if(!r.ok)return refuse(r.text);
+        if(p.gold<rules.potionPrice)return refuse('Scintille insufficienti.');
+        p.gold-=rules.potionPrice;p.potions++;WorldMemory.useReserve(s);record('trade',1,{kind:'buyPotion'});
+        text='Tessa ti porge la pozione che aveva messo da parte per te.';sound='coin';break;}
       case 'craft':
         if(inv.herb<rules.craftHerb||inv.ore<rules.craftOre)return refuse(rules.craftText);
         inv.herb-=rules.craftHerb;inv.ore-=rules.craftOre;p.potions+=2;record('craft',1,{kind:'potion'});text='Ivo ti consegna due pozioni di linfa.';sound='loot';break;
@@ -1153,6 +1166,8 @@
       Economy.tick(s);
       const legendaryNews=Legendary.tick(s);
       if(legendaryNews.length){announce(legendaryNews);keep();}
+      const memoryNews=WorldMemory.tick(s);
+      if(memoryNews.length){announce(memoryNews);keep();}
       if(Daily.tick(s,{moving:p.moving,combat:combat>0})){
         p.hp-=st.hpMax*.014;
         if(p.hp<=0){recover();return;}
@@ -1505,6 +1520,7 @@
     d.urban=UrbanLife.restore(d.urban,d);
     d.cityWorks=UrbanServices.restore(d.cityWorks,d);
     if(!d.urban||!d.cityWorks)return null;
+    d.memory=WorldMemory.restore(d.memory,d);
     d.version=version;
     return d;
   }

@@ -55,6 +55,7 @@ Alla locanda puoi riposare fino al mattino. Le botteghe condividono il mercato d
 - **Calendario e bisogni con N.** Una giornata dura 30 minuti reali di esplorazione. Il sonno porta il mondo alle 06:00 e fa avanzare colture, animali, scorte e routine. Puoi dormire alla locanda, presso una casa di proprietà o in accampamento, in assenza di pericolo. Ogni stagione dura 12 giorni. La tolleranza al freddo, al caldo, alla fame e alla sete dipende dalla specie.
 - **Diario con L.** Gli incarichi di mestiere, sociali ed esplorativi sono facoltativi. Gli abitanti propongono una richiesta del giorno e il diario raccoglie obiettivi verificati e ricompense da riscattare.
 - **Mercato e banca.** Ogni continente ha un mercato, aperto dalle 07:00 alle 20:00. Le quattro denominazioni sono Scintille, Lunari, Solari e Astrali, con rapporto 100 a 1. Prezzi e scorte cambiano fra regioni e in base agli scambi. Il deposito di oggetti e denaro è consultabile ai cinque sportelli.
+- **Il borgo ricorda.** Quando l'emporio di Vela è a corto di erbe di rugiada, Tessa te lo dice: puoi portargliene fino a tre (te le paga al prezzo del mercato) o prometterle per il giorno dopo. Tessa ricorda chi l'ha aiutata e chi ha mancato la parola; Nerea e Ivo lo sanno solo se erano lì a vederlo. Quando ti stima, a emporio chiuso tiene da parte per te una pozione al giorno. Una promessa mancata si fa perdonare solo con altri aiuti, in giorni diversi.
 - **Combinazioni magiche con K.** Il pannello Abilità permette di sperimentare coppie di tecniche apprese. Le fusioni riuscite si possono assegnare a un tasto. Le nuove fusioni cambiano forma alla maestria 4.
 
 ### Dal risveglio al Varco
@@ -121,6 +122,7 @@ Dalla cartella dei sorgenti esegui `python build.py Reincarnation.html`. Lo scri
 | `legendary-land.js`, `legendary.js` | Santuario della Marea Muta (dungeon raro), Nadir, successione di Nerav, Arma Divina ed Eco della Rinascita |
 | `adaptive-combat.js` | Boss che riconoscono lo stile ripetuto del giocatore e rispondono |
 | `reputation.js` | Reputazione con insediamenti, regni, gilde e fazioni, titoli |
+| `world-memory.js` | Memoria del mondo: ciò che gli abitanti ricordano di te, promesse e opportunità che ne derivano |
 | `gear.js`, `gear-panel.js` | Equipaggiamento per rarità, durabilità, riparazioni, maestria, tempra, ascensione e incantamento |
 | `npc-conflicts.js`, `npc-conflict-panel.js` | Pattuglie, ferite, soccorsi, morte permanente degli abitanti, memoriali e rito della rinascita |
 | `engine.js` | Tabelle di stirpi e tecniche, simulazione, incontri, missioni, progressione e persistenza |

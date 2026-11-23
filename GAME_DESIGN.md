@@ -66,18 +66,19 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 | 30 | `legendary.js` | `Legendary` | Scoperta, bottino unico, successione del Santuario; Nadir, Arma Divina, Eco della Rinascita |
 | 31 | `npc-conflicts.js` | `Conflicts` | Pattuglie, ferite, soccorsi, morte permanente NPC, memoriali, rito della rinascita |
 | 32 | `reputation.js` | `Reputation` | Reputazione con insediamenti, regni, gilde, fazioni; titoli |
-| 33 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
-| 34 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
-| 35 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
-| 36 | `combat-fx.js` | `CombatFX` | Effetti di combattimento per elemento (fisico, fuoco, acqua, ghiaccio, fulmine, oscurità, luce): impatti, proiettili, anelli, colpo forte, schivata, aure e trasformazioni dei boss, evoluzione, numeri; solo disegno (§4.3) |
-| 37 | `audio.js` | `Score` | Musica e suoni |
-| 38 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
-| 39 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
-| 40 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
-| 41 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
-| 42 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
-| 43 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
-| 44 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
+| 33 | `world-memory.js` | `WorldMemory` | Memoria del mondo: episodi ricordati dagli NPC (diretti o da testimoni presenti), opinione derivata, promesse, opportunità (Living World 2.0) |
+| 34 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
+| 35 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
+| 36 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
+| 37 | `combat-fx.js` | `CombatFX` | Effetti di combattimento per elemento (fisico, fuoco, acqua, ghiaccio, fulmine, oscurità, luce): impatti, proiettili, anelli, colpo forte, schivata, aure e trasformazioni dei boss, evoluzione, numeri; solo disegno (§4.3) |
+| 38 | `audio.js` | `Score` | Musica e suoni |
+| 39 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
+| 40 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
+| 41 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
+| 42 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
+| 43 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
+| 44 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
+| 45 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
 
 Nota: `World`, `ActorArt` ed `EvolutionContent` sono **estesi da più moduli** successivi (ciascuno incapsula e riassegna il globale precedente): l'ordine in `build.py` è vincolante.
 
@@ -107,7 +108,7 @@ Routine per quartiere: ogni residente abita nel quartiere del proprio lavoro (`h
 
 Pianificazione delle soste (PERF-002). L'indice spaziale cerca le soste già assegnate solo nel raggio utile. I profili continuano a essere elaborati nell'ordine originale, con gli stessi criteri di distanza, orari, destinazioni e controlli di percorribilità. Dalle 22:00 a Velaris si prepara il giorno successivo con al massimo otto soste per aggiornamento del gioco e un budget indicativo di 2 ms fra le soste. Il piano completo diventa attivo a mezzanotte. Dopo un salto o un caricamento l'eventuale piano assente viene completato al primo utilizzo. Questa cache è legata alla mappa e alla partita e si rigenera dai dati esistenti.
 
-Il formato v7 conserva `urban` (routine, scorte, memorie e commissioni), `cityWorks` (restauro, colazione, esercitazioni e letture) ed `economy.flows` (campo facoltativo, `schema: 1`: giorno, ricchezza, spedizioni in viaggio, riporti frazionari e registro delle merci; assente nei salvataggi precedenti, che lo ricevono al giorno corrente senza recuperi retroattivi, e ricreato se non valido). Le mappe si rigenerano dallo stesso seme. I salvataggi precedenti ricevono i nuovi campi al caricamento. La v5 di GitHub può includere equipaggiamento, conflitti, reputazione e Santuario. La migrazione conserva i campi presenti e inizializza quelli mancanti nelle v5 precedenti.
+Il formato v7 conserva `memory` (campo facoltativo, `schema: 1`, Living World 2.0: episodi ricordati dagli NPC, promessa in corso, giorno dell'ultima pozione messa da parte; se manca o non è valido si ricrea vuoto e il salvataggio si carica comunque), `urban` (routine, scorte, memorie e commissioni), `cityWorks` (restauro, colazione, esercitazioni e letture) ed `economy.flows` (campo facoltativo, `schema: 1`: giorno, ricchezza, spedizioni in viaggio, riporti frazionari e registro delle merci; assente nei salvataggi precedenti, che lo ricevono al giorno corrente senza recuperi retroattivi, e ricreato se non valido). Le mappe si rigenerano dallo stesso seme. I salvataggi precedenti ricevono i nuovi campi al caricamento. La v5 di GitHub può includere equipaggiamento, conflitti, reputazione e Santuario. La migrazione conserva i campi presenti e inizializza quelli mancanti nelle v5 precedenti.
 
 ### 3.2 Selva degli Alambicchi
 
@@ -174,6 +175,8 @@ API per sistemi futuri: `Economy.quote(s, mercato, merce[, scorta])`, `Economy.d
 
 ### 4.6 Società e costruzione
 Abitanti con memorie, accordi commerciali, crescita e famiglia; insediamenti con scorte e maestri. Costruzione su lotti designati (casa, fattoria, laboratorio…) con materiali (legno, minerale, oro); villaggi e città assemblabili ai limiti dei lotti, con entrate dagli scambi.
+
+**Memoria del mondo (`world-memory.js`, Living World 2.0).** Gli NPC ricordano episodi concreti con giorno e fonte: diretta se vi hanno preso parte, da testimone se erano vivi, al loro posto ed entro 100 px. Nessun NPC conosce ciò che non ha potuto vedere; il resto del mondo ne sa solo attraverso la reputazione pubblica. L'opinione non è salvata: si ricava dagli episodi con pesi per tipo, dimezzamento ogni 10 giorni, un episodio per tipo e giorno e i tre più recenti per tipo. Prototipo: Tessa e la carenza di erbe di rugiada del mercato di Vela (consegna pagata al prezzo di mercato tramite `Economy.deliver`, promessa con scadenza, pozione messa da parte a emporio chiuso quando ti stima).
 
 ### 4.7 Gilde e reputazione
 Gilda pubblica (rango F→S): caccia, raccolta, ricognizione, lettura iscrizioni, scorta, esplorazione della Cripta. **Gilda personale** con squadre che avanzano con il giocatore. **Reputazione** con insediamenti, regni, gilde e fazioni (Compagnia dei Cartografi, Custodi delle Lanterne); **titoli**.

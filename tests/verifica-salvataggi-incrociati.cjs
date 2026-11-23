@@ -68,14 +68,19 @@ for (const a of games) for (const b of games) {
     seed(a); assert(a.Game.newGame(), 'newGame in A'); play(a, 3 * 60 * 60);
     const raw = a.Game.exportSave(), saved = JSON.parse(raw);
     assert(b.Game.importSave(raw), 'B rifiuta il salvataggio di A');
-    const again = JSON.parse(b.Game.exportSave()), d = diff(saved, again);
+    const again = JSON.parse(b.Game.exportSave());
+    // Un campo nuovo di primo livello che A non conosce viene creato da B con il suo valore predefinito (migrazione prevista):
+    // si segnala nella nota; ogni altra differenza resta un errore.
+    const added = Object.keys(again).filter(k => !(k in saved));
+    for (const k of added) delete again[k];
+    const d = diff(saved, again);
     assert.equal(d.length, 0, 'campi diversi dopo l\'importazione: ' + d.join(' | '));
     play(b, 60 * 60);
     assert(b.Game.save() && b.Game.load(), 'B non salva o non ricarica dopo aver giocato');
     const later = JSON.parse(b.Game.exportSave());
     assert(a.Game.importSave(JSON.stringify(later)), 'A rifiuta il salvataggio continuato in B');
     const p = saved.player || {};
-    return `${Math.round(raw.length / 1024)} KB, livello ${p.level}, ${saved.version ? 'versione ' + saved.version : ''}; ripreso in A dopo un altro minuto in B`;
+    return `${Math.round(raw.length / 1024)} KB, livello ${p.level}, ${saved.version ? 'versione ' + saved.version : ''}; ripreso in A dopo un altro minuto in B` + (added.length ? '; campi aggiunti da B: ' + added.join(', ') : '');
   });
 }
 const fails = results.filter(r => r[0] === 'FAIL').length;

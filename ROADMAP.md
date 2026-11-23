@@ -61,7 +61,7 @@
 
 ## Operazione Living World 2.0 (branch `claude/living-world-2`, piano in `LIVING_WORLD.md`)
 - [x] Incremento 0: audit, matrice, difetti verificati, architettura, benchmark di riferimento.
-- [ ] Incremento 1: memoria e conseguenze (Tessa, testimoni, promessa, opportunità, persistenza).
+- [x] Incremento 1: memoria e conseguenze (Tessa, testimoni, promessa, opportunità, persistenza).
 - [ ] Incremento 2: economia e professioni (LW-ECO-01/02, ciclo forgia → mercato, fabbro e mercante).
 - [ ] Incremento 3: tre eventi contestuali senza doppie ricompense.
 - [ ] Incremento 4: identità di Slime, Goblin e Viverna di brina senza nuove regole.
