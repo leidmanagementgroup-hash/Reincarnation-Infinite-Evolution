@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parent
 MODULES = (
     "world-light.js", "world.js", "expansion-world.js", "city-families.js", "continents.js",
     "sprites.js", "expansion-species.js", "expansion-art.js", "continental-species.js", "creature-art.js", "legendary-land.js",
-    "urban-exterior.js", "urban-interiors.js", "filoni-sprites.js", "urban-profiles.js", "urban-districts.js", "urban-world.js",
+    "urban-exterior.js", "urban-interiors.js", "filoni-sprites.js", "urban-profiles.js", "urban-sector-layout.js", "urban-districts.js", "urban-world.js",
     "calendar.js", "inventory.js", "lantern.js", "growth.js", "world-life.js",
     "construction.js", "society.js", "guild.js", "trades-practice.js", "tradecraft.js",
     "daily-life.js", "market-flows.js", "trade-economy.js", "gear.js", "adaptive-combat.js", "legendary.js",
@@ -17,11 +17,20 @@ MODULES = (
 )
 
 
-def build(target):
+def build(target, urban_lab=None):
     html = (ROOT / "template.html").read_text(encoding="utf-8")
     artwork = base64.b64encode((ROOT / "cover.webp").read_bytes()).decode("ascii")
     styles = (ROOT / "style.css").read_text(encoding="utf-8").replace("__COVER__", "data:image/webp;base64," + artwork)
-    scripts = [(ROOT / file).read_text(encoding="utf-8-sig") for file in MODULES]
+    scripts = []
+    for file in MODULES:
+        if urban_lab and file == "urban-districts.js":
+            scripts.extend((f"window.UrbanLabSize={urban_lab};", (ROOT / "urban-lab.js").read_text(encoding="utf-8-sig")))
+        source = (ROOT / file).read_text(encoding="utf-8-sig")
+        if urban_lab and file == "engine.js":
+            source = source.replace("reincarnation.lumora.save.", f"reincarnation.urban-lab.{urban_lab}.save.")
+        scripts.append(source)
+    if urban_lab:
+        scripts.append((ROOT / "urban-lab-start.js").read_text(encoding="utf-8-sig"))
     html = html.replace("/*__STYLE__*/", styles).replace("/*__SCRIPTS__*/", "\n\n".join(scripts))
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(html, encoding="utf-8")
@@ -30,6 +39,8 @@ def build(target):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Genera il gioco autonomo in formato HTML.")
     parser.add_argument("destinazione", nargs="?", type=Path, default=ROOT / "Reincarnation.html")
+    parser.add_argument("--urban-lab", type=int, choices=(25, 50, 100, 250),
+                        help="Integra il laboratorio urbano isolato con il numero di edifici indicato.")
     args = parser.parse_args()
-    build(args.destinazione)
+    build(args.destinazione, args.urban_lab)
 

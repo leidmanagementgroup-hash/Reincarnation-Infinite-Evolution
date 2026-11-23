@@ -630,7 +630,9 @@ La popolazione è limitata a tre residenti all'aperto con turni e agli addetti d
 
 Il secondo profilo è il **Porto di Calis**, su `main` da `fff2484` attraverso il branch `codex/porto-di-calis`. Entrambi i profili usano lo stesso registro, lo stesso grafo e la stessa cache settoriale. Il porto legge la costa esistente, marca l'acqua come ostacolo e apre due attraversamenti sui moli. La planimetria collega terrazze residenziali, mercato, magazzini, capitaneria e banchina. L'Emporio delle Sette Vele usa le scorte esistenti di Calis e il Registro offre una commissione commerciale collaudata. [Test del Porto di Calis](PROGRESS.md#porto-di-calis--secondo-profilo-urbano).
 
-Per una città più grande restano la navigazione gerarchica tra settori, la verifica di mappe più vaste con cache limitate, l'espansione delle routine lontane e l'eventuale registrazione di più accessi per area d'origine. Aggiungere un profilo oggi richiede dati e regole specifiche per il luogo. Il caso pubblicato dei Filoni resta in revisione 1.
+La **Fase 3** prova la scala a **Confluenza** sul branch `codex/urban-scale`. Le build isolate contengono da 25 a 250 edifici. Cinque tipi di rione riusano le famiglie esistenti, con piazze, strade continue, soglie persistenti e interni. I descrittori sono deterministici. Collisioni, arredi e tele vengono caricati a richiesta. I percorsi usano un grafo fra rioni e ricerche locali alle estremità. [Collaudo](PROGRESS.md#confluenza--scala-multisettore)
+
+Per una capitale restano la verifica con reti irregolari, una popolazione distribuita con simulazione graduata, servizi e mercati locali, e misure su dispositivi meno potenti. I profili pubblicati di Filoni e Calis mantengono la revisione e gli accessi esistenti.
 
 ## Passaggio di consegne
 

@@ -1,11 +1,12 @@
 # PROGRESS.md — Stato del progetto
 
-> Ultimo aggiornamento 2026-11-23, Codex, collaudo su `main` del Porto di Calis e del Piazzale degli Argani.
+> Ultimo aggiornamento 2026-11-23, Codex, Fase 3 del Generatore Procedurale Urbano 2.0 sul branch `codex/urban-scale`.
 
 ## In corso
-Nessun intervento attivo. Calis e Filoni sono visitabili su `main`. Lo sviluppo di nuove città resta in attesa.
+Confluenza è giocabile come laboratorio offline isolato. Il branch attende la revisione. Calis e Filoni restano visitabili su `main`.
 
 ## Prossimo passo
+0. **Confluenza, Fase 3**. Base `7488642`. Riesaminare percorsi gerarchici e costi con più residenti prima di adottare il generatore in campagna. Provare una forma urbana irregolare con strozzature, strade interrotte e attraversamenti riservati. Misurare in Edge visibile anche su un dispositivo meno potente. RISK-011 e PERF-003 restano aperti. [Collaudo](#confluenza--scala-multisettore).
 0. **Porto di Calis su `main`**. Fast-forward autorizzato da `df21ad7` a `fff2484`. La stessa build contiene Calis e Filoni. Prima di una futura espansione di scala misurare attraversamento dei settori, memoria e routine lontane. [Collaudo e benchmark su main](#porto-di-calis-e-filoni-su-main).
 0. **Piazzale degli Argani su `main`** (Codex, 2026-11-22, autorizzazione dell'utente, fast-forward `f2febd1` → `24d33eb`). Il Piazzale e il Porto di Calis usano il medesimo generatore urbano. [Verifiche su main](#piazzale-degli-argani-su-main).
 0. **Fase 4 del World Art Overhaul unita a `main`** (Claude, 2026-11-22, approvazione dell'utente; fast-forward `3ff458b` → `1f684e1`): merge di `claude/world-art-fase4` sopra `3ff458b` (PERF-002), nessun file di codice in comune; documenti conciliati e `Reincarnation.html` ricostruito.
@@ -62,6 +63,14 @@ La tabella elenca i sistemi disponibili. La sezione seguente indica le verifiche
 | Build a file singolo | ✅ | `build.py` |
 
 ## Test e verifiche
+
+### Confluenza · Scala multisettore
+
+- `node tests/verifica-scala-urbana.cjs` verifica cinque semi per ciascuno dei quattro tagli. In totale, 2.125 percorsi verso gli ingressi, oltre due milioni di campioni di collisione e 800 posizioni dei residenti. Controlla sovrapposizioni, giunzioni, coordinate, ID, limiti della cache e rigenerazione dopo lo svuotamento.
+- `node tests/prova-browser-scala-urbana.cjs <cartella-build> 25,50,100,250` usa Microsoft Edge via Playwright. Tre semi e 155 aggiornamenti attivi per esecuzione. Il movimento attraversa una giunzione tra settori, il calendario avanza e il percorso rimane libero. Nelle build da 100 e 250 edifici la prova entra in cinque interni rappresentativi, interagisce, ricarica la partita ed esce dalla stessa porta. Controlla il SHA-256 dei file effettivamente aperti e acquisisce schermate diurne e notturne.
+- Edge 158 senza finestra, 1280×720, Intel Core Ultra 9 275HX. Con 250 edifici e cinque residenti, preparazione del grafo 0,3 ms, ingresso con primo disegno 12,2–12,4 ms, p95 CPU complessivo 0,7 ms al massimo tra i tre semi, p95 simulazione 0,1 ms e disegno 0,3 ms. Heap JS dopo GC 5,21–5,29 MiB. Superfici del terreno fino a 2,50 MiB equivalenti RGBA. Il contatore misura i pixel delle tele e non misura la VRAM. Nelle 1.860 iterazioni complessive nessun intervallo rAF oltre 33,33 ms, in una sessione con aggiornamento indotto dal test.
+- Build standard verificata byte per byte con una ricostruzione indipendente. Regressioni Node superate per integrazione, Filoni (55 semi), Calis (55 semi), tre suite di economia, PERF-002 (181 scene e 2.631 posizioni) e BUG-011. PERF-001 conserva i 1.676 percorsi del riferimento. Edge ha completato 27 visite ai nove interni pubblicati, incluse attività, scambi, ricompense e caricamento di partite precedenti. Superate anche le prove browser di famiglie, creature, combattimento, mappa, economia e Velaris Est.
+- Il grafo principale presume arterie libere tra centri contigui. Descrittori di lotti, porte e strade rimangono indicizzati per l'intera mappa. I cinque residenti hanno turni e percorrono i primi rioni. Servono profili storici dedicati, più addetti e integrazione economica specifica prima di proporre una capitale di campagna. RISK-011 e PERF-003 restano aperti.
 
 ### Integrazione della fase 4 su main (Claude, 2026-11-22, branch `claude/integrazione-fase4`)
 - Build unita `Reincarnation.html` ricostruita dai sorgenti (SHA-256 `0c49851c…`). `confronto-mondo.cjs` contro `main` `3ff458b` (semi 19425/1116, 23 regioni, 8,6 milioni di campioni `canWalk`, 1587 rotte): identici. Node: `verifica-integrazione`, economia 158 e 147, `economia-flussi-2` codice 0, `sonda-percorsi` 0 bloccati su 41 040, `sonda-residenti` 0, `verifica-perf-002` 181 scene equivalenti (2631 posizioni percorribili, orari, sonno, salvataggi, commissioni, reputazione ed economia). Edge: `prova-browser` 10/10, `velaris-est` 12/12 (salvataggio della build `3ff458b`), economia, mondo 15/15, Cava 6/6, Santuario 7/7, interni 12/12, creature 7/7, combattimento 7/7, famiglie 6/6; nessun errore JavaScript.

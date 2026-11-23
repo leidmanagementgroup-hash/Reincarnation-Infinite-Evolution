@@ -28,7 +28,7 @@
   const regions={...base.regions,[originId]:forestRegion,...districtEntrances,[cityId]:cityRegion,...district.regions,
     ...Object.fromEntries([...kinds].map(([id,kind])=>[id,{...UrbanInteriors.get(kind),hidden:true}]))};
   const continents=base.continents.map(continent=>{
-    const extra=[cityRegion,...[...district.origins.values()].map(profile=>district.regions[profile.id])].filter(region=>region.continent===continent.id).map(region=>region.id);
+    const extra=[cityRegion,...[...district.origins.values()].map(profile=>district.regions[profile.id])].filter(region=>!region.hidden&&region.continent===continent.id).map(region=>region.id);
     return extra.length?{...continent,regions:[...continent.regions,...extra]}:continent;
   });
   const own=(row,key)=>Object.hasOwn(row,key);

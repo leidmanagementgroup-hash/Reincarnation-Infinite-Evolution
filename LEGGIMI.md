@@ -7,6 +7,12 @@ La campagna Dal Borgo al Varco fa parte di Vaelthoria, al centro del mondo. Dall
 
 Apri `Reincarnation.html` in un browser moderno. Grafica, musica sintetizzata e logica di gioco sono incorporate nel file HTML. Il browser conserva la partita in memoria locale. Dal menu Opzioni e comandi puoi esportare una copia JSON e importarla su un altro dispositivo. Il caricamento migra i salvataggi dalla v1 alla v6, compresa la v5 di GitHub. La vecchia attivazione di Vaelthoria vale per la Custode delle Origini nella Valle degli Antichi. Usa la copia JSON se sposti il file o cambi browser.
 
+### Visitare Confluenza nel laboratorio
+
+Apri la build di prova e scegli **Nuova incarnazione**. **WASD** muove il personaggio, **M** apre la mappa ed **E** apre le porte utilizzabili. Le strade collegano direttamente i rioni. I salvataggi del laboratorio sono separati per dimensione e dalla campagna.
+
+Puoi ricreare la build con `python build.py Confluenza.html --urban-lab 100`. Le altre dimensioni disponibili sono 25, 50 e 250 edifici.
+
 ### Visitare il Porto di Calis
 
 In **Azheryon**, raggiungi la **Costa delle Sette Vele**. Dal mercato esistente, segui la strada verso est fino al cartello della **Baia del Carico** e premi **E**. La mappa **M** mostra le Terrazze delle Carte, il Mercato delle Sette Vele e la Banchina dei Carichi. Puoi usare i due pontili e visitare la locanda, l'emporio, il Deposito delle Cime e la Casa delle Carte.
@@ -98,6 +104,8 @@ Dalla cartella dei sorgenti esegui `python build.py Reincarnation.html`. Lo scri
 | `continents.js` | Geografia delle nove nuove regioni e della Cripta delle Soglie, rotte, caricamento e monumenti |
 | `urban-exterior.js`, `urban-interiors.js`, `urban-world.js` | Quartieri e interni di Velaris, collisioni, mappa, percorsi e collegamenti con la Selva degli Alambicchi |
 | `filoni-sprites.js` | Terreno e flora locali del Piazzale degli Argani |
+| `urban-sector-layout.js` | Generazione multisettore a richiesta, geometria in cache e percorsi fra rioni |
+| `urban-lab.js`, `urban-lab-start.js` | Confluenza, inclusa soltanto nelle build con `--urban-lab` |
 | `urban-profiles.js`, `urban-districts.js` | Profili dei Filoni e di Calis, lotti, grafo, collisioni, settori, interni, orari e uso delle famiglie di `city-families.js` |
 | `urban-life.js`, `urban-services.js` | Residenti, orari, commissioni, scorte urbane, fonte della piazza e servizi interattivi |
 | `sprites.js` | Sprite animati, forme evolute, icone e ritratti |

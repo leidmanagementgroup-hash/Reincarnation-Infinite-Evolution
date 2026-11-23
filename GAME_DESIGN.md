@@ -46,7 +46,8 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 | 13 | `urban-interiors.js` | `UrbanInteriors` | Sette interni visitabili e cache delle superfici |
 | 13a | `filoni-sprites.js` | `FiloniSprites` | Vegetazione e tavolozza del terreno del Passo dei Larici |
 | 13b | `urban-profiles.js` | `UrbanProfiles` | Configurazione di Filoni e Calis: lotti, strade, soglie, arredi, turni, terreno e servizi |
-| 13c | `urban-districts.js` | `UrbanDistricts` | Registro, collisioni, percorsi, superfici per settore, interni e facciate per profilo |
+| 13c | `urban-sector-layout.js` | `UrbanSectorLayout` | Descrittori dei rioni, materializzazione a richiesta, cache e percorsi gerarchici |
+| 13d | `urban-districts.js` | `UrbanDistricts` | Registro, collisioni, percorsi, superfici per settore, interni e facciate per profilo |
 | 14 | `urban-world.js` | `UrbanWorld, World` | Collegamenti con la Selva degli Alambicchi, rotte, collisioni e accesso ai servizi |
 | 15 | `calendar.js` | `Calendar` | Calendario persistente unico (giorno = 1800 s reali = 1440 min di gioco) |
 | 16 | `inventory.js` | `Inventory` | Magazzino a pile, quantità esatte, deposito |
@@ -146,6 +147,14 @@ Il varco a est dello scalo sulla Costa delle Sette Vele collega `dune-port` a `c
 `urban-profiles.js` contiene dati separati per revisione, lotti, strade, turni e servizi. `urban-districts.js` condivide indicizzazione spaziale, grafo, regole di soglia, cache dei settori, registro degli interni e sorgenti per l'illuminazione. Le tele del terreno vengono disegnate per area inquadrata e vengono recuperate dalla cache al ritorno. Il registro mantiene al massimo cinque istanze di mappe e interni per seme/regione e non serializza le superfici. I quattro interni di Calis riusano piante di `UrbanInteriors` con chiavi permanenti proprie. Il codice della famiglia di Azheryon disegna cupole, portici, banchi, fronte dei moli e lampioni. La decisione su quale parte dell'acqua si può attraversare appartiene al profilo.
 
 L'emporio usa il mercato `calis` già registrato in `Economy` con gli stessi prezzi, quantità e orari. Il Registro dei Carichi apre il diario. La commissione `calis-freight` registra una vendita unica di almeno tre unità di legno all'emporio, paga 16 Scintille al Registro e usa le missioni persistenti di `Daily`. L'acquisto, la vendita, l'avanzamento e il pagamento passano per i normali comandi di gioco. Restano il salvataggio v7 e la migrazione delle partite precedenti.
+
+### 3.7 Confluenza · Laboratorio multisettore
+
+`UrbanSectorLayout` è opt-in per i profili con `neighborhoods`. Il laboratorio usa rioni da 512×512 e tele del terreno da 256×256. I descrittori di piazze, lotti, soglie e strade si ricostruiscono da seme, ID e revisione. Collisioni, decorazioni e indici locali vengono costruiti a richiesta. La cache della geometria conserva al massimo otto rioni, la visuale limita la cache delle tele e le facciate si appoggiano a `CityFamilies` con al massimo 56 riferimenti locali per mappa. Le porte di un rione conservano il loro ID quando il profilo si estende a nuove righe.
+
+Il percorso cerca un collegamento locale fra partenza e piazza, attraversa il grafo delle piazze contigue, poi risolve l'ultimo tratto nel rione di arrivo. Il grafo principale presuppone arterie riservate e percorribili. Per i profili litoranei o con barriere serviranno collegamenti espliciti e verifica del segmento principale. Filoni e Calis conservano il percorso e la planimetria della revisione pubblicata.
+
+`urban-lab.js` registra il profilo e cinque varianti regionali. `urban-lab-start.js` avvia il laboratorio attraverso un varco esistente nella build di prova. I due moduli si caricano soltanto con `--urban-lab`. Il formato rimane v7 e le chiavi di salvataggio locali sono isolate per taglio. Le varianti riutilizzano le piante degli interni e i servizi esistenti, con cinque residenti esterni assegnati alla prima fila di rioni. [Verifiche](PROGRESS.md#confluenza--scala-multisettore).
 
 ## 4. Meccaniche
 

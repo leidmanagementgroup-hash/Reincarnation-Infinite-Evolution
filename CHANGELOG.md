@@ -2,6 +2,15 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-23] Prova la scala multisettore a Confluenza — Codex
+
+### Aggiunto
+- Il branch `codex/urban-scale` parte da `7488642`. Il generatore prepara strade e lotti deterministici, carica collisioni e decorazioni per rione a richiesta e collega i rioni con un grafo gerarchico (`urban-sector-layout.js`, `urban-districts.js`, `urban-world.js`).
+- L'opzione `--urban-lab` produce quattro build offline da 25, 50, 100 e 250 edifici, con cinque famiglie architettoniche, interni e salvataggi locali separati (`urban-lab.js`, `urban-lab-start.js`, `build.py`). Ricostruito `Reincarnation.html` per la campagna.
+
+### Verificato
+- Cinque semi per dimensione, 55 semi per ognuno dei quartieri pubblicati, visite agli interni, salvataggi ed economia. In Edge il taglio da 250 edifici ha avuto un p95 CPU fino a 0,7 ms in movimento con cinque residenti. [Collaudo e limiti](PROGRESS.md#confluenza--scala-multisettore).
+
 ## [2026-11-23] Registra il collaudo di Calis e Filoni su main — Codex
 
 - Fast-forward autorizzato da `df21ad7` a `fff2484`. L'HTML offline ricostruito coincide con la build approvata. Entrambi i quartieri sono visitabili nella stessa partita.

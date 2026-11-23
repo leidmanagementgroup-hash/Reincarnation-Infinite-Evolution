@@ -15,7 +15,7 @@
     const rooms=Object.fromEntries(profile.lots.filter(lot=>lot.room).map(lot=>[roomId(lot),lot]));
     const regions={
       [id]:{id,name:profile.name,description:profile.description,width,height,spawn,continent,palette,
-        settlementType:'hamlet',landmarks,points:{...blank,gates:[leave]}}
+        settlementType:profile.neighborhoods?'town':'hamlet',...(profile.hidden?{hidden:true}:{}),landmarks,points:{...blank,gates:[leave]}}
     };
     for(const [key,lot] of Object.entries(rooms)){
       const template=UrbanInteriors.get(lot.room==='store'?'shop':lot.room);
@@ -52,10 +52,19 @@
       for(let y=Math.floor(box.y/sectorSize);y<=Math.floor((box.y+box.h)/sectorSize);y++)
         for(let x=Math.floor(box.x/sectorSize);x<=Math.floor((box.x+box.w)/sectorSize);x++)callback(x,y);
     }
-    function nearPlaza(x,y){return ((x-plaza.x)/plaza.rx)**(plaza.power||2)+((y-plaza.y)/plaza.ry)**(plaza.power||2);}
+    function nearPlaza(x,y,place=plaza){return ((x-place.x)/place.rx)**(place.power||2)+((y-place.y)/place.ry)**(place.power||2);}
+    const lotSalt=lotKey(id+'/layout/'+profile.revision);
+    function placeLot(lot,seed){
+        const n=hash(lotKey(lot.id),lotSalt,seed),variant=n%lot.widths.length,varied=lot.widths.length>1;
+        const x=lot.x+(varied?(n>>>5)%15-7:0),y=lot.y+(varied?(n>>>11)%9-4:0);
+        const w=lot.widths[variant],door=at(x,y+12);
+        const box={x:x-Math.floor(w/2),y:y-lot.depth,w,h:lot.depth};
+        const facade={sub:lot.sub||(variant===lot.snow?'rocca':(lot.palette?family.familyOf(lot.palette)[1]:familySub)),kind:lot.component,
+          spec:{w,stories:lot.stories,variant:(n>>>14)%8,door:0}};
+        return {...lot,x,y,facade,box,door,room:lot.room?roomId(lot):null};
+    }
     function generate(seed){
       const sectors=new Map(),roads=[],nodes=new Map(),links=new Map(),buildings=[],props=[];
-      const lotSalt=lotKey(id+'/layout/'+profile.revision);
       for(let y=0;y*sectorSize<height;y++)for(let x=0;x*sectorSize<width;x++){
         sectors.set(sectorKey(x,y),{x:x*sectorSize,y:y*sectorSize,buildings:[],props:[],solids:[],roads:[]});
       }
@@ -72,13 +81,7 @@
         forSectors(box,(x,y)=>sectors.get(sectorKey(x,y))?.solids.push(box));
       }
       for(const lot of profile.lots){
-        const n=hash(lotKey(lot.id),lotSalt,seed),variant=n%lot.widths.length,varied=lot.widths.length>1;
-        const x=lot.x+(varied?(n>>>5)%15-7:0),y=lot.y+(varied?(n>>>11)%9-4:0);
-        const w=lot.widths[variant],door=at(x,y+12);
-        const box={x:x-Math.floor(w/2),y:y-lot.depth,w,h:lot.depth};
-        const facade={sub:lot.sub||(variant===lot.snow?'rocca':familySub),kind:lot.component,
-          spec:{w,stories:lot.stories,variant:(n>>>14)%8,door:0}};
-        const building={...lot,x,y,facade,box,door,room:lot.room?roomId(lot):null};
+        const building=placeLot(lot,seed),{x,y,box,door}=building;
         buildings.push(building);solid(box);
         sectors.get(sectorKey(Math.floor(x/sectorSize),Math.floor(y/sectorSize))).buildings.push(building);
         nodes.set(lot.id,door);links.set(lot.id,[]);link(lot.node,lot.id,lot.room?15:11);
@@ -112,7 +115,7 @@
         return result;
       };
       function canWalk(x,y,r=6){
-        if(!Number.isFinite(x)||!Number.isFinite(y)||x<r+14||y<r+15||x>width-r-14||y>height-r-16||flooded(x,y,r))return false;
+        if(!Number.isFinite(x)||!Number.isFinite(y)||x<r+14||y<r+15||x>width-r-14||y>height-r-16||flooded(x,y,r)||layout.contains&&!layout.contains(x,y,r))return false;
         for(let cy=Math.floor((y-r)/sectorSize);cy<=Math.floor((y+r)/sectorSize);cy++){
           for(let cx=Math.floor((x-r)/sectorSize);cx<=Math.floor((x+r)/sectorSize);cx++){
             const sector=layout.sectors.get(sectorKey(cx,cy));
@@ -144,6 +147,7 @@
         return true;
       }
       function path(a,b,r=6){
+        if(layout.path)return layout.path(a,b,r,segmentClear);
         if(segmentClear(a,b,r))return [a,b];
         const {nodes,links}=layout;
         const starts=[...nodes].filter(([,p])=>segmentClear(a,p,r)).sort(([,p],[,q])=>dist(a,p)-dist(a,q));
@@ -227,12 +231,12 @@
         let ground=terrain.soilRgb[clamp(Math.floor(b*6)+(n%4===0?1:0),0,6)];
         if(b>.71&&y<profile.dryAbove)ground=terrain.dryRgb[(n>>>8)%4];
         const near=distances[i];
-        const square=nearPlaza(x,y),rough=(n%8-3)*.65;
+        const square=nearPlaza(x,y,sector.plaza),rough=(n%8-3)*.65;
         if(near<rough)ground=terrain.trackRgb[1+mainRoad[i]+(n>>>5)%3];
         else if(near<rough+5)ground=terrain.vergeRgb[(n>>>6)%3];
         if(square<1.04){
           const row=Math.floor(y/8),s=(x+(row%2)*6)%12;
-          ground=square>.91||y%8<2||s<2?joint:terrain.pavingRgb[1+hash(Math.floor((x+(row%2)*6)/12),row,seed)%3];
+          ground=square>.91||y%8<2||s<2?joint:terrain.pavingRgb[1+(hash(Math.floor((x+(row%2)*6)/12),row,seed)+(sector.plaza?.tone||0))%3];
         }
         if(coast)ground=shoreColor(x,y,n,ground);
         for(let y=oy;y<oy+2;y++)for(let x=ox;x<ox+2;x++)pixel(x,y,ground);
@@ -330,7 +334,7 @@
           if(deck(x,y))box(c,materials.wood[2],x,y,6,6);
         }
       }
-      box(c,terrain.paving[1],plaza.x-plaza.rx+14,plaza.y-plaza.ry+12,2*plaza.rx-28,2*plaza.ry-24);
+      for(const p of layout.plazas||[plaza])box(c,terrain.paving[1],p.x-p.rx+14,p.y-p.ry+12,2*p.rx-28,2*p.ry-24);
       for(const r of layout.roads){
         c.beginPath();c.moveTo(r.from.x,r.from.y);c.lineTo(r.to.x,r.to.y);
         c.strokeStyle=r.main?terrain.track[4]:terrain.track[2];c.lineWidth=r.width;c.stroke();
@@ -372,17 +376,26 @@
       const sites=layout.buildings.filter(b=>b.room).map(b=>({id:'door-'+b.id,...b.door,range:24,name:b.name,text:'Entra · '+b.name,to:b.room}));
       sites.push(...(profile.sites||[]));
       function buildingFrame(b){
-        if(buildingFrames.has(b.id))return buildingFrames.get(b.id);
-        const {sub,kind,spec}=b.facade,sprite=family.render(familyId,sub,kind,spec),sx=b.box.w/sprite.footprint.w;
+        if(buildingFrames.has(b.id)){
+          const hit=buildingFrames.get(b.id);
+          if(profile.neighborhoods){buildingFrames.delete(b.id);buildingFrames.set(b.id,hit);}
+          return hit;
+        }
+        const fid=b.palette?family.familyOf(b.palette)[0]:familyId,{sub,kind,spec}=b.facade;
+        const sprite=family.render(fid,sub,kind,spec),sx=b.box.w/sprite.footprint.w;
         // Allinea la soglia disegnata alla porta persistente, conservando i 12 px di avvicinamento della revisione 1.
         const x=b.door.x-sprite.door.x*sx,y=b.door.y-12-sprite.door.y;
-        const frame={sprite,x,y,sx};buildingFrames.set(b.id,frame);return frame;
+        const frame={sprite,x,y,sx};buildingFrames.set(b.id,frame);
+        if(profile.neighborhoods&&buildingFrames.size>56)buildingFrames.delete(buildingFrames.keys().next().value);
+        return frame;
       }
       function furnitureFrame(o){
-        if(furnitureFrames.has(o.kind))return furnitureFrames.get(o.kind);
-        const [kind,,sub=familySub,spec]=furnitureKind[o.kind];
-        const sprite=family.render(familyId,sub,kind,spec);
-        furnitureFrames.set(o.kind,sprite);return sprite;
+        const key=o.palette?o.palette+'/'+o.kind:o.kind;
+        if(furnitureFrames.has(key))return furnitureFrames.get(key);
+        const [fid,variant]=o.palette?family.familyOf(o.palette):[familyId,familySub];
+        const [kind,,sub=variant,spec]=furnitureKind[o.kind];
+        const sprite=family.render(fid,sub,kind,spec);
+        furnitureFrames.set(key,sprite);return sprite;
       }
       function drawGround(c,cam){
         c.imageSmoothingEnabled=false;
@@ -433,13 +446,18 @@
         return {lights,windows};
       }
       return {...collision,layout,sites,drawGround,drawFront,drawMap,lights,actors:residentActors(layout,collision),
-        cacheStats(){return {sectors:ground.size,terrainBytes:[...ground.values()].reduce((n,image)=>n+4*image.width*image.height,0)};}};
+        cacheStats(){return {sectors:ground.size,terrainBytes:[...ground.values()].reduce((n,image)=>n+4*image.width*image.height,0),
+          facades:buildingFrames.size,facadeBytes:[...buildingFrames.values()].reduce((n,f)=>n+4*f.sprite.image.width*f.sprite.image.height,0),
+          ...(layout.cacheStats?.()||{})};}};
     }
 
     const roomKind=key=>rooms[key]?.room||null;
     function buildMap(region,seed){
       const room=rooms[region];
-      if(!room)return exterior(generate(seed));
+      if(!room){
+        const layout=profile.neighborhoods?UrbanSectorLayout.create(profile,seed,lot=>placeLot(lot,seed),sectorSize):generate(seed);
+        return exterior(layout);
+      }
       const original=UrbanInteriors.create(room.room==='store'?'shop':room.room,hash(lotKey(room.id),profile.revision,seed));
       const sites=room.room==='store'?original.sites.map(site=>site.id==='shop'?
         {...site,id:'freight-ledger',text:'Leggi il giornale di magazzino'}:site):original.sites;
@@ -467,6 +485,7 @@
         return {ok:true,transition:{region:id,...dest.arrival}};
       }
       if(site.panel)return {ok:true,panel:site.panel};
+      if(profile.hidden&&roomKind(s.region)==='archive')return {ok:true,text:'L’archivio custodisce le piante dei rioni di Confluenza.'};
       if(site.id==='freight-ledger')return {ok:true,text:'Il giornale elenca cordame, legna e merci in attesa della prossima marea.'};
       if(site.id==='shop')return {ok:true,panel:'economy'};
       if(site.id==='forge')return {ok:true,panel:'gear'};
