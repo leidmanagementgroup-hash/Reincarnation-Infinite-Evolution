@@ -38,7 +38,11 @@ const SCENES = {
   'proiettili-nemici': { race: 'human', monster: ['moth', 70, -6], pin: 'pos', act: [['wait', 0]], frames: [20, 40, 52, 62], what: 'Avviso e proiettile della Falena di lume (luce, nemico)' },
   'boss-fase': { race: 'goblin', monster: ['boss', 26, 0], boss: 'phase', act: [['attack', 0]], frames: [3, 14, 34, 62], what: 'Orveth passa alla fase II (trasformazione)' },
   'boss-pericolo': { race: 'goblin', region: 'quarry', spot: [840, 430], monster: ['kharun', 34, 0], boss: 'hammer', act: [['attack', 26], ['attack', 0]], frames: [2, 6, 10, 16], what: 'Kharun in fase II: aura e avviso del maglio sopra gli impatti' },
-  evoluzione: { race: 'human', monster: null, evolve: true, act: [], frames: [4, 20, 45, 80], what: 'Evoluzione del personaggio (trasformazione)' }
+  evoluzione: { race: 'human', monster: null, evolve: true, act: [], frames: [4, 20, 45, 80], what: 'Evoluzione del personaggio (trasformazione)' },
+  // RPG Evolution, incremento 2: preavvisi tenuti fermi a metà per confrontare l'area disegnata.
+  'avviso-pestone': { race: 'goblin', monster: ['thorn', 24, 0], warn: 'stomp', act: [['attack', 0]], frames: [2, 6, 10, 16], what: 'Pestone del Germoglio spinoso: avviso e colpo del giocatore' },
+  'avviso-carica': { race: 'human', monster: ['wolf', 50, 0], warn: 'dash', act: [['wait', 0]], frames: [2, 8, 14, 20], what: 'Carica del Lupo delle fronde: avviso' },
+  'avviso-orveth': { race: 'goblin', monster: ['boss', 38, 0], boss: 'phase1', warn: 'stomp', act: [['attack', 0]], frames: [2, 6, 10, 16], what: 'Pestone di Orveth (fase I): avviso' }
 };
 const scenes = (only ? only.split(',') : Object.keys(SCENES)).filter(k => SCENES[k]);
 // SPOT=x,y: punto alternativo per le scene nella valle (per cercare uno sfondo sgombro).
@@ -117,7 +121,8 @@ async function shoot(file) {
           m.x = m.homeX; m.y = m.homeY;
           if (sc.pin === 'pos') return;
           m.cd = 99; m.dash = 0;
-          if (sc.boss === 'hammer') { Object.assign(m, { wind: .45, windDuration: .72, pattern: 'hammer', engaged: true }); } else m.wind = 0;
+          if (sc.boss === 'hammer') { Object.assign(m, { wind: .45, windDuration: .72, pattern: 'hammer', engaged: true }); }
+          else if (sc.warn) { Object.assign(m, { wind: .3, windDuration: .6, pattern: sc.warn, engaged: true, aimX: -1, aimY: 0 }); } else m.wind = 0;
         };
         __tick(70);
         Game.s.player.hp = 999;

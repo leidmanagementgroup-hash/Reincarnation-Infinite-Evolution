@@ -521,7 +521,7 @@
     const p=s.player, near=nearest(p,reach),current=dirVectors[p.dir];
     if(near && (distance(p,near)<21 || (near.x-p.x)*current[0]+(near.y-p.y)*current[1]>-4))p.dir=heading(near.x-p.x,near.y-p.y);
     const [vx,vy]=dirVectors[p.dir],angle=Math.atan2(vy,vx);
-    effects.push({kind:'arc',x:p.x,y:p.y-7,angle,r:reach*.86,ttl:.21,duration:.21,color,tag:fxTag});
+    effects.push({kind:'arc',x:p.x,y:p.y-7,angle,r:reach*.86,ttl:.21,duration:.21,color,tag:fxTag,reach,cone:width});
     let hits=0,boss=false;
     for(const m of s.monsters){
       if(!targetable(m)||distance(p,m)>reach+(codex[m.type].boss?9:0))continue;
@@ -901,6 +901,12 @@
       launch(m.x,m.y,[Math.cos(a),Math.sin(a)],'root',damage,color,true,speed);
     }
   }
+  // Misure degli attacchi dei mostri usate sia dal colpo sia dal suo avviso (RPG Evolution, incremento 2): stessi valori di prima.
+  const stompRadius=(m,def)=>def.boss?(m.phase===2?55:44):m.type==='crystalguard'?36:25;
+  const hammerRadius=m=>m.phase===2?63:51;
+  const dashTime=def=>def.boss?.42:.32;
+  const dashSpeedOf=m=>m.type==='syrava'?231:m.type==='shade'?211:172;
+  const dashReach=def=>def.boss?22:15;
   function hazard(x,y,r,duration,damage,color){
     hazards.push({x,y,r,ttl:duration,damage,color,tag:fxTag});
   }
@@ -920,16 +926,16 @@
         if(m.type==='shardling')fanEnemy(m,3,.5,106,'#9cf3ff',damage);
         else launch(m.x,m.y,[m.aimX,m.aimY],'dust',damage,m.type==='ember'?'#ffbd7c':color,true);
         break;
-      case 'dash':m.dash=def.boss?.42:.32;break;
+      case 'dash':m.dash=dashTime(def);break;
       case 'roots':{
         spreadEnemy(m,m.phase===2?11:7,88,color,damage);
         ring(m.x,m.y,42,color);break;}
       case 'stomp':{
-        const radius=def.boss?(m.phase===2?55:44):m.type==='crystalguard'?36:25;
+        const radius=stompRadius(m,def);
         ring(m.x,m.y,radius,color);if(distance(m,p)<radius+5)hurtPlayer(damage);
         break;}
       case 'hammer':{
-        const r=m.phase===2?63:51;
+        const r=hammerRadius(m);
         ring(m.x,m.y,r,color);spark(m.x,m.y,color,21);
         if(distance(m,p)<r+4)hurtPlayer(damage+6);
         break;}
@@ -1020,9 +1026,9 @@
     if(m.engaged && homeDist>leash+48){m.engaged=false;m.wind=0;m.dash=0;Adaptive.clearGuard(s,m);if(boss){m.hp=m.maxHp;m.phase=1;m.cycle=0;m.grace=0;}}
     if(!m.engaged && d<(boss?112:80) && homeDist<leash){m.engaged=true;Adaptive.encounter(s,m);if(boss){emit('sound','boss');emit('toast',def.name);}}
     if(m.dash>0){
-      const dashSpeed=m.type==='syrava'?231:m.type==='shade'?211:172;
+      const dashSpeed=dashSpeedOf(m);
       m.dash=Math.max(0,m.dash-dt);m.moving=move(m,m.aimX*dashSpeed*dt,m.aimY*dashSpeed*dt,boss?7:5);
-      if(distance(m,p)<(boss?22:15)){fxTag=fxOf({monster:m.type});hurtPlayer(def.damage+2);fxTag=null;}
+      if(distance(m,p)<dashReach(def)){fxTag=fxOf({monster:m.type});hurtPlayer(def.damage+2);fxTag=null;}
       return;
     }
     if(m.wind>0){m.wind=Math.max(0,m.wind-dt);if(!m.wind)burstEnemy(m);return;}
@@ -1211,6 +1217,14 @@
     if(filled){ctx.fillStyle=color;ctx.fill();}
     else{ctx.strokeStyle=color;ctx.stroke();}
   }
+  function dashLane(ctx,m,len,r,color,progress){
+    ctx.save();ctx.translate(m.x,m.y);ctx.rotate(Math.atan2(m.aimY,m.aimX));
+    ctx.globalAlpha=.10+.12*progress;ctx.fillStyle=color;ctx.fillRect(0,-r,len,r*2);
+    ctx.beginPath();ctx.arc(len,0,r,-Math.PI/2,Math.PI/2);ctx.fill();
+    ctx.globalAlpha=.8;ctx.strokeStyle=color;ctx.beginPath();ctx.moveTo(0,-r);ctx.lineTo(len,-r);ctx.arc(len,0,r,-Math.PI/2,Math.PI/2);ctx.lineTo(0,r);ctx.stroke();
+    ctx.globalAlpha=.28;ctx.fillRect(0,-r,len*progress,r*2);
+    ctx.restore();
+  }
   function warnCircle(ctx,x,y,r,color,progress){
     ctx.globalAlpha=.10+.15*progress;groundCircle(ctx,x,y,r,color,true);
     ctx.globalAlpha=.8;groundCircle(ctx,x,y,r,color,false);
@@ -1232,7 +1246,7 @@
   }
   function drawFX(ctx){
     if(!s)return;
-    const art=window.CombatFX,scene=art?{t:s.time,region:s.region,player:s.player,monsters:s.monsters,hazards,codex}:null;
+    const art=window.CombatFX,scene=art?{t:s.time,region:s.region,player:s.player,monsters:s.monsters,hazards,codex,combo:{stage:combo,left:Math.max(0,comboUntil-s.time)}}:null;
     ctx.save();ctx.lineWidth=1;
     // Decorazioni del combattimento (aure, impatti, archi, anelli, scintille) sotto avvisi di pericolo, proiettili
     // e numeri: restano leggibili anche negli scontri affollati (combat-fx.js, solo disegno).
@@ -1241,7 +1255,7 @@
     ctx.globalAlpha=1;ctx.lineWidth=1;
     for(const m of s.monsters){
       if(m.hp<=0||!m.wind)continue;
-      const pattern=m.pattern,progress=1-m.wind/m.windDuration,color=codex[m.type].color||(m.phase===2?'#ff9db9':'#ffbf75');
+      const def=codex[m.type],pattern=m.pattern,progress=1-m.wind/m.windDuration,color=def.color||(m.phase===2?'#ff9db9':'#ffbf75');
       if(pattern==='slag'){
         warnCircle(ctx,m.targetX,m.targetY,24,color,progress);
         if(m.phase===2){
@@ -1250,8 +1264,14 @@
         }
         continue;
       }
-      if(pattern==='hammer'){warnCircle(ctx,m.x,m.y,m.phase===2?63:51,color,progress);continue;}
-      if(pattern==='counter'){warnCircle(ctx,m.x,m.y,40,color,progress);continue;}
+      // L'area disegnata è quella che colpisce (prima il maglio e il contrattacco erano più piccoli di 3-4 px).
+      if(pattern==='hammer'){warnCircle(ctx,m.x,m.y,hammerRadius(m)+4,color,progress);continue;}
+      if(pattern==='counter'){warnCircle(ctx,m.x,m.y,43,color,progress);continue;}
+      // Pestone: prima un'ellisse più piccola del colpo (e per i boss diversi da Orveth il raggio dei mostri normali).
+      if(pattern==='stomp'){warnCircle(ctx,m.x,m.y,stompRadius(m,def)+5,color,progress);continue;}
+      // Carica: corsia lunga quanto la corsa reale (durata × velocità) e larga quanto il raggio del contatto.
+      // La corsa avanza a passi di un fotogramma: l'ultimo passo può superare la durata nominale di 1/60 s.
+      if(pattern==='dash'){dashLane(ctx,m,(dashTime(def)+1/60)*dashSpeedOf(m),dashReach(def),color,progress);continue;}
       if(pattern==='nadir-prism'){
         for(const side of [-1,1])warnCircle(ctx,m.targetX+side*m.aimY*28,m.targetY-side*m.aimX*28,m.phase===3?22:17,color,progress);
         continue;
@@ -1277,9 +1297,10 @@
         ctx.strokeRect(m.targetX-width,m.targetY-len,width*2,len*2);
         continue;
       }
-      const r=pattern==='stomp'?(m.type==='boss'?(m.phase===2?55:44):m.type==='crystalguard'?36:25):12;
+      // Altri attacchi (tiro, frantumi, forgia, radici, riposizionamenti): anellino e direzione; stomp e dash escono prima.
+      const r=12;
       ctx.globalAlpha=.55;circle(ctx,m.x,m.y,r,color);
-      if(pattern==='shot'||pattern==='dash'||pattern==='shards'||pattern==='forge'){
+      if(pattern==='shot'||pattern==='shards'||pattern==='forge'){
         const length=m.type==='syrava'?105:55;
         ctx.setLineDash([3,3]);ctx.strokeStyle=color;ctx.beginPath();ctx.moveTo(m.x,m.y-4);
         ctx.lineTo(m.x+m.aimX*length,m.y-4+m.aimY*length);ctx.stroke();ctx.setLineDash([]);

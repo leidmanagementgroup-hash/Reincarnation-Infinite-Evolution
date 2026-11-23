@@ -217,6 +217,43 @@ async function start(browser, options = {}, init) {
       assert.deepEqual(errors, [], errors.join(' | '));
       return 'stirpe ' + race + ', ' + json.length + ' byte';
     });
+    await step('8. Memoria d’ingresso: J premuto a fine ricarica parte appena possibile; troppo presto no (RPG Evolution 2)', async () => {
+      const r = await page.evaluate(() => {
+        __newGame('goblin'); __tick(5);
+        const p = Game.s.player, cases = {};
+        for (const [label, wait] of [['0,1 s', .1], ['0,5 s', .5]]) {
+          p.cooldowns.attack = wait; p.swing = 0;
+          document.body.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyJ', bubbles: true }));
+          document.body.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyJ', bubbles: true }));
+          let fired = -1;
+          for (let i = 0; i < 40; i++) { __tick(1); if (p.swing > 0 && fired < 0) fired = i; }
+          cases[label] = fired; __tick(40);
+        }
+        return cases;
+      });
+      assert.ok(r['0,1 s'] >= 0 && r['0,1 s'] <= 10, 'attacco a fine ricarica non partito: ' + JSON.stringify(r));
+      assert.equal(r['0,5 s'], -1, 'attacco memorizzato troppo presto: ' + JSON.stringify(r));
+      return `a 0,1 s dalla fine: parte al fotogramma ${r['0,1 s']}; a 0,5 s: ignorato`;
+    });
+
+    await step('9. Settore reale del colpo e tacche della combo disegnati (RPG Evolution 2)', async () => {
+      const r = await page.evaluate(() => {
+        __newGame('goblin'); const thorn = __foe('thorn', 20, 0); __tick(5);
+        const p = Game.s.player; p.dir = 'right'; p.cooldowns.attack = 0;
+        const reach = Game.races && Growth.strike(p.growth, Game.races.find(x => x.id === p.race), p).reach;
+        Game.action('attack'); __tick(1);
+        const real = document.createElement('canvas').getContext('2d'), log = [];
+        const ctx = new Proxy(real, { get(t, k) { const v = t[k]; return typeof v === 'function' ? (...a) => { log.push([k, String(t.fillStyle), ...a]); return v.apply(t, a); } : v; }, set(t, k, v) { t[k] = v; return true; } });
+        Game.drawFX(ctx);
+        const sector = log.some(c => c[0] === 'arc' && Math.abs(c[4] - reach) < .01 && Math.abs(c[2] - p.x) < 1);
+        const pips = log.filter(c => c[0] === 'fillRect' && c[1] === '#ffd88d' && c[3] > p.y).length;
+        return { reach, sector, pips, hp: thorn.hp < thorn.maxHp };
+      });
+      assert.ok(r.hp, 'il colpo non ha raggiunto il germoglio');
+      assert.ok(r.sector, 'settore con la portata reale (' + r.reach + ' px) non disegnato');
+      assert.ok(r.pips >= 1, 'tacca della combo non disegnata');
+      return `portata ${r.reach} px, ${r.pips} tacca piena dopo il primo colpo`;
+    });
     await context.close();
 
     await step('7. Effetti ridotti: prefers-reduced-motion e opzione del gioco fermano scie e particelle', async () => {

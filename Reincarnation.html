@@ -15185,7 +15185,7 @@ window.Lantern = (() => {
     const p=s.player, near=nearest(p,reach),current=dirVectors[p.dir];
     if(near && (distance(p,near)<21 || (near.x-p.x)*current[0]+(near.y-p.y)*current[1]>-4))p.dir=heading(near.x-p.x,near.y-p.y);
     const [vx,vy]=dirVectors[p.dir],angle=Math.atan2(vy,vx);
-    effects.push({kind:'arc',x:p.x,y:p.y-7,angle,r:reach*.86,ttl:.21,duration:.21,color,tag:fxTag});
+    effects.push({kind:'arc',x:p.x,y:p.y-7,angle,r:reach*.86,ttl:.21,duration:.21,color,tag:fxTag,reach,cone:width});
     let hits=0,boss=false;
     for(const m of s.monsters){
       if(!targetable(m)||distance(p,m)>reach+(codex[m.type].boss?9:0))continue;
@@ -15565,6 +15565,12 @@ window.Lantern = (() => {
       launch(m.x,m.y,[Math.cos(a),Math.sin(a)],'root',damage,color,true,speed);
     }
   }
+  // Misure degli attacchi dei mostri usate sia dal colpo sia dal suo avviso (RPG Evolution, incremento 2): stessi valori di prima.
+  const stompRadius=(m,def)=>def.boss?(m.phase===2?55:44):m.type==='crystalguard'?36:25;
+  const hammerRadius=m=>m.phase===2?63:51;
+  const dashTime=def=>def.boss?.42:.32;
+  const dashSpeedOf=m=>m.type==='syrava'?231:m.type==='shade'?211:172;
+  const dashReach=def=>def.boss?22:15;
   function hazard(x,y,r,duration,damage,color){
     hazards.push({x,y,r,ttl:duration,damage,color,tag:fxTag});
   }
@@ -15584,16 +15590,16 @@ window.Lantern = (() => {
         if(m.type==='shardling')fanEnemy(m,3,.5,106,'#9cf3ff',damage);
         else launch(m.x,m.y,[m.aimX,m.aimY],'dust',damage,m.type==='ember'?'#ffbd7c':color,true);
         break;
-      case 'dash':m.dash=def.boss?.42:.32;break;
+      case 'dash':m.dash=dashTime(def);break;
       case 'roots':{
         spreadEnemy(m,m.phase===2?11:7,88,color,damage);
         ring(m.x,m.y,42,color);break;}
       case 'stomp':{
-        const radius=def.boss?(m.phase===2?55:44):m.type==='crystalguard'?36:25;
+        const radius=stompRadius(m,def);
         ring(m.x,m.y,radius,color);if(distance(m,p)<radius+5)hurtPlayer(damage);
         break;}
       case 'hammer':{
-        const r=m.phase===2?63:51;
+        const r=hammerRadius(m);
         ring(m.x,m.y,r,color);spark(m.x,m.y,color,21);
         if(distance(m,p)<r+4)hurtPlayer(damage+6);
         break;}
@@ -15684,9 +15690,9 @@ window.Lantern = (() => {
     if(m.engaged && homeDist>leash+48){m.engaged=false;m.wind=0;m.dash=0;Adaptive.clearGuard(s,m);if(boss){m.hp=m.maxHp;m.phase=1;m.cycle=0;m.grace=0;}}
     if(!m.engaged && d<(boss?112:80) && homeDist<leash){m.engaged=true;Adaptive.encounter(s,m);if(boss){emit('sound','boss');emit('toast',def.name);}}
     if(m.dash>0){
-      const dashSpeed=m.type==='syrava'?231:m.type==='shade'?211:172;
+      const dashSpeed=dashSpeedOf(m);
       m.dash=Math.max(0,m.dash-dt);m.moving=move(m,m.aimX*dashSpeed*dt,m.aimY*dashSpeed*dt,boss?7:5);
-      if(distance(m,p)<(boss?22:15)){fxTag=fxOf({monster:m.type});hurtPlayer(def.damage+2);fxTag=null;}
+      if(distance(m,p)<dashReach(def)){fxTag=fxOf({monster:m.type});hurtPlayer(def.damage+2);fxTag=null;}
       return;
     }
     if(m.wind>0){m.wind=Math.max(0,m.wind-dt);if(!m.wind)burstEnemy(m);return;}
@@ -15875,6 +15881,14 @@ window.Lantern = (() => {
     if(filled){ctx.fillStyle=color;ctx.fill();}
     else{ctx.strokeStyle=color;ctx.stroke();}
   }
+  function dashLane(ctx,m,len,r,color,progress){
+    ctx.save();ctx.translate(m.x,m.y);ctx.rotate(Math.atan2(m.aimY,m.aimX));
+    ctx.globalAlpha=.10+.12*progress;ctx.fillStyle=color;ctx.fillRect(0,-r,len,r*2);
+    ctx.beginPath();ctx.arc(len,0,r,-Math.PI/2,Math.PI/2);ctx.fill();
+    ctx.globalAlpha=.8;ctx.strokeStyle=color;ctx.beginPath();ctx.moveTo(0,-r);ctx.lineTo(len,-r);ctx.arc(len,0,r,-Math.PI/2,Math.PI/2);ctx.lineTo(0,r);ctx.stroke();
+    ctx.globalAlpha=.28;ctx.fillRect(0,-r,len*progress,r*2);
+    ctx.restore();
+  }
   function warnCircle(ctx,x,y,r,color,progress){
     ctx.globalAlpha=.10+.15*progress;groundCircle(ctx,x,y,r,color,true);
     ctx.globalAlpha=.8;groundCircle(ctx,x,y,r,color,false);
@@ -15896,7 +15910,7 @@ window.Lantern = (() => {
   }
   function drawFX(ctx){
     if(!s)return;
-    const art=window.CombatFX,scene=art?{t:s.time,region:s.region,player:s.player,monsters:s.monsters,hazards,codex}:null;
+    const art=window.CombatFX,scene=art?{t:s.time,region:s.region,player:s.player,monsters:s.monsters,hazards,codex,combo:{stage:combo,left:Math.max(0,comboUntil-s.time)}}:null;
     ctx.save();ctx.lineWidth=1;
     // Decorazioni del combattimento (aure, impatti, archi, anelli, scintille) sotto avvisi di pericolo, proiettili
     // e numeri: restano leggibili anche negli scontri affollati (combat-fx.js, solo disegno).
@@ -15905,7 +15919,7 @@ window.Lantern = (() => {
     ctx.globalAlpha=1;ctx.lineWidth=1;
     for(const m of s.monsters){
       if(m.hp<=0||!m.wind)continue;
-      const pattern=m.pattern,progress=1-m.wind/m.windDuration,color=codex[m.type].color||(m.phase===2?'#ff9db9':'#ffbf75');
+      const def=codex[m.type],pattern=m.pattern,progress=1-m.wind/m.windDuration,color=def.color||(m.phase===2?'#ff9db9':'#ffbf75');
       if(pattern==='slag'){
         warnCircle(ctx,m.targetX,m.targetY,24,color,progress);
         if(m.phase===2){
@@ -15914,8 +15928,14 @@ window.Lantern = (() => {
         }
         continue;
       }
-      if(pattern==='hammer'){warnCircle(ctx,m.x,m.y,m.phase===2?63:51,color,progress);continue;}
-      if(pattern==='counter'){warnCircle(ctx,m.x,m.y,40,color,progress);continue;}
+      // L'area disegnata è quella che colpisce (prima il maglio e il contrattacco erano più piccoli di 3-4 px).
+      if(pattern==='hammer'){warnCircle(ctx,m.x,m.y,hammerRadius(m)+4,color,progress);continue;}
+      if(pattern==='counter'){warnCircle(ctx,m.x,m.y,43,color,progress);continue;}
+      // Pestone: prima un'ellisse più piccola del colpo (e per i boss diversi da Orveth il raggio dei mostri normali).
+      if(pattern==='stomp'){warnCircle(ctx,m.x,m.y,stompRadius(m,def)+5,color,progress);continue;}
+      // Carica: corsia lunga quanto la corsa reale (durata × velocità) e larga quanto il raggio del contatto.
+      // La corsa avanza a passi di un fotogramma: l'ultimo passo può superare la durata nominale di 1/60 s.
+      if(pattern==='dash'){dashLane(ctx,m,(dashTime(def)+1/60)*dashSpeedOf(m),dashReach(def),color,progress);continue;}
       if(pattern==='nadir-prism'){
         for(const side of [-1,1])warnCircle(ctx,m.targetX+side*m.aimY*28,m.targetY-side*m.aimX*28,m.phase===3?22:17,color,progress);
         continue;
@@ -15941,9 +15961,10 @@ window.Lantern = (() => {
         ctx.strokeRect(m.targetX-width,m.targetY-len,width*2,len*2);
         continue;
       }
-      const r=pattern==='stomp'?(m.type==='boss'?(m.phase===2?55:44):m.type==='crystalguard'?36:25):12;
+      // Altri attacchi (tiro, frantumi, forgia, radici, riposizionamenti): anellino e direzione; stomp e dash escono prima.
+      const r=12;
       ctx.globalAlpha=.55;circle(ctx,m.x,m.y,r,color);
-      if(pattern==='shot'||pattern==='dash'||pattern==='shards'||pattern==='forge'){
+      if(pattern==='shot'||pattern==='shards'||pattern==='forge'){
         const length=m.type==='syrava'?105:55;
         ctx.setLineDash([3,3]);ctx.strokeStyle=color;ctx.beginPath();ctx.moveTo(m.x,m.y-4);
         ctx.lineTo(m.x+m.aimX*length,m.y-4+m.aimY*length);ctx.stroke();ctx.setLineDash([]);
@@ -16642,6 +16663,7 @@ window.Lantern = (() => {
       }
     }
     if (!still && scene.player) drawGhosts(ctx, scene.player, t); else ghosts = [];
+    if (scene.player) { const m0 = mask; mask = null; comboPips(ctx, scene.player, scene.combo, t); mask = m0; }
     for (const f of live) drawLive(ctx, f, t);
     ctx.restore();
   }
@@ -16653,6 +16675,7 @@ window.Lantern = (() => {
       case 'arc': {
         const k = 1 - f.ttl / f.duration, r = f.r * (.77 + .23 * k), a0 = f.angle - 1.1 + k * .7, a1 = f.angle + .8 + k * .45;
         const strong = tg.strong;
+        if (f.reach) reachSector(ctx, f, P, k);
         ctx.globalAlpha = alpha * .55; ctx.strokeStyle = P.lo; ctx.lineWidth = strong ? 4.5 : 3.5;
         ctx.beginPath(); ctx.arc(x, y, r, a0, a1); ctx.stroke();
         ctx.globalAlpha = alpha; ctx.strokeStyle = tg.el === 'physical' ? f.color : P.mid; ctx.lineWidth = 2.5;
@@ -16688,6 +16711,33 @@ window.Lantern = (() => {
       }
     }
     ctx.globalAlpha = 1; ctx.lineWidth = 1;
+  }
+
+  // Settore reale del colpo (RPG Evolution, incremento 2): la portata e il cono che il motore usa davvero
+  // (`dx*vx+dy*vy > cone`, distanza ≤ portata, sempre a segno entro 15 px), tenue e solo nel primo istante.
+  function reachSector(ctx, f, P, k) {
+    if (k > .55) return;
+    const x = Math.round(f.x), y = Math.round(f.y + 7), half = f.cone <= -1 ? Math.PI : Math.acos(Math.max(-1, Math.min(1, f.cone)));
+    const a = (1 - k / .55) * (still ? .7 : 1), path = () => {
+      ctx.beginPath();
+      if (half >= Math.PI) ctx.arc(x, y, f.reach, 0, TAU);
+      else { ctx.moveTo(x, y); ctx.arc(x, y, f.reach, f.angle - half, f.angle + half); ctx.closePath(); }
+    };
+    ctx.save();
+    if (mask) { ctx.beginPath(); ctx.rect(x - f.reach - 4, y - f.reach - 4, f.reach * 2 + 8, f.reach * 2 + 8); ctx.rect(mask.l, mask.t, mask.r - mask.l, mask.b - mask.t); ctx.clip('evenodd'); }
+    path(); ctx.globalAlpha = a * .13; ctx.fillStyle = P.mid; ctx.fill();
+    ctx.globalAlpha = a * .45; ctx.strokeStyle = P.hi; ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+  }
+  // Tacche della combo: tre punti ai piedi del personaggio; pieni i colpi già messi a segno, il terzo pulsa quando è il colpo forte.
+  function comboPips(ctx, p, combo, t) {
+    if (!combo || combo.stage <= 0 || combo.left <= 0) return;
+    const fade = Math.min(1, combo.left / .35), x0 = Math.round(p.x) - 7, y = Math.round(p.y) + 4;
+    for (let i = 0; i < 3; i++) {
+      const on = i < combo.stage, next = i === combo.stage && combo.stage === 2, x = x0 + i * 6;
+      fill(ctx, x - 1, y - 1, 4, 4, '#1d2129', fade * .7);
+      fill(ctx, x, y, 2, 2, on ? '#ffd88d' : next ? (still || Math.sin(t * 12) > 0 ? '#fff3c4' : '#a8844a') : '#4a4236', fade);
+    }
   }
 
   // Proiettile con la forma del suo elemento. I proiettili nemici hanno un bordo scuro: restano leggibili.
@@ -18315,7 +18365,7 @@ window.Lantern = (() => {
     const b=e.target.closest('button');if(!b || b.disabled)return;
     if(b.hasAttribute('data-do'))dispatch(b.dataset.do,b);
     else if(b.dataset.cmd){Score.wake();command(b.dataset.cmd,b.dataset.value);}
-    else if(b.dataset.action && screen==='play' && !panel){Score.wake();Game.action(b.dataset.action);}
+    else if(b.dataset.action && screen==='play' && !panel){Score.wake();act(b.dataset.action);}
   });
   $('#saveFile').addEventListener('change',async e=>{
     const f=e.target.files[0];if(!f)return;if(f.size>Game.saveMaxBytes){toast('Il file supera la dimensione di un salvataggio.');return;}
@@ -18340,6 +18390,27 @@ window.Lantern = (() => {
     if(e.target.matches('#catalogSearch,#catalogRarity'))window.GamePanels.filterCatalog();
     if(e.target.matches('[data-inventory-filter]'))LifePanels.filter($('#panelBody'),Game.s);
   });
+  // Memoria d'ingresso (RPG Evolution, incremento 2): un comando premuto negli ultimi 0,2 s di ricarica parte appena la
+  // ricarica finisce, invece di andare perso. Solo per la ricarica: mana insufficiente e altri rifiuti non vengono ripetuti.
+  // Ricariche, danni e tempi restano quelli del motore; le prove che chiamano Game.action direttamente non ne sono toccate.
+  let buffered=null;
+  const BUFFER=.2,bufferable=new Set(['attack','dash','skill1','skill2','skill3','innate']);
+  function cooldownLeft(name){
+    const p=Game.s?.player;if(!p)return 0;
+    const id=/^skill[1-3]$/.test(name)?p.slots[Number(name.slice(-1))-1]:name;
+    return id?Math.max(0,p.cooldowns?.[id]||0):0;
+  }
+  function act(name){
+    if(Game.action(name)){buffered=null;return true;}
+    const left=bufferable.has(name)?cooldownLeft(name):0;
+    if(left>0&&left<=BUFFER)buffered={name,until:clock+left+.05};
+    return false;
+  }
+  function releaseBuffered(){
+    if(!buffered)return;
+    if(panel||clock>buffered.until){buffered=null;return;}
+    if(cooldownLeft(buffered.name)<=0){const name=buffered.name;buffered=null;Game.action(name);}
+  }
   document.addEventListener('keydown',e=>{
     if(e.altKey||e.ctrlKey||e.metaKey)return;
     if(panel){
@@ -18359,7 +18430,7 @@ window.Lantern = (() => {
     }
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Tab'].includes(e.code))e.preventDefault();
     keyState.add(e.code);if(e.repeat)return;
-    if(bindings[e.code]){e.preventDefault();Score.wake();Game.action(bindings[e.code]);}
+    if(bindings[e.code]){e.preventDefault();Score.wake();act(bindings[e.code]);}
     else if(panels[e.code])openPanel(panels[e.code]);
     else if(['Escape','KeyP','Tab'].includes(e.code)){e.preventDefault();openPanel('pause');}
   });
@@ -18369,7 +18440,7 @@ window.Lantern = (() => {
     if(e.target===field && screen==='play'&&!panel){
       e.preventDefault();field.focus();Score.wake();
       if(placement){if(e.button===0)place(e.clientX,e.clientY);return;}
-      if(e.button===0){keyState.add('Mouse');Game.action('attack');}
+      if(e.button===0){keyState.add('Mouse');act('attack');}
     }
   });
   field.addEventListener('pointermove',e=>{if(placement){placement.clientX=e.clientX;placement.clientY=e.clientY;}});
@@ -18512,7 +18583,7 @@ window.Lantern = (() => {
     if(placement?.region!==World.region&&placement)cancelPlacement();
     if(!panel){let x=Number(keyState.has('KeyD')||keyState.has('ArrowRight'))-Number(keyState.has('KeyA')||keyState.has('ArrowLeft')),y=Number(keyState.has('KeyS')||keyState.has('ArrowDown'))-Number(keyState.has('KeyW')||keyState.has('ArrowUp'));for(const d of taped.values()){x+=dirs[d][0];y+=dirs[d][1];}
       const activeElapsed=running?elapsed:dt;running=true;
-      Game.step(dt,{x,y,attack:keyState.has('KeyJ')||keyState.has('Mouse')},activeElapsed);clock+=dt;
+      Game.step(dt,{x,y,attack:keyState.has('KeyJ')||keyState.has('Mouse')},activeElapsed);clock+=dt;releaseBuffered();
     }else if(panel==='practice'){
       PracticePanel.update($('#panelBody'),Game.practice(dt,{hold:practiceHold}));
     }

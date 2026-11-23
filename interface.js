@@ -167,7 +167,7 @@
     const b=e.target.closest('button');if(!b || b.disabled)return;
     if(b.hasAttribute('data-do'))dispatch(b.dataset.do,b);
     else if(b.dataset.cmd){Score.wake();command(b.dataset.cmd,b.dataset.value);}
-    else if(b.dataset.action && screen==='play' && !panel){Score.wake();Game.action(b.dataset.action);}
+    else if(b.dataset.action && screen==='play' && !panel){Score.wake();act(b.dataset.action);}
   });
   $('#saveFile').addEventListener('change',async e=>{
     const f=e.target.files[0];if(!f)return;if(f.size>Game.saveMaxBytes){toast('Il file supera la dimensione di un salvataggio.');return;}
@@ -192,6 +192,27 @@
     if(e.target.matches('#catalogSearch,#catalogRarity'))window.GamePanels.filterCatalog();
     if(e.target.matches('[data-inventory-filter]'))LifePanels.filter($('#panelBody'),Game.s);
   });
+  // Memoria d'ingresso (RPG Evolution, incremento 2): un comando premuto negli ultimi 0,2 s di ricarica parte appena la
+  // ricarica finisce, invece di andare perso. Solo per la ricarica: mana insufficiente e altri rifiuti non vengono ripetuti.
+  // Ricariche, danni e tempi restano quelli del motore; le prove che chiamano Game.action direttamente non ne sono toccate.
+  let buffered=null;
+  const BUFFER=.2,bufferable=new Set(['attack','dash','skill1','skill2','skill3','innate']);
+  function cooldownLeft(name){
+    const p=Game.s?.player;if(!p)return 0;
+    const id=/^skill[1-3]$/.test(name)?p.slots[Number(name.slice(-1))-1]:name;
+    return id?Math.max(0,p.cooldowns?.[id]||0):0;
+  }
+  function act(name){
+    if(Game.action(name)){buffered=null;return true;}
+    const left=bufferable.has(name)?cooldownLeft(name):0;
+    if(left>0&&left<=BUFFER)buffered={name,until:clock+left+.05};
+    return false;
+  }
+  function releaseBuffered(){
+    if(!buffered)return;
+    if(panel||clock>buffered.until){buffered=null;return;}
+    if(cooldownLeft(buffered.name)<=0){const name=buffered.name;buffered=null;Game.action(name);}
+  }
   document.addEventListener('keydown',e=>{
     if(e.altKey||e.ctrlKey||e.metaKey)return;
     if(panel){
@@ -211,7 +232,7 @@
     }
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Tab'].includes(e.code))e.preventDefault();
     keyState.add(e.code);if(e.repeat)return;
-    if(bindings[e.code]){e.preventDefault();Score.wake();Game.action(bindings[e.code]);}
+    if(bindings[e.code]){e.preventDefault();Score.wake();act(bindings[e.code]);}
     else if(panels[e.code])openPanel(panels[e.code]);
     else if(['Escape','KeyP','Tab'].includes(e.code)){e.preventDefault();openPanel('pause');}
   });
@@ -221,7 +242,7 @@
     if(e.target===field && screen==='play'&&!panel){
       e.preventDefault();field.focus();Score.wake();
       if(placement){if(e.button===0)place(e.clientX,e.clientY);return;}
-      if(e.button===0){keyState.add('Mouse');Game.action('attack');}
+      if(e.button===0){keyState.add('Mouse');act('attack');}
     }
   });
   field.addEventListener('pointermove',e=>{if(placement){placement.clientX=e.clientX;placement.clientY=e.clientY;}});
@@ -364,7 +385,7 @@
     if(placement?.region!==World.region&&placement)cancelPlacement();
     if(!panel){let x=Number(keyState.has('KeyD')||keyState.has('ArrowRight'))-Number(keyState.has('KeyA')||keyState.has('ArrowLeft')),y=Number(keyState.has('KeyS')||keyState.has('ArrowDown'))-Number(keyState.has('KeyW')||keyState.has('ArrowUp'));for(const d of taped.values()){x+=dirs[d][0];y+=dirs[d][1];}
       const activeElapsed=running?elapsed:dt;running=true;
-      Game.step(dt,{x,y,attack:keyState.has('KeyJ')||keyState.has('Mouse')},activeElapsed);clock+=dt;
+      Game.step(dt,{x,y,attack:keyState.has('KeyJ')||keyState.has('Mouse')},activeElapsed);clock+=dt;releaseBuffered();
     }else if(panel==='practice'){
       PracticePanel.update($('#panelBody'),Game.practice(dt,{hold:practiceHold}));
     }

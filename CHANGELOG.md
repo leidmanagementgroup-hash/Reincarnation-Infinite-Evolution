@@ -2,6 +2,17 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-23] Operazione RPG Evolution, incremento 2: combattimento più reattivo e leggibile — Claude
+Branch `claude/rpg-evolution` (`engine.js`, `combat-fx.js`, `interface.js`, prove).
+### Modificato
+- **Memoria d'ingresso** (`interface.js`): un comando (attacco, schivata, tecniche, innata) premuto negli ultimi 0,2 s di ricarica parte appena la ricarica finisce invece di andare perso; non vale per mana insufficiente o altri rifiuti; ricariche e tempi restano quelli del motore. **Settore reale del colpo** (`combat-fx.js`, dati `reach` e `cone` sull'effetto dell'arco in `engine.js`): per un istante, tenue, la portata e il cono che il motore usa davvero (prima l'arco era al 66–86% della portata e con un angolo diverso). **Tacche della combo**: tre punti ai piedi del personaggio, pieni per i colpi messi a segno, il terzo pulsa quando arriva il colpo forte; spariscono con la finestra di 1,25 s. **Avvisi uguali al colpo** (`engine.js`): pestone (prima un'ellisse più piccola; per i boss diversi da Orveth il raggio dei mostri normali), maglio e contrattacco (3–4 px più piccoli) ora disegnano esattamente l'area che colpisce; la carica ha una corsia lunga quanto la corsa reale e larga quanto il contatto (prima una linea di 55 px). Misure condivise fra colpo e avviso (`stompRadius`, `hammerRadius`, `dashTime`, `dashSpeedOf`, `dashReach`) con gli stessi valori di prima: danni, tempi e ricariche invariati.
+### Aggiunto
+- `tests/verifica-avvisi.cjs` (Node): su una griglia di punti, l'area disegnata da `drawFX` (letta dalle istruzioni di disegno) coincide con chi viene colpito per pestone del Germoglio e di Orveth (fasi I e II) e contrattacco, e contiene ogni colpo della carica di lupo e Orveth.
+- `prova-browser-combattimento.cjs` 8 e 9: memoria d'ingresso con il tasto reale (a 0,1 s dalla fine parte, a 0,5 s no), settore con la portata reale e tacca della combo disegnati.
+- `scatti-combattimento.cjs`: scene `avviso-pestone`, `avviso-carica`, `avviso-orveth`.
+### Verifica
+- build `2a1fe847…`. Node: `verifica-integrazione` OK, `verifica-esperienza` 10/10, `verifica-avvisi` 4/4, economia 158 e 147, `economia-flussi-2` codice 0, percorsi 0 bloccati su 41 040, residenti 0, `verifica-perf-002` 181 scene equivalenti; `confronto-mondo` contro la base `f2febd1` identico (contro il `main` attuale differiscono solo le regioni dei Filoni aggiunte da Codex). Edge: `prova-browser` 10/10, `velaris-est` 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7, interni 12/12, creature 7/7, combattimento 9/9, famiglie 6/6. `scatti-combattimento` PRIMA (`main` `f2febd1`) / DOPO: stato di gioco identico in tutte le 16 scene. Benchmark in Edge visibile (3 giri × 600 fotogrammi): mischia fotogramma medio 0,93 → 0,92 ms e `drawFX` 0,043 → 0,044 ms; boss con aura fotogramma 0,59 → 0,73 ms e `drawFX` 0,033 → 0,048 ms (+0,015 ms per settore e tacche); `sonda-sessione` 12 minuti come prima (p95 fino a 4,8 ms, memoria 9–30 MB senza crescita), con un solo fotogramma oltre 33 ms (35,5 ms nel primo minuto, all'avvio; su `main` il massimo del primo minuto era 29,1 ms).
+
 ## [2026-11-23] Operazione RPG Evolution, incremento 1: RISK-011 e prove dell'esperienza — Claude
 Branch `claude/rpg-evolution`. Nessun sorgente del gioco modificato.
 ### Corretto
