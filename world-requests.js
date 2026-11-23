@@ -41,8 +41,10 @@
         const moved=Economy.deliver(s,'vela','wool',2);
         const seen=window.WorldMemory?.note(s,'smith','request-kept',{witnesses:true})||[];
         notes.push('Ivo ricorderà il tuo aiuto'+(seen.length?' · l’hanno visto '+seen.join(' e '):'')+(moved>0n?' · la lana torna al mercato di Vela':''));
+        window.Renown?.deed(s,{kind:'community',market:'vela',text:'Ha portato lana a Ivo per le mantelle d’inverno'});
       },
-      fail:(s,notes)=>{if(window.WorldMemory?.note(s,'smith','request-failed'))notes.push('Ivo ha atteso invano la lana: se ne ricorderà.');}},
+      fail:(s,notes)=>{if(window.WorldMemory?.note(s,'smith','request-failed'))notes.push('Ivo ha atteso invano la lana: se ne ricorderà.');
+        window.Renown?.deed(s,{kind:'community',sign:-1,market:'vela',text:'Ha lasciato Ivo senza la lana promessa'});}},
     {id:'guild-tools',name:'Gli attrezzi della squadra',from:'Registro degli avventurieri',where:'qualunque Registro degli avventurieri',
       need:'Ripara o tempra due volte l’equipaggiamento a una forgia, poi torna al Registro.',days:3,cooldown:5,
       // Solo per chi è iscritto alla gilda e conosce la forgia (Praticante); una squadra ha sempre attrezzi da sistemare.
@@ -50,7 +52,9 @@
       goal:{kind:'event',event:'gearWork',target:2,match:meta=>['repair','temper','ascend','enchant'].includes(meta.kind)},
       atSource:s=>!!Guild.view?.(s)?.board,sourceHint:'Torna a un Registro degli avventurieri.',
       reward:()=>24,
-      complete:(s,notes)=>notes.push('La squadra parte con gli attrezzi sistemati.'),fail:()=>{}},
+      complete:(s,notes)=>{notes.push('La squadra parte con gli attrezzi sistemati.');
+        const market=Economy.profiles.find(p=>p.continent===World.regions?.[s.region]?.continent)?.id||'vela';
+        window.Renown?.deed(s,{kind:'craft',market,text:'Ha sistemato gli attrezzi di una squadra della gilda'});},fail:()=>{}},
     {id:'galley-herbs',name:'Erbe per la cambusa',from:'Registro dei Carichi di Calis',where:'Porto di Calis, Registro dei Carichi',
       need:'Vendi almeno 3 erbe di rugiada insieme all’Emporio delle Sette Vele, poi torna al Registro dei Carichi.',days:2,cooldown:4,
       // Solo con una vera carenza di erbe al mercato di Calis.
@@ -58,7 +62,7 @@
       goal:{kind:'event',event:'trade',target:1,match:meta=>meta.market==='calis'&&meta.item==='herb'&&meta.direction==='sell'&&BigInt(meta.quantity||0)>=3n},
       atSource:s=>!!window.UrbanWorld?.access(s,'cargo-board'),sourceHint:'Torna al Registro dei Carichi di Calis.',
       reward:()=>16,
-      complete:(s,notes)=>notes.push('Le navi partono con la cambusa piena.'),fail:()=>{}}
+      complete:(s,notes)=>{notes.push('Le navi partono con la cambusa piena.');window.Renown?.deed(s,{kind:'commerce',market:'calis',text:'Ha rifornito la cambusa delle navi di Calis'});},fail:()=>{}}
   ];
   const lookup=Object.fromEntries(templates.map(t=>[t.id,t]));
 

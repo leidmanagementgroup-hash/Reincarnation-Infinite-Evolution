@@ -119,6 +119,7 @@
       if(!Inventory.take(s,v.blade,1))return fail('Serve una lama di qualità almeno '+v.minQuality+'.');
       if(Economy.deliver(s,ARMORY.market,v.blade,1)!==1n){Inventory.add(s,v.blade,1);return fail('Il banco non può accogliere altre lame.');}
       s.player.gold+=v.pay;st.smith.orders++;st.smith.lastDay=day;
+      window.Renown?.deed(s,{kind:'craft',market:ARMORY.market,text:'Ha rifornito l’Armeria del Passo con una lama '+QUALITY[BLADES.indexOf(v.blade)]});
       const promoted=st.smith.orders===ARMORY.trusted;
       return {ok:true,changed:true,text:'Ordine dell’armeria consegnato · '+v.bladeName+' · +'+v.pay+' Scintille'+(promoted?' · ora sei fornitore di fiducia: l’armeria chiederà lame ottime e pagherà di più':''),
         event:{id:'trade',amount:1,meta:{market:ARMORY.market,item:v.blade,direction:'sell',quantity:'1',kind:'armory-order'}}};
@@ -133,6 +134,7 @@
       const moved=Economy.deliver(s,CARGO.market,v.good,n);
       if(moved!==n){Inventory.add(s,v.good,n-moved);if(moved>0n)Economy.procure(s,CARGO.market,v.good,moved);return fail('Il magazzino del porto non può accogliere l’intero carico.');}
       s.player.gold+=v.pay;st.merchant.contracts++;st.merchant.lastDay=day;
+      window.Renown?.deed(s,{kind:'commerce',market:CARGO.market,text:'Ha consegnato un carico di '+v.goodName+' al Registro di Calis'});
       const promoted=st.merchant.contracts===CARGO.partner;
       return {ok:true,changed:true,text:'Contratto consegnato · '+v.size+' '+v.goodName+' · +'+v.pay+' Scintille'+(promoted?' · ora sei socio del Registro: i carichi saranno più grandi':''),
         event:{id:'trade',amount:1,meta:{market:CARGO.market,item:v.good,direction:'sell',quantity:String(v.size),kind:'cargo-contract'}}};

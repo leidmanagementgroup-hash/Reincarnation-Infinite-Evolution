@@ -65,7 +65,7 @@
 - [x] Incremento 2: economia e professioni (LW-ECO-01/02/03/04, ciclo forgia → mercato, fabbro e mercante).
 - [x] Incremento 3: tre eventi contestuali senza doppie ricompense.
 - [x] Incremento 4: identità di Slime, Goblin e Viverna di brina senza nuove regole.
-- [ ] Incremento 5: conseguenze nel tempo e regole regionali dei cinque continenti.
+- [x] Incremento 5: conseguenze nel tempo e regole regionali dei cinque continenti.
 - [ ] Incremento 6: revisione, prove complete, sessione lunga, benchmark, rapporto finale.
 - Decisioni dell'utente: profilo termico della Viverna di brina (LW-SPC-01); canali a prezzo fisso (banco delle sementi, bottega della fattoria, residenti che comprano minerale).
 

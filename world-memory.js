@@ -24,7 +24,10 @@
     // Richieste del mondo (incremento 3)
     'request-kept':{weight:2,text:'hai portato ciò che serviva alla bottega, come promesso'},
     'request-failed':{weight:-3,text:'hai lasciato scadere una richiesta della bottega'},
-    'saw-request':{weight:1,text:'ti ha visto aiutare la bottega di Ivo'}
+    'saw-request':{weight:1,text:'ti ha visto aiutare la bottega di Ivo'},
+    // Voci da altri continenti (incremento 5): pesano meno di ciò che si è visto di persona.
+    'heard-praise':{weight:1,text:'ha sentito lodare le tue imprese in un altro continente'},
+    'heard-blame':{weight:-1,text:'ha sentito che altrove hai mancato a un impegno'}
   };
   const own=(o,k)=>!!o&&Object.hasOwn(o,k);
   const object=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
@@ -38,7 +41,7 @@
     const now=s?.calendar?today(s):Infinity;
     if(Array.isArray(raw.episodes)){
       for(const e of raw.episodes.slice(-MAX_EPISODES)){
-        if(object(e)&&own(people,e.npc)&&own(kinds,e.kind)&&int(e.day,0,now)&&(e.source==='self'||e.source==='witness')&&
+        if(object(e)&&own(people,e.npc)&&own(kinds,e.kind)&&int(e.day,0,now)&&(e.source==='self'||e.source==='witness'||e.source==='rumor')&&
           !m.episodes.some(x=>x.npc===e.npc&&x.kind===e.kind&&x.day===e.day))m.episodes.push({npc:e.npc,kind:e.kind,day:e.day,source:e.source});
       }
     }
@@ -144,6 +147,7 @@
       if(v.short>0&&remember(s,'merchant','shortage-help','self',day)){
         const seen=witnesses(s,placeOf(s,'merchant')||World.points.merchant,'merchant').filter(id=>remember(s,id,'saw-help','witness',day));
         notes.push('Tessa ricorderà il tuo aiuto'+(seen.length?' · l’hanno visto '+seen.map(id=>people[id].name).join(' e '):''));
+        window.Renown?.deed(s,{kind:'community',market:'vela',text:'Ha portato erbe all’emporio di Vela durante una carenza'});
       }
       if(m.promise){
         m.promise.given=Math.min(m.promise.need,m.promise.given+Number(moved));
@@ -174,8 +178,8 @@
      c'era già oggi. */
   function note(s,npc,kind,options={}){
     if(!own(people,npc)||!own(kinds,kind))return false;
-    const day=today(s);
-    if(!remember(s,npc,kind,'self',day))return false;
+    const day=Number.isInteger(options.day)&&options.day>=0&&options.day<=today(s)?options.day:today(s);
+    if(!remember(s,npc,kind,options.source==='rumor'?'rumor':'self',day))return false;
     if(!options.witnesses)return [];
     return witnesses(s,placeOf(s,npc)||World.points[npc],npc).filter(id=>remember(s,id,'saw-request','witness',day)).map(id=>people[id].name);
   }
@@ -188,6 +192,7 @@
     if(day<=p.due)return [];
     m.promise=null;
     remember(s,p.npc,'promise-broken','self',p.due+1);
+    window.Renown?.deed(s,{kind:'community',sign:-1,market:'vela',text:'Ha mancato la parola data a Tessa'});
     return [people[p.npc].name+' ha atteso invano le erbe promesse: se ne ricorderà.'];
   }
 

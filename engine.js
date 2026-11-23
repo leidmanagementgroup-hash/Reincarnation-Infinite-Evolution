@@ -239,6 +239,7 @@
     s.memory=WorldMemory.create();
     s.careers=Careers.create();
     s.requests=Requests.create();
+    s.renown=Renown.create();
     p.hp=stats().hpMax;p.mp=stats().mpMax;
     resetTransient();save();return true;
   }
@@ -1173,7 +1174,7 @@
       Economy.tick(s);
       const legendaryNews=Legendary.tick(s);
       if(legendaryNews.length){announce(legendaryNews);keep();}
-      const memoryNews=[...WorldMemory.tick(s),...Requests.tick(s)];
+      const memoryNews=[...WorldMemory.tick(s),...Requests.tick(s),...Renown.tick(s)];
       if(memoryNews.length){announce(memoryNews);keep();}
       if(Daily.tick(s,{moving:p.moving,combat:combat>0})){
         p.hp-=st.hpMax*.014;
@@ -1530,6 +1531,7 @@
     d.memory=WorldMemory.restore(d.memory,d);
     d.careers=Careers.restore(d.careers,d);
     d.requests=Requests.restore(d.requests,d);
+    d.renown=Renown.restore(d.renown,d);
     d.version=version;
     return d;
   }

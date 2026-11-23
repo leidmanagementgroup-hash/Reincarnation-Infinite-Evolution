@@ -44,10 +44,19 @@
       return row(r.name,text,control);
     }).join('');
   }
+  // Voci dai continenti (Living World 2.0): fama regionale e notizie ancora in viaggio lungo le rotte.
+  function renownRows(){
+    const s=Game.s;if(!window.Renown||!s)return '';
+    const list=Renown.view(s);
+    if(!list.some(r=>r.known.length||r.coming.length))return '';
+    return h('Voci dai continenti')+list.map(r=>row(r.continent+' · '+r.level,[r.culture,r.note,
+      ...r.known.map(k=>'Giorno '+k.day+': '+(k.bad?'⚠ ':'')+k.text+(k.origin!==r.continent?' (voce da '+k.origin+')':'')),
+      ...r.coming.map(c=>'In viaggio: «'+c.text+'» arriverà il giorno '+c.day)].join(' · '))).join('');
+  }
   function npcMemory(id){
     const s=Game.s,who=window.WorldMemory&&s?WorldMemory.view(s).find(x=>x.id===id):null;
     if(!who||!who.episodes.length)return '';
-    return h(who.name+' ricorda')+who.episodes.map(e=>row('Giorno '+e.day,(e.bad?'⚠ ':'')+e.text+(e.source==='witness'?' (l’ha visto di persona)':''))).join('');
+    return h(who.name+' ricorda')+who.episodes.map(e=>row('Giorno '+e.day,(e.bad?'⚠ ':'')+e.text+(e.source==='witness'?' (l’ha visto di persona)':e.source==='rumor'?' (per sentito dire)':''))).join('');
   }
   function cmd(label,action,value='',off=false,style='') {return '<button class="btn '+style+'" data-cmd="'+esc(action)+'" data-value="'+esc(typeof value==='object'?JSON.stringify(value):value)+'"'+disabled(off)+'>'+esc(label)+'</button>';}
   const picture=(kind,n=64,evo=0)=>'<canvas data-art="portrait" data-kind="'+esc(kind)+'" data-evo="'+evo+'" width="'+n+'" height="'+n+'"></canvas>';
@@ -116,7 +125,7 @@
       case 'journal':
         html=objectives(v,p)+campaignRoad(v)+h('Incarico secondario')+row('La commissione del borgo',v.sideQuest)+
           '<div class="stats">'+stat('Creature vinte',p.kills)+stat('Reputazione',p.rep)+stat('Borsello',Economy.wallet(p.gold).label)+'</div>'+
-          (window.Lantern?h('Voci del bosco')+'<p>'+esc(Lantern.hint(s))+'</p>':'')+LifePanels.quests(s)+requestRows()+worldNotes(v.life)+
+          (window.Lantern?h('Voci del bosco')+'<p>'+esc(Lantern.hint(s))+'</p>':'')+LifePanels.quests(s)+requestRows()+renownRows()+worldNotes(v.life)+
           actions(btn('Apri la mappa','map'),btn('Incarichi della gilda','guild'),btn('Reputazione e titoli','reputation'),
             ...(Legendary.view(s).discovered?[btn('Registro del santuario','legendary')]:[]));break;
       case 'activities':

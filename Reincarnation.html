@@ -14765,7 +14765,10 @@ window.Lantern = (() => {
     // Richieste del mondo (incremento 3)
     'request-kept':{weight:2,text:'hai portato ciò che serviva alla bottega, come promesso'},
     'request-failed':{weight:-3,text:'hai lasciato scadere una richiesta della bottega'},
-    'saw-request':{weight:1,text:'ti ha visto aiutare la bottega di Ivo'}
+    'saw-request':{weight:1,text:'ti ha visto aiutare la bottega di Ivo'},
+    // Voci da altri continenti (incremento 5): pesano meno di ciò che si è visto di persona.
+    'heard-praise':{weight:1,text:'ha sentito lodare le tue imprese in un altro continente'},
+    'heard-blame':{weight:-1,text:'ha sentito che altrove hai mancato a un impegno'}
   };
   const own=(o,k)=>!!o&&Object.hasOwn(o,k);
   const object=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
@@ -14779,7 +14782,7 @@ window.Lantern = (() => {
     const now=s?.calendar?today(s):Infinity;
     if(Array.isArray(raw.episodes)){
       for(const e of raw.episodes.slice(-MAX_EPISODES)){
-        if(object(e)&&own(people,e.npc)&&own(kinds,e.kind)&&int(e.day,0,now)&&(e.source==='self'||e.source==='witness')&&
+        if(object(e)&&own(people,e.npc)&&own(kinds,e.kind)&&int(e.day,0,now)&&(e.source==='self'||e.source==='witness'||e.source==='rumor')&&
           !m.episodes.some(x=>x.npc===e.npc&&x.kind===e.kind&&x.day===e.day))m.episodes.push({npc:e.npc,kind:e.kind,day:e.day,source:e.source});
       }
     }
@@ -14885,6 +14888,7 @@ window.Lantern = (() => {
       if(v.short>0&&remember(s,'merchant','shortage-help','self',day)){
         const seen=witnesses(s,placeOf(s,'merchant')||World.points.merchant,'merchant').filter(id=>remember(s,id,'saw-help','witness',day));
         notes.push('Tessa ricorderà il tuo aiuto'+(seen.length?' · l’hanno visto '+seen.map(id=>people[id].name).join(' e '):''));
+        window.Renown?.deed(s,{kind:'community',market:'vela',text:'Ha portato erbe all’emporio di Vela durante una carenza'});
       }
       if(m.promise){
         m.promise.given=Math.min(m.promise.need,m.promise.given+Number(moved));
@@ -14915,8 +14919,8 @@ window.Lantern = (() => {
      c'era già oggi. */
   function note(s,npc,kind,options={}){
     if(!own(people,npc)||!own(kinds,kind))return false;
-    const day=today(s);
-    if(!remember(s,npc,kind,'self',day))return false;
+    const day=Number.isInteger(options.day)&&options.day>=0&&options.day<=today(s)?options.day:today(s);
+    if(!remember(s,npc,kind,options.source==='rumor'?'rumor':'self',day))return false;
     if(!options.witnesses)return [];
     return witnesses(s,placeOf(s,npc)||World.points[npc],npc).filter(id=>remember(s,id,'saw-request','witness',day)).map(id=>people[id].name);
   }
@@ -14929,6 +14933,7 @@ window.Lantern = (() => {
     if(day<=p.due)return [];
     m.promise=null;
     remember(s,p.npc,'promise-broken','self',p.due+1);
+    window.Renown?.deed(s,{kind:'community',sign:-1,market:'vela',text:'Ha mancato la parola data a Tessa'});
     return [people[p.npc].name+' ha atteso invano le erbe promesse: se ne ricorderà.'];
   }
 
@@ -15058,6 +15063,7 @@ window.Lantern = (() => {
       if(!Inventory.take(s,v.blade,1))return fail('Serve una lama di qualità almeno '+v.minQuality+'.');
       if(Economy.deliver(s,ARMORY.market,v.blade,1)!==1n){Inventory.add(s,v.blade,1);return fail('Il banco non può accogliere altre lame.');}
       s.player.gold+=v.pay;st.smith.orders++;st.smith.lastDay=day;
+      window.Renown?.deed(s,{kind:'craft',market:ARMORY.market,text:'Ha rifornito l’Armeria del Passo con una lama '+QUALITY[BLADES.indexOf(v.blade)]});
       const promoted=st.smith.orders===ARMORY.trusted;
       return {ok:true,changed:true,text:'Ordine dell’armeria consegnato · '+v.bladeName+' · +'+v.pay+' Scintille'+(promoted?' · ora sei fornitore di fiducia: l’armeria chiederà lame ottime e pagherà di più':''),
         event:{id:'trade',amount:1,meta:{market:ARMORY.market,item:v.blade,direction:'sell',quantity:'1',kind:'armory-order'}}};
@@ -15072,6 +15078,7 @@ window.Lantern = (() => {
       const moved=Economy.deliver(s,CARGO.market,v.good,n);
       if(moved!==n){Inventory.add(s,v.good,n-moved);if(moved>0n)Economy.procure(s,CARGO.market,v.good,moved);return fail('Il magazzino del porto non può accogliere l’intero carico.');}
       s.player.gold+=v.pay;st.merchant.contracts++;st.merchant.lastDay=day;
+      window.Renown?.deed(s,{kind:'commerce',market:CARGO.market,text:'Ha consegnato un carico di '+v.goodName+' al Registro di Calis'});
       const promoted=st.merchant.contracts===CARGO.partner;
       return {ok:true,changed:true,text:'Contratto consegnato · '+v.size+' '+v.goodName+' · +'+v.pay+' Scintille'+(promoted?' · ora sei socio del Registro: i carichi saranno più grandi':''),
         event:{id:'trade',amount:1,meta:{market:CARGO.market,item:v.good,direction:'sell',quantity:String(v.size),kind:'cargo-contract'}}};
@@ -15126,8 +15133,10 @@ window.Lantern = (() => {
         const moved=Economy.deliver(s,'vela','wool',2);
         const seen=window.WorldMemory?.note(s,'smith','request-kept',{witnesses:true})||[];
         notes.push('Ivo ricorderà il tuo aiuto'+(seen.length?' · l’hanno visto '+seen.join(' e '):'')+(moved>0n?' · la lana torna al mercato di Vela':''));
+        window.Renown?.deed(s,{kind:'community',market:'vela',text:'Ha portato lana a Ivo per le mantelle d’inverno'});
       },
-      fail:(s,notes)=>{if(window.WorldMemory?.note(s,'smith','request-failed'))notes.push('Ivo ha atteso invano la lana: se ne ricorderà.');}},
+      fail:(s,notes)=>{if(window.WorldMemory?.note(s,'smith','request-failed'))notes.push('Ivo ha atteso invano la lana: se ne ricorderà.');
+        window.Renown?.deed(s,{kind:'community',sign:-1,market:'vela',text:'Ha lasciato Ivo senza la lana promessa'});}},
     {id:'guild-tools',name:'Gli attrezzi della squadra',from:'Registro degli avventurieri',where:'qualunque Registro degli avventurieri',
       need:'Ripara o tempra due volte l’equipaggiamento a una forgia, poi torna al Registro.',days:3,cooldown:5,
       // Solo per chi è iscritto alla gilda e conosce la forgia (Praticante); una squadra ha sempre attrezzi da sistemare.
@@ -15135,7 +15144,9 @@ window.Lantern = (() => {
       goal:{kind:'event',event:'gearWork',target:2,match:meta=>['repair','temper','ascend','enchant'].includes(meta.kind)},
       atSource:s=>!!Guild.view?.(s)?.board,sourceHint:'Torna a un Registro degli avventurieri.',
       reward:()=>24,
-      complete:(s,notes)=>notes.push('La squadra parte con gli attrezzi sistemati.'),fail:()=>{}},
+      complete:(s,notes)=>{notes.push('La squadra parte con gli attrezzi sistemati.');
+        const market=Economy.profiles.find(p=>p.continent===World.regions?.[s.region]?.continent)?.id||'vela';
+        window.Renown?.deed(s,{kind:'craft',market,text:'Ha sistemato gli attrezzi di una squadra della gilda'});},fail:()=>{}},
     {id:'galley-herbs',name:'Erbe per la cambusa',from:'Registro dei Carichi di Calis',where:'Porto di Calis, Registro dei Carichi',
       need:'Vendi almeno 3 erbe di rugiada insieme all’Emporio delle Sette Vele, poi torna al Registro dei Carichi.',days:2,cooldown:4,
       // Solo con una vera carenza di erbe al mercato di Calis.
@@ -15143,7 +15154,7 @@ window.Lantern = (() => {
       goal:{kind:'event',event:'trade',target:1,match:meta=>meta.market==='calis'&&meta.item==='herb'&&meta.direction==='sell'&&BigInt(meta.quantity||0)>=3n},
       atSource:s=>!!window.UrbanWorld?.access(s,'cargo-board'),sourceHint:'Torna al Registro dei Carichi di Calis.',
       reward:()=>16,
-      complete:(s,notes)=>notes.push('Le navi partono con la cambusa piena.'),fail:()=>{}}
+      complete:(s,notes)=>{notes.push('Le navi partono con la cambusa piena.');window.Renown?.deed(s,{kind:'commerce',market:'calis',text:'Ha rifornito la cambusa delle navi di Calis'});},fail:()=>{}}
   ];
   const lookup=Object.fromEntries(templates.map(t=>[t.id,t]));
 
@@ -15335,6 +15346,113 @@ window.Lantern = (() => {
       prototype:prototype(s,race)};
   }
   window.Lineage={view,gifts};
+})();
+
+
+(() => {
+  'use strict';
+  /* Voci e fama regionale (Living World 2.0, incremento 5). Le imprese importanti del giocatore (aiuti, parola mancata, ordini
+     dell'armeria, contratti di carico, richieste del mondo) diventano notizie che partono dal mercato del luogo e viaggiano
+     lungo le rotte commerciali già esistenti (MarketFlows: giorni di viaggio delle carovane); arrivano in ogni continente dopo
+     il percorso più breve. Nessuno sa una notizia prima che arrivi.
+     Ogni continente le pesa con regole proprie e parametrizzate (che cosa vi è stimato o mal visto); la fama decade nel tempo.
+     Quando una notizia nata altrove arriva a Vela, Tessa, Ivo o Nerea la ricordano «per sentito dire» (memoria del mondo,
+     peso minore): un'impresa lontana cambia, dopo giorni, ciò che accade al borgo.
+     Tutto si risolve al cambio di giorno (impulso a bassa frequenza), senza simulare NPC lontani. Dati in `s.renown`
+     (schema 1); il ripristino scarta voci non valide e non rifiuta mai il salvataggio. */
+  const SCHEMA=1,MAX_DEEDS=40,HALF_LIFE=20;
+  // Regole regionali: peso di ogni tipo di impresa (positiva) e della parola mancata (negativa), per continente.
+  const realms={
+    vela:{continent:'Vaelthoria',culture:'Borghi della comunità',community:2,craft:1,commerce:1,broken:3,note:'Qui conta chi aiuta il borgo nei momenti di bisogno.'},
+    filoni:{continent:'Nordharyn',culture:'Popolo dei filoni',community:1,craft:3,commerce:1,broken:2,note:'Qui si stima chi lavora bene il metallo.'},
+    velaris:{continent:'Myrathen',culture:'Città delle botteghe',community:1,craft:1,commerce:2,broken:2,note:'Qui si stimano i commerci onesti fra le botteghe.'},
+    namar:{continent:'Voryndhal',culture:'Savane dei granai',community:2,craft:1,commerce:1,broken:2,note:'Qui conta chi sostiene le comunità.'},
+    calis:{continent:'Azheryon',culture:'Porti delle Sette Vele',community:1,craft:1,commerce:3,broken:3,note:'Qui conta la parola data nei carichi e nei contratti.'}
+  };
+  const kinds=['community','craft','commerce'];
+  // Chi, al Borgo di Vela, si interessa a quale tipo di notizia lontana.
+  const listeners={commerce:'merchant',craft:'smith',community:'elder'};
+  const own=(o,k)=>!!o&&Object.hasOwn(o,k);
+  const object=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+  const int=(n,min,max)=>Number.isInteger(n)&&n>=min&&n<=max;
+  const today=s=>Calendar.absoluteDays(s.calendar,s.time);
+
+  function create(){return {schema:SCHEMA,seq:0,deeds:[]};}
+  function restore(raw,s){
+    const r=create();
+    if(!object(raw)||raw.schema!==SCHEMA)return r;
+    const now=s?.calendar?today(s):Infinity;
+    if(int(raw.seq,0,1e9))r.seq=raw.seq;
+    if(Array.isArray(raw.deeds))for(const d of raw.deeds.slice(-MAX_DEEDS)){
+      if(object(d)&&int(d.id,0,r.seq)&&kinds.includes(d.kind)&&(d.sign===1||d.sign===-1)&&own(realms,d.market)&&int(d.day,0,now)&&
+        typeof d.text==='string'&&d.text.length<=160&&typeof d.heard==='boolean'&&!r.deeds.some(x=>x.id===d.id))
+        r.deeds.push({id:d.id,kind:d.kind,sign:d.sign,market:d.market,day:d.day,text:d.text,heard:d.heard});
+    }
+    return r;
+  }
+  const state=s=>s.renown||(s.renown=create());
+
+  // Giorni di viaggio di una notizia fra due mercati: percorso più breve sulle rotte commerciali.
+  let cache=null;
+  function distances(){
+    if(cache)return cache;
+    const ids=Object.keys(realms),edges=MarketFlows.routesFor(Economy.profiles),out={};
+    for(const from of ids){
+      const dist=Object.fromEntries(ids.map(id=>[id,id===from?0:Infinity])),left=new Set(ids);
+      while(left.size){
+        let u=null;for(const id of left)if(u===null||dist[id]<dist[u])u=id;
+        left.delete(u);
+        for(const [a,b,days] of edges){const v=a===u?b:b===u?a:null;if(v&&dist[u]+days<dist[v])dist[v]=dist[u]+days;}
+      }
+      out[from]=dist;
+    }
+    return cache=out;
+  }
+  const arrival=(deed,market)=>deed.day+distances()[deed.market][market];
+
+  // Registra un'impresa (dagli altri moduli). Una sola per tipo, segno e luogo nello stesso giorno.
+  function deed(s,{kind,sign=1,market,text}){
+    if(!kinds.includes(kind)||!own(realms,market)||typeof text!=='string')return null;
+    const r=state(s),day=today(s);
+    if(r.deeds.some(d=>d.kind===kind&&d.sign===sign&&d.market===market&&d.day===day))return null;
+    const d={id:++r.seq,kind,sign,market,day,text:text.slice(0,160),heard:market==='vela'};
+    r.deeds.push(d);
+    if(r.deeds.length>MAX_DEEDS)r.deeds.splice(0,r.deeds.length-MAX_DEEDS);
+    return d;
+  }
+  const weightOf=(realm,d)=>d.sign<0?-realm.broken:realm[d.kind];
+
+  function view(s){
+    const r=state(s),day=today(s);
+    return Object.entries(realms).map(([market,realm])=>{
+      let score=0;const known=[],coming=[];
+      for(const d of r.deeds){
+        const at=arrival(d,market);
+        if(at<=day){score+=weightOf(realm,d)*Math.pow(.5,(day-at)/HALF_LIFE);known.push({text:d.text,day:at+1,origin:realms[d.market].continent,bad:d.sign<0});}
+        else coming.push({text:d.text,day:at+1,origin:realms[d.market].continent});
+      }
+      score=Math.round(score*10)/10;
+      const level=score<=-2?'Malvisto':score<1?'Sconosciuto':score<4?'Se ne parla':'Rinomato';
+      return {market,continent:realm.continent,culture:realm.culture,note:realm.note,score,level,
+        known:known.slice(-3).reverse(),coming:coming.sort((a,b)=>a.day-b.day).slice(0,3)};
+    });
+  }
+  // Al cambio di giorno: le notizie nate lontano che sono arrivate a Vela diventano ricordi «per sentito dire».
+  function tick(s){
+    const r=s.renown,out=[];
+    if(!r)return out;
+    const day=today(s);
+    for(const d of r.deeds){
+      if(d.heard||arrival(d,'vela')>day)continue;
+      d.heard=true;
+      const npc=listeners[d.kind],kind=d.sign<0?'heard-blame':'heard-praise';
+      if(window.WorldMemory?.note(s,npc,kind,{source:'rumor',day:arrival(d,'vela')}))
+        out.push('A Vela arriva una voce da '+realms[d.market].continent+' · '+WorldMemory.people[npc].name+' ne ha sentito parlare');
+    }
+    return out;
+  }
+
+  window.Renown={create,restore,deed,view,tick,arrival,realms};
 })();
 
 
@@ -16290,6 +16408,7 @@ window.Lantern = (() => {
     s.memory=WorldMemory.create();
     s.careers=Careers.create();
     s.requests=Requests.create();
+    s.renown=Renown.create();
     p.hp=stats().hpMax;p.mp=stats().mpMax;
     resetTransient();save();return true;
   }
@@ -17224,7 +17343,7 @@ window.Lantern = (() => {
       Economy.tick(s);
       const legendaryNews=Legendary.tick(s);
       if(legendaryNews.length){announce(legendaryNews);keep();}
-      const memoryNews=[...WorldMemory.tick(s),...Requests.tick(s)];
+      const memoryNews=[...WorldMemory.tick(s),...Requests.tick(s),...Renown.tick(s)];
       if(memoryNews.length){announce(memoryNews);keep();}
       if(Daily.tick(s,{moving:p.moving,combat:combat>0})){
         p.hp-=st.hpMax*.014;
@@ -17581,6 +17700,7 @@ window.Lantern = (() => {
     d.memory=WorldMemory.restore(d.memory,d);
     d.careers=Careers.restore(d.careers,d);
     d.requests=Requests.restore(d.requests,d);
+    d.renown=Renown.restore(d.renown,d);
     d.version=version;
     return d;
   }
@@ -19150,10 +19270,19 @@ window.Lantern = (() => {
       return row(r.name,text,control);
     }).join('');
   }
+  // Voci dai continenti (Living World 2.0): fama regionale e notizie ancora in viaggio lungo le rotte.
+  function renownRows(){
+    const s=Game.s;if(!window.Renown||!s)return '';
+    const list=Renown.view(s);
+    if(!list.some(r=>r.known.length||r.coming.length))return '';
+    return h('Voci dai continenti')+list.map(r=>row(r.continent+' · '+r.level,[r.culture,r.note,
+      ...r.known.map(k=>'Giorno '+k.day+': '+(k.bad?'⚠ ':'')+k.text+(k.origin!==r.continent?' (voce da '+k.origin+')':'')),
+      ...r.coming.map(c=>'In viaggio: «'+c.text+'» arriverà il giorno '+c.day)].join(' · '))).join('');
+  }
   function npcMemory(id){
     const s=Game.s,who=window.WorldMemory&&s?WorldMemory.view(s).find(x=>x.id===id):null;
     if(!who||!who.episodes.length)return '';
-    return h(who.name+' ricorda')+who.episodes.map(e=>row('Giorno '+e.day,(e.bad?'⚠ ':'')+e.text+(e.source==='witness'?' (l’ha visto di persona)':''))).join('');
+    return h(who.name+' ricorda')+who.episodes.map(e=>row('Giorno '+e.day,(e.bad?'⚠ ':'')+e.text+(e.source==='witness'?' (l’ha visto di persona)':e.source==='rumor'?' (per sentito dire)':''))).join('');
   }
   function cmd(label,action,value='',off=false,style='') {return '<button class="btn '+style+'" data-cmd="'+esc(action)+'" data-value="'+esc(typeof value==='object'?JSON.stringify(value):value)+'"'+disabled(off)+'>'+esc(label)+'</button>';}
   const picture=(kind,n=64,evo=0)=>'<canvas data-art="portrait" data-kind="'+esc(kind)+'" data-evo="'+evo+'" width="'+n+'" height="'+n+'"></canvas>';
@@ -19222,7 +19351,7 @@ window.Lantern = (() => {
       case 'journal':
         html=objectives(v,p)+campaignRoad(v)+h('Incarico secondario')+row('La commissione del borgo',v.sideQuest)+
           '<div class="stats">'+stat('Creature vinte',p.kills)+stat('Reputazione',p.rep)+stat('Borsello',Economy.wallet(p.gold).label)+'</div>'+
-          (window.Lantern?h('Voci del bosco')+'<p>'+esc(Lantern.hint(s))+'</p>':'')+LifePanels.quests(s)+requestRows()+worldNotes(v.life)+
+          (window.Lantern?h('Voci del bosco')+'<p>'+esc(Lantern.hint(s))+'</p>':'')+LifePanels.quests(s)+requestRows()+renownRows()+worldNotes(v.life)+
           actions(btn('Apri la mappa','map'),btn('Incarichi della gilda','guild'),btn('Reputazione e titoli','reputation'),
             ...(Legendary.view(s).discovered?[btn('Registro del santuario','legendary')]:[]));break;
       case 'activities':

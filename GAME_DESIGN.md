@@ -70,18 +70,19 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 | 34 | `careers.js` | `Careers` | Mestieri con un futuro: ordini dell’Armeria del Passo per il fabbro, taccuino dei prezzi e contratti del Registro dei Carichi per il mercante (Living World 2.0) |
 | 35 | `world-requests.js` | `Requests` | Richieste del mondo: eventi contestuali con condizioni reali, fonte, durata, ricompensa, conseguenze e pausa (Living World 2.0) |
 | 36 | `lineage.js` | `Lineage` | Identità della stirpe: vantaggi e limiti letti dalle regole, opportunità e difficoltà collegate (Living World 2.0, nessuno stato salvato) |
-| 37 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
-| 38 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
-| 39 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
-| 40 | `combat-fx.js` | `CombatFX` | Effetti di combattimento per elemento (fisico, fuoco, acqua, ghiaccio, fulmine, oscurità, luce): impatti, proiettili, anelli, colpo forte, schivata, aure e trasformazioni dei boss, evoluzione, numeri; solo disegno (§4.3) |
-| 41 | `audio.js` | `Score` | Musica e suoni |
-| 42 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
-| 43 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
-| 44 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
-| 45 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
-| 46 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
-| 47 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
-| 48 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
+| 37 | `world-renown.js` | `Renown` | Voci e fama regionale: imprese che viaggiano lungo le rotte commerciali, regole dei cinque continenti, voci che arrivano al borgo (Living World 2.0) |
+| 38 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
+| 39 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
+| 40 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
+| 41 | `combat-fx.js` | `CombatFX` | Effetti di combattimento per elemento (fisico, fuoco, acqua, ghiaccio, fulmine, oscurità, luce): impatti, proiettili, anelli, colpo forte, schivata, aure e trasformazioni dei boss, evoluzione, numeri; solo disegno (§4.3) |
+| 42 | `audio.js` | `Score` | Musica e suoni |
+| 43 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
+| 44 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
+| 45 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
+| 46 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
+| 47 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
+| 48 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
+| 49 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
 
 Nota: `World`, `ActorArt` ed `EvolutionContent` sono **estesi da più moduli** successivi (ciascuno incapsula e riassegna il globale precedente): l'ordine in `build.py` è vincolante.
 
@@ -111,7 +112,7 @@ Routine per quartiere: ogni residente abita nel quartiere del proprio lavoro (`h
 
 Pianificazione delle soste (PERF-002). L'indice spaziale cerca le soste già assegnate solo nel raggio utile. I profili continuano a essere elaborati nell'ordine originale, con gli stessi criteri di distanza, orari, destinazioni e controlli di percorribilità. Dalle 22:00 a Velaris si prepara il giorno successivo con al massimo otto soste per aggiornamento del gioco e un budget indicativo di 2 ms fra le soste. Il piano completo diventa attivo a mezzanotte. Dopo un salto o un caricamento l'eventuale piano assente viene completato al primo utilizzo. Questa cache è legata alla mappa e alla partita e si rigenera dai dati esistenti.
 
-Il formato v7 conserva `requests` (campo facoltativo, `schema: 1`, Living World 2.0: offerte del giorno, richieste in corso con scadenza e avanzamento, ultima riscossione e conteggio per modello; si ricrea vuoto se manca o non è valido), `careers` (campo facoltativo, `schema: 1`, Living World 2.0: ordini consegnati all'armeria e contratti del Registro con il giorno dell'ultima consegna, prezzi visti per mercato; si ricrea vuoto se manca o non è valido), `memory` (campo facoltativo, `schema: 1`, Living World 2.0: episodi ricordati dagli NPC, promessa in corso, giorno dell'ultima pozione messa da parte; se manca o non è valido si ricrea vuoto e il salvataggio si carica comunque), `urban` (routine, scorte, memorie e commissioni), `cityWorks` (restauro, colazione, esercitazioni e letture) ed `economy.flows` (campo facoltativo, `schema: 1`: giorno, ricchezza, spedizioni in viaggio, riporti frazionari e registro delle merci; assente nei salvataggi precedenti, che lo ricevono al giorno corrente senza recuperi retroattivi, e ricreato se non valido). Le mappe si rigenerano dallo stesso seme. I salvataggi precedenti ricevono i nuovi campi al caricamento. La v5 di GitHub può includere equipaggiamento, conflitti, reputazione e Santuario. La migrazione conserva i campi presenti e inizializza quelli mancanti nelle v5 precedenti.
+Il formato v7 conserva `renown` (campo facoltativo, `schema: 1`, Living World 2.0: al massimo 40 imprese con tipo, segno, mercato d'origine, giorno, testo e se la voce è già arrivata a Vela; si ricrea vuoto se manca o non è valido), `requests` (campo facoltativo, `schema: 1`, Living World 2.0: offerte del giorno, richieste in corso con scadenza e avanzamento, ultima riscossione e conteggio per modello; si ricrea vuoto se manca o non è valido), `careers` (campo facoltativo, `schema: 1`, Living World 2.0: ordini consegnati all'armeria e contratti del Registro con il giorno dell'ultima consegna, prezzi visti per mercato; si ricrea vuoto se manca o non è valido), `memory` (campo facoltativo, `schema: 1`, Living World 2.0: episodi ricordati dagli NPC, promessa in corso, giorno dell'ultima pozione messa da parte; se manca o non è valido si ricrea vuoto e il salvataggio si carica comunque), `urban` (routine, scorte, memorie e commissioni), `cityWorks` (restauro, colazione, esercitazioni e letture) ed `economy.flows` (campo facoltativo, `schema: 1`: giorno, ricchezza, spedizioni in viaggio, riporti frazionari e registro delle merci; assente nei salvataggi precedenti, che lo ricevono al giorno corrente senza recuperi retroattivi, e ricreato se non valido). Le mappe si rigenerano dallo stesso seme. I salvataggi precedenti ricevono i nuovi campi al caricamento. La v5 di GitHub può includere equipaggiamento, conflitti, reputazione e Santuario. La migrazione conserva i campi presenti e inizializza quelli mancanti nelle v5 precedenti.
 
 ### 3.2 Selva degli Alambicchi
 
@@ -184,6 +185,8 @@ API per sistemi futuri: `Economy.quote(s, mercato, merce[, scorta])`, `Economy.d
 Abitanti con memorie, accordi commerciali, crescita e famiglia; insediamenti con scorte e maestri. Costruzione su lotti designati (casa, fattoria, laboratorio…) con materiali (legno, minerale, oro); villaggi e città assemblabili ai limiti dei lotti, con entrate dagli scambi.
 
 **Memoria del mondo (`world-memory.js`, Living World 2.0).** Gli NPC ricordano episodi concreti con giorno e fonte: diretta se vi hanno preso parte, da testimone se erano vivi, al loro posto ed entro 100 px. Nessun NPC conosce ciò che non ha potuto vedere; il resto del mondo ne sa solo attraverso la reputazione pubblica. L'opinione non è salvata: si ricava dagli episodi con pesi per tipo, dimezzamento ogni 10 giorni, un episodio per tipo e giorno e i tre più recenti per tipo. Prototipo: Tessa e la carenza di erbe di rugiada del mercato di Vela (consegna pagata al prezzo di mercato tramite `Economy.deliver`, promessa con scadenza, pozione messa da parte a emporio chiuso quando ti stima).
+
+**Voci e fama regionale (`world-renown.js`, Living World 2.0).** Le imprese importanti partono come notizie dal mercato del luogo e viaggiano lungo le rotte commerciali con i loro giorni di viaggio; ogni continente le pesa con regole proprie (comunità, forgia, commercio, parola mancata) e la fama dimezza in 20 giorni. Quando una notizia nata altrove arriva a Vela, Tessa, Ivo o Nerea la ricordano per sentito dire. Si risolve al cambio di giorno, senza simulare NPC lontani.
 
 ### 4.7 Gilde e reputazione
 Gilda pubblica (rango F→S): caccia, raccolta, ricognizione, lettura iscrizioni, scorta, esplorazione della Cripta. **Gilda personale** con squadre che avanzano con il giocatore. **Reputazione** con insediamenti, regni, gilde e fazioni (Compagnia dei Cartografi, Custodi delle Lanterne); **titoli**.
