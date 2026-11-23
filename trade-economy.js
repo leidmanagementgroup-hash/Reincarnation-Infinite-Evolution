@@ -91,9 +91,20 @@
     if(flows&&MarketFlows.audit(flows,profiles,markets).length)MarketFlows.rebase(flows,profiles,markets);
     return {schema:1,balance:raw.balance,markets,flows};
   }
+  /* LW-ECO-03 (Living World 2.0): i manufatti che non fanno parte del profilo del mercato (lame, piatti, attrezzi venduti dal
+     giocatore) trovano compratori fra gli abitanti, una unità al giorno per merce. Le merci del profilo seguono le loro regole. */
+  function consumeCrafted(stock,profile,elapsed){
+    if(elapsed<=0n)return;
+    for(const id of Object.keys(stock)){
+      if(own(profile.goods,id))continue;
+      const count=BigInt(stock[id]),left=count-minBig(count,elapsed);
+      if(left>0n)stock[id]=String(left);else delete stock[id];
+    }
+  }
   function restocked(market,profile,day){
     if(day<=market.day)return market;
     const elapsed=BigInt(day-market.day),stock={...market.stock};
+    consumeCrafted(stock,profile,elapsed);
     for(const [id,[goal]] of Object.entries(profile.goods)){
       const count=BigInt(stock[id]||'0'),target=BigInt(goal);
       if(count<target)stock[id]=String(count+minBig(target-count,elapsed*2n));
@@ -106,7 +117,9 @@
   function sync(s,day=clock(s).day){
     const flows=s.economy?.flows;
     if(!flows||!window.MarketFlows||day<=flows.day)return;
+    const elapsed=BigInt(day-flows.day);
     MarketFlows.advance(flows,profiles,s.economy.markets,day);
+    for(const profile of profiles)consumeCrafted(s.economy.markets[profile.id].stock,profile,elapsed);
     for(const profile of profiles)s.economy.markets[profile.id].day=Math.max(s.economy.markets[profile.id].day,day);
   }
   function fresh(s,market,profile,day){
@@ -170,7 +183,8 @@
     const scaled=flows?Math.max(1,Math.round(native*MarketFlows.multiplier(flows,profile,item.id,stock)/1000)):native;
     const scarcity=flows?0:stock<=BigInt(Math.floor(target/3))?1:stock>=BigInt(target)?-1:0;
     const quality=item.quality===null?0:typeof item.quality==='number'?Math.max(0,Math.min(6,item.quality|0)):
-      /eccellente|pregiat|magistr|legend/i.test(item.quality||'')?2:0;
+      /eccellente|pregiat|magistr|legend/i.test(item.quality||'')?2:
+      /perfett/i.test(item.quality||'')?3:/ottim/i.test(item.quality||'')?2:/buon/i.test(item.quality||'')?1:0; // Living World 2.0 (LW-ECO-04)
     const winter=c.seasonId==='winter'||c.seasonIndex===3;
     const season=winter&&['food','ingredients','materials'].includes(item.category)?1:0;
     const favor=window.Reputation?.discount(s,profile.region)||0;
@@ -216,6 +230,7 @@
   function use(s,id){
     const market=own(marketBook,id)?marketBook[id]:null;
     if(!market||!shopNear(s,market))return fail('Avvicinati al mercato.');
+    if(clock(s).shopOpen)window.Careers?.note(s,market.id);
     return {ok:true,panel:'economy'};
   }
   function bank(s,data){
@@ -237,16 +252,38 @@
     s.economy.balance=String(balance-count);
     return done('Prelevato · '+wallet(count).label);
   }
+  /* LW-ECO-01 (Living World 2.0): ogni unità di un lotto costa o rende il prezzo della scorta in quel momento, come se si
+     scambiasse una unità alla volta. Prima l'intero lotto usava il prezzo della scorta di partenza, e vendere un lotto per
+     ricomprarlo subito rendeva Scintille a ogni ciclo. Oltre il doppio della scorta obiettivo il prezzo non cambia più
+     (indice di scarsità al minimo): quel tratto si calcola in un solo passo, così anche quantità enormi costano O(obiettivo). */
+  function lotPrice(s,profile,where,item,c,stock,quantity,buying){
+    const key=buying?'buy':'sell',target=BigInt(own(profile.goods,item.id)?profile.goods[item.id][0]:6),flat=target*2n+1n;
+    const at=n=>price(s,profile,{day:where.day,stock:{[item.id]:String(n)}},item,c)[key];
+    let total=0n,left=quantity,level=stock,first=null,last=null;
+    while(left>0n){
+      // Ogni unità si paga alla scorta prima dello scambio; nel tratto piatto il prezzo è lo stesso per tutte.
+      const run=buying?(level>flat?minBig(left,level-flat):0n):(level>=flat?left:0n);
+      const n=run>0n?run:1n,unit=at(level);
+      total+=BigInt(unit)*n;first??=unit;last=unit;
+      left-=n;level=buying?level-n:level+n;
+    }
+    return {total,first,last};
+  }
   function trade(s,profile,c,data){
     const id=data.id==='potions'?'potion':data.id;
     const quantity=amountOf(data.amount??1),item=Inventory.definition(s,id),carried=amountOf(s.player.gold);
     if(!item||item.quest)return fail('Oggetto non commerciabile.');
     if(quantity===null||quantity===0n||carried===null)return fail('Inserisci una quantità intera positiva.');
     const where=fresh(s,s.economy.markets[profile.id],profile,c.day),stock=stockAt(where,id);
-    const {buy,sell}=price(s,profile,where,item,c);
-    const buying=data.op==='buy',priceTotal=BigInt(buying?buy:sell)*quantity;
+    const buying=data.op==='buy';
+    if(!buying){
+      // LW-ECO-02: come Economy.deliver, il mercato accoglie merce solo fino alla capacità del magazzino.
+      const room=capacityFor(profile,id,s.economy.flows)-stock;
+      if(quantity>room)return fail(room>0n?'Il mercato può accogliere ancora '+format.format(room)+' unità di '+item.name+'.':'Il magazzino del mercato è pieno per '+item.name+'.');
+    }
+    if(buying&&stock<quantity)return fail('Scorte insufficienti.');
+    const lot=lotPrice(s,profile,where,item,c,stock,quantity,buying),priceTotal=lot.total;
     if(buying){
-      if(stock<quantity)return fail('Scorte insufficienti.');
       if(carried<priceTotal)return fail('Fondi insufficienti nel borsello.');
       if(!Inventory.add(s,id,quantity))return fail('Non è stato possibile aggiungere l’oggetto.');
       s.player.gold=Number(carried-priceTotal);
@@ -260,7 +297,9 @@
     }
     s.economy.markets[profile.id]=where;
     if(s.economy.flows)MarketFlows.external(s.economy.flows,profile.id,id,buying?-quantity:quantity);
-    return done(item.name+' ×'+format.format(quantity)+' · '+(buying?'Pagato ':'Ricevuto ')+wallet(priceTotal).label,
+    window.Careers?.note(s,profile.id);
+    return done(item.name+' ×'+format.format(quantity)+' · '+(buying?'Pagato ':'Ricevuto ')+wallet(priceTotal).label+
+      (lot.first!==lot.last?' (da '+lot.first+' a '+lot.last+' per unità)':''),
       {event:{id:'trade',amount:1,meta:{market:profile.id,item:id,direction:data.op,quantity:String(quantity)}}});
   }
   function command(s,data){
@@ -271,6 +310,7 @@
     if(!c.shopOpen)return fail(profile.name+' è chiuso. Orario '+normalHours+'.');
     switch(data.op){
       case 'buy':case 'sell':return trade(s,profile,c,data);
+      case 'armoryOrder':case 'cargoContract':return window.Careers?Careers.command(s,profile.id,data):fail('Operazione non disponibile.');
       case 'bankDeposit':case 'bankWithdraw':return bank(s,data);
       case 'itemDeposit':case 'itemWithdraw':
         return Inventory.command(s,{...data,op:data.op==='itemDeposit'?'deposit':'withdraw'});

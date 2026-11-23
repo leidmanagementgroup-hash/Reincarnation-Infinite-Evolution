@@ -92,12 +92,40 @@
         'Le botteghe ricevono beni dai mestieri locali all’alba e dalle commissioni consegnate a Velaris. Le scorte influenzano i prezzi.':
         'Le scorte appartengono a questo mercato. I prodotti di base vengono riforniti col passare dei giorni.')+'</p>'+
       '<section aria-label="Scorte e prezzi del mercato">'+(market.rows.length?market.rows.map(r=>row(r,market.available,carried)).join(''):'<p>Le scorte sono esaurite.</p>')+'</section>'+
-      bank(s,data)+'</div>';
+      careers(s,market)+bank(s,data)+'</div>';
+  }
+  /* Mestieri (Living World 2.0): ordini dell'armeria ai Filoni, contratti del Registro a Calis, taccuino dei prezzi visti. */
+  function careerAction(label,op,possible){
+    return '<button class="btn primary" type="button" data-cmd="economy" data-value="'+esc(JSON.stringify({op}))+'"'+off(!possible)+'>'+esc(label)+'</button>';
+  }
+  function careers(s,market){
+    const v=window.Careers?.view(s,market.id);
+    if(!v)return '';
+    let out='';
+    if(v.armory){
+      const a=v.armory;
+      out+='<section class="card economyCareer" aria-label="'+esc(a.name)+'"><h3>'+esc(a.name)+'</h3>'+
+        '<p>'+esc(a.standing)+' · ordini consegnati '+esc(a.orders)+' · lame sul banco '+esc(a.onBench)+' (ordina quando sono meno di '+esc(a.want)+')</p>'+
+        '<p class="caption">'+esc(a.available?'Ordine del giorno: una lama di qualità almeno '+a.minQuality+'. Consegneresti '+a.bladeName+'.':a.why)+(a.next?' '+esc(a.next):'')+'</p>'+
+        careerAction(a.available?'Consegna la lama · +'+a.pay+' Scintille':'Consegna la lama','armoryOrder',a.available&&market.available)+'</section>';
+    }
+    if(v.cargo){
+      const c=v.cargo;
+      out+='<section class="card economyCareer" aria-label="'+esc(c.name)+'"><h3>'+esc(c.name)+'</h3>'+
+        '<p>'+esc(c.standing)+' · contratti consegnati '+esc(c.contracts)+(c.good?' · al porto manca '+c.goodName+' ('+c.gap+'% sotto la scorta)':'')+'</p>'+
+        '<p class="caption">'+esc(c.available?'Contratto del giorno: '+c.size+' '+c.goodName+'.':c.why)+(c.next?' '+esc(c.next):'')+'</p>'+
+        careerAction(c.available?'Consegna il carico · +'+c.pay+' Scintille':'Consegna il carico','cargoContract',c.available&&market.available)+'</section>';
+    }
+    out+='<section class="card economyCareer" aria-label="Taccuino del mercante"><h3>Taccuino del mercante</h3>'+
+      (v.notebook.length?'<ul class="economyNotes">'+v.notebook.map(n=>'<li>'+esc(n.name+' · qui la compri a '+n.buy+' · '+n.market+' la pagava '+n.sell+' (giorno '+n.day+')')+'</li>').join('')+'</ul>':
+        '<p class="caption">'+esc(v.visited<2?'Il taccuino annota i prezzi dei mercati in cui commerci di persona: visitane altri per confrontarli.':'Nessuna merce di qui si vendeva meglio nei mercati che hai visto.')+'</p>')+'</section>';
+    return out;
   }
   const css=[
     '.economyWallets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}',
     '.economyCoins{list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px;padding:0;margin:7px 0 0}',
     '.economyCoins li{min-width:0}',
+    '.economyCareer{margin-top:10px}.economyNotes{margin:6px 0 0;padding-left:18px}',
     '.economyCoins li small{font-size:11px;margin:0}',
     '.economyCoins li b,.economyListing b,.economyStored b{color:var(--gold);overflow-wrap:anywhere}',
     '.economyWhere{border:1px solid var(--line);border-radius:3px;margin:9px 0 7px;padding:7px 10px}',

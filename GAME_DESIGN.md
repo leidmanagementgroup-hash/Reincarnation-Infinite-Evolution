@@ -67,18 +67,19 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 | 31 | `npc-conflicts.js` | `Conflicts` | Pattuglie, ferite, soccorsi, morte permanente NPC, memoriali, rito della rinascita |
 | 32 | `reputation.js` | `Reputation` | Reputazione con insediamenti, regni, gilde, fazioni; titoli |
 | 33 | `world-memory.js` | `WorldMemory` | Memoria del mondo: episodi ricordati dagli NPC (diretti o da testimoni presenti), opinione derivata, promesse, opportunità (Living World 2.0) |
-| 34 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
-| 35 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
-| 36 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
-| 37 | `combat-fx.js` | `CombatFX` | Effetti di combattimento per elemento (fisico, fuoco, acqua, ghiaccio, fulmine, oscurità, luce): impatti, proiettili, anelli, colpo forte, schivata, aure e trasformazioni dei boss, evoluzione, numeri; solo disegno (§4.3) |
-| 38 | `audio.js` | `Score` | Musica e suoni |
-| 39 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
-| 40 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
-| 41 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
-| 42 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
-| 43 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
-| 44 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
-| 45 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
+| 34 | `careers.js` | `Careers` | Mestieri con un futuro: ordini dell’Armeria del Passo per il fabbro, taccuino dei prezzi e contratti del Registro dei Carichi per il mercante (Living World 2.0) |
+| 35 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
+| 36 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
+| 37 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
+| 38 | `combat-fx.js` | `CombatFX` | Effetti di combattimento per elemento (fisico, fuoco, acqua, ghiaccio, fulmine, oscurità, luce): impatti, proiettili, anelli, colpo forte, schivata, aure e trasformazioni dei boss, evoluzione, numeri; solo disegno (§4.3) |
+| 39 | `audio.js` | `Score` | Musica e suoni |
+| 40 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
+| 41 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
+| 42 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
+| 43 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
+| 44 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
+| 45 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
+| 46 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
 
 Nota: `World`, `ActorArt` ed `EvolutionContent` sono **estesi da più moduli** successivi (ciascuno incapsula e riassegna il globale precedente): l'ordine in `build.py` è vincolante.
 
@@ -108,7 +109,7 @@ Routine per quartiere: ogni residente abita nel quartiere del proprio lavoro (`h
 
 Pianificazione delle soste (PERF-002). L'indice spaziale cerca le soste già assegnate solo nel raggio utile. I profili continuano a essere elaborati nell'ordine originale, con gli stessi criteri di distanza, orari, destinazioni e controlli di percorribilità. Dalle 22:00 a Velaris si prepara il giorno successivo con al massimo otto soste per aggiornamento del gioco e un budget indicativo di 2 ms fra le soste. Il piano completo diventa attivo a mezzanotte. Dopo un salto o un caricamento l'eventuale piano assente viene completato al primo utilizzo. Questa cache è legata alla mappa e alla partita e si rigenera dai dati esistenti.
 
-Il formato v7 conserva `memory` (campo facoltativo, `schema: 1`, Living World 2.0: episodi ricordati dagli NPC, promessa in corso, giorno dell'ultima pozione messa da parte; se manca o non è valido si ricrea vuoto e il salvataggio si carica comunque), `urban` (routine, scorte, memorie e commissioni), `cityWorks` (restauro, colazione, esercitazioni e letture) ed `economy.flows` (campo facoltativo, `schema: 1`: giorno, ricchezza, spedizioni in viaggio, riporti frazionari e registro delle merci; assente nei salvataggi precedenti, che lo ricevono al giorno corrente senza recuperi retroattivi, e ricreato se non valido). Le mappe si rigenerano dallo stesso seme. I salvataggi precedenti ricevono i nuovi campi al caricamento. La v5 di GitHub può includere equipaggiamento, conflitti, reputazione e Santuario. La migrazione conserva i campi presenti e inizializza quelli mancanti nelle v5 precedenti.
+Il formato v7 conserva `careers` (campo facoltativo, `schema: 1`, Living World 2.0: ordini consegnati all'armeria e contratti del Registro con il giorno dell'ultima consegna, prezzi visti per mercato; si ricrea vuoto se manca o non è valido), `memory` (campo facoltativo, `schema: 1`, Living World 2.0: episodi ricordati dagli NPC, promessa in corso, giorno dell'ultima pozione messa da parte; se manca o non è valido si ricrea vuoto e il salvataggio si carica comunque), `urban` (routine, scorte, memorie e commissioni), `cityWorks` (restauro, colazione, esercitazioni e letture) ed `economy.flows` (campo facoltativo, `schema: 1`: giorno, ricchezza, spedizioni in viaggio, riporti frazionari e registro delle merci; assente nei salvataggi precedenti, che lo ricevono al giorno corrente senza recuperi retroattivi, e ricreato se non valido). Le mappe si rigenerano dallo stesso seme. I salvataggi precedenti ricevono i nuovi campi al caricamento. La v5 di GitHub può includere equipaggiamento, conflitti, reputazione e Santuario. La migrazione conserva i campi presenti e inizializza quelli mancanti nelle v5 precedenti.
 
 ### 3.2 Selva degli Alambicchi
 
@@ -170,6 +171,8 @@ Valute: **Scintille, Lunari, Solari, Astrali** (rapporto 100:1). Mercato per con
 Velaris trasferisce legno, minerale, erbe e grano dalla riserva urbana al mercato condiviso fra la bottega e il banco della Selva. All’alba i mestieri producono nuove unità. Le merci delle commissioni alimentano la stessa riserva e possono rifornire il banco appena consegnate. Ogni trasferimento conserva le unità e lascia la scorta minima in città. Il limite dell’approvvigionamento urbano è due unità sopra la scorta di riferimento del mercato, per merce. Le scorte e i prezzi usano le regole di commercio esistenti. I dati continuano a usare i campi `urban` ed `economy` del salvataggio v7.
 
 **Economia dinamica (`market-flows.js`, `MarketFlows`).** I cinque mercati non si riassortiscono più verso un obiettivo fisso: le scorte cambiano ogni giorno di calendario per produzione, consumo, deperimento e rotte. Nove professioni producono (contadini, erbaiuoli, minatori, falegnami, pastori, cercatori di essenza, pozzaioli) o trasformano (fornai: un grano per un pane; alchimisti: due erbe per una pozione); i lavoratori accelerano fino al +70% quando manca la merce e si fermano quando la scorta raggiunge il doppio dell'obiettivo. Gli abitanti consumano acqua, pane, grano, erbe, pozioni, minerale, legno, sementi, lana ed essenza; la domanda cala con la scarsità. Otto rotte (Vela al centro) spostano una merce solo se la partenza conserva una riserva, la destinazione ha un deficit previsto e il prezzo all'arrivo copre prezzo di partenza, deperimento e trasporto; mai in senso opposto sulla stessa rotta. Il prezzo di base di ogni merce è scalato da scarsità (×0,4–×1,6) e ricchezza del mercato (piena sul lusso, dimezzata sulla necessità); qualità, stagione, favore e lutto restano come prima. Un registro esatto per mercato e merce (BigInt) garantisce che nessuna merce nasca o sparisca: gli scambi del giocatore e le forniture di Velaris sono flussi esterni dichiarati. Non c'è simulazione individuale: tutto è aggregato e deterministico (seme e giorno).
+
+**Scambi a lotti e mestieri (Living World 2.0).** Ogni unità di un lotto si paga alla scorta di quel momento (oltre il doppio della scorta obiettivo il prezzo è costante e si calcola in un passo); le vendite rispettano il tetto del magazzino; i manufatti fuori profilo venduti al mercato sono comprati dagli abitanti, una unità al giorno per merce; la qualità di forgia e cucina vale +1/+2/+3. `Careers` aggiunge gli ordini dell'Armeria del Passo (Filoni, fabbri Praticanti, meno di 2 lame sul banco, una consegna al giorno, compenso ×1,25 o ×1,4 da fornitore di fiducia, mai oltre acquisto−1), il taccuino dei prezzi visti di persona e i contratti del Registro dei Carichi di Calis (mercanti Praticanti, merce in carenza, 3 o 6 unità, ×1,2 mai oltre acquisto−1). Tutto passa da `Economy.deliver`.
 
 API per sistemi futuri: `Economy.quote(s, mercato, merce[, scorta])`, `Economy.deliver` / `Economy.procure` (un negozio, un mercante o un residente porta o preleva merce; limiti di magazzino e di scorta), `Economy.flowReport(s)` (prezzi, ricchezza, merci in viaggio, previsione di domanda e produzione, rotte, verifica del registro). `MarketFlows.settlementProfile({id, size, focus, seed, world})` genera il profilo economico di un nuovo insediamento (abitanti, mestieri, obiettivi di scorta, prezzi, specialità) senza condizioni speciali, e `MarketFlows.routesFor(profili)` ne ricava le rotte (connesse, deterministiche). Limiti: il gioco usa cinque mercati (ECO-002); i mercati sono poco profondi (ECO-001); nessuna interfaccia mostra ancora tendenze e merci in viaggio (ECO-003).
 

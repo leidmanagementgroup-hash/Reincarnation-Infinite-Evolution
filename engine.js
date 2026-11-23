@@ -237,6 +237,7 @@
     s.urban=UrbanLife.create(seed);
     s.cityWorks=UrbanServices.create();
     s.memory=WorldMemory.create();
+    s.careers=Careers.create();
     p.hp=stats().hpMax;p.mp=stats().mpMax;
     resetTransient();save();return true;
   }
@@ -1521,6 +1522,7 @@
     d.cityWorks=UrbanServices.restore(d.cityWorks,d);
     if(!d.urban||!d.cityWorks)return null;
     d.memory=WorldMemory.restore(d.memory,d);
+    d.careers=Careers.restore(d.careers,d);
     d.version=version;
     return d;
   }

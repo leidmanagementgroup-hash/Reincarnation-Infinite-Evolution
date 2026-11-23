@@ -11,7 +11,7 @@ MODULES = (
     "calendar.js", "inventory.js", "lantern.js", "growth.js", "world-life.js",
     "construction.js", "society.js", "guild.js", "trades-practice.js", "tradecraft.js",
     "daily-life.js", "market-flows.js", "trade-economy.js", "gear.js", "adaptive-combat.js", "legendary.js",
-    "npc-conflicts.js", "reputation.js", "world-memory.js", "urban-services.js", "urban-life.js", "engine.js", "combat-fx.js", "audio.js",
+    "npc-conflicts.js", "reputation.js", "world-memory.js", "careers.js", "urban-services.js", "urban-life.js", "engine.js", "combat-fx.js", "audio.js",
     "practice-panel.js", "life-panels.js", "economy-panel.js", "gear-panel.js",
     "npc-conflict-panel.js", "panels.js", "interface.js",
 )

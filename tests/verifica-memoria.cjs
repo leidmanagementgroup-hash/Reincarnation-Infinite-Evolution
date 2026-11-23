@@ -49,8 +49,8 @@ const steps = (n, input = {}) => { for (let i = 0; i < n; i++) Game.step(1 / 60,
 const day = s => Calendar.absoluteDays(s.calendar, s.time);
 // Il tempo del calendario avanza come quando il gioco resta aperto (secondi reali passati al motore), poi qualche impulso.
 function advanceDays(n) { for (let i = 0; i < n; i++) { Game.step(1 / 60, {}, 1800); steps(90); } }
-function atHour(hour) { const s = Game.s; const v = Calendar.view(s.calendar, s.time, 'valley'); let h = v.hour ?? +String(v.clock || '').slice(0, 2);
-  const now = Calendar.timestamp(s.calendar, s.time), start = now - (now % 1800); Game.step(1 / 60, {}, Math.max(0, start + hour * 75 - now)); steps(5); }
+// Ora del calendario misurata sui suoi minuti (1440 minuti = 1800 secondi): oggi se non è ancora passata, altrimenti domani.
+function atHour(hour) { const m = Calendar.view(Game.s.calendar, Game.s.time, 'valley').minutes; Game.step(1 / 60, {}, ((hour * 60 - m + 1440) % 1440) * 1800 / 1440); steps(5); }
 function nearTessa() { const s = Game.s, t = World.points.merchant; Object.assign(s.player, { x: t.x + 14, y: t.y + 20 }); steps(2); }
 const herb = () => BigInt(Economy.quote(Game.s, 'vela', 'herb').stock);
 const give = () => Game.command('tieGive');

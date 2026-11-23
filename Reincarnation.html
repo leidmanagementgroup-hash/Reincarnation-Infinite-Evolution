@@ -13058,9 +13058,20 @@ window.Lantern = (() => {
     if(flows&&MarketFlows.audit(flows,profiles,markets).length)MarketFlows.rebase(flows,profiles,markets);
     return {schema:1,balance:raw.balance,markets,flows};
   }
+  /* LW-ECO-03 (Living World 2.0): i manufatti che non fanno parte del profilo del mercato (lame, piatti, attrezzi venduti dal
+     giocatore) trovano compratori fra gli abitanti, una unità al giorno per merce. Le merci del profilo seguono le loro regole. */
+  function consumeCrafted(stock,profile,elapsed){
+    if(elapsed<=0n)return;
+    for(const id of Object.keys(stock)){
+      if(own(profile.goods,id))continue;
+      const count=BigInt(stock[id]),left=count-minBig(count,elapsed);
+      if(left>0n)stock[id]=String(left);else delete stock[id];
+    }
+  }
   function restocked(market,profile,day){
     if(day<=market.day)return market;
     const elapsed=BigInt(day-market.day),stock={...market.stock};
+    consumeCrafted(stock,profile,elapsed);
     for(const [id,[goal]] of Object.entries(profile.goods)){
       const count=BigInt(stock[id]||'0'),target=BigInt(goal);
       if(count<target)stock[id]=String(count+minBig(target-count,elapsed*2n));
@@ -13073,7 +13084,9 @@ window.Lantern = (() => {
   function sync(s,day=clock(s).day){
     const flows=s.economy?.flows;
     if(!flows||!window.MarketFlows||day<=flows.day)return;
+    const elapsed=BigInt(day-flows.day);
     MarketFlows.advance(flows,profiles,s.economy.markets,day);
+    for(const profile of profiles)consumeCrafted(s.economy.markets[profile.id].stock,profile,elapsed);
     for(const profile of profiles)s.economy.markets[profile.id].day=Math.max(s.economy.markets[profile.id].day,day);
   }
   function fresh(s,market,profile,day){
@@ -13137,7 +13150,8 @@ window.Lantern = (() => {
     const scaled=flows?Math.max(1,Math.round(native*MarketFlows.multiplier(flows,profile,item.id,stock)/1000)):native;
     const scarcity=flows?0:stock<=BigInt(Math.floor(target/3))?1:stock>=BigInt(target)?-1:0;
     const quality=item.quality===null?0:typeof item.quality==='number'?Math.max(0,Math.min(6,item.quality|0)):
-      /eccellente|pregiat|magistr|legend/i.test(item.quality||'')?2:0;
+      /eccellente|pregiat|magistr|legend/i.test(item.quality||'')?2:
+      /perfett/i.test(item.quality||'')?3:/ottim/i.test(item.quality||'')?2:/buon/i.test(item.quality||'')?1:0; // Living World 2.0 (LW-ECO-04)
     const winter=c.seasonId==='winter'||c.seasonIndex===3;
     const season=winter&&['food','ingredients','materials'].includes(item.category)?1:0;
     const favor=window.Reputation?.discount(s,profile.region)||0;
@@ -13183,6 +13197,7 @@ window.Lantern = (() => {
   function use(s,id){
     const market=own(marketBook,id)?marketBook[id]:null;
     if(!market||!shopNear(s,market))return fail('Avvicinati al mercato.');
+    if(clock(s).shopOpen)window.Careers?.note(s,market.id);
     return {ok:true,panel:'economy'};
   }
   function bank(s,data){
@@ -13204,16 +13219,38 @@ window.Lantern = (() => {
     s.economy.balance=String(balance-count);
     return done('Prelevato · '+wallet(count).label);
   }
+  /* LW-ECO-01 (Living World 2.0): ogni unità di un lotto costa o rende il prezzo della scorta in quel momento, come se si
+     scambiasse una unità alla volta. Prima l'intero lotto usava il prezzo della scorta di partenza, e vendere un lotto per
+     ricomprarlo subito rendeva Scintille a ogni ciclo. Oltre il doppio della scorta obiettivo il prezzo non cambia più
+     (indice di scarsità al minimo): quel tratto si calcola in un solo passo, così anche quantità enormi costano O(obiettivo). */
+  function lotPrice(s,profile,where,item,c,stock,quantity,buying){
+    const key=buying?'buy':'sell',target=BigInt(own(profile.goods,item.id)?profile.goods[item.id][0]:6),flat=target*2n+1n;
+    const at=n=>price(s,profile,{day:where.day,stock:{[item.id]:String(n)}},item,c)[key];
+    let total=0n,left=quantity,level=stock,first=null,last=null;
+    while(left>0n){
+      // Ogni unità si paga alla scorta prima dello scambio; nel tratto piatto il prezzo è lo stesso per tutte.
+      const run=buying?(level>flat?minBig(left,level-flat):0n):(level>=flat?left:0n);
+      const n=run>0n?run:1n,unit=at(level);
+      total+=BigInt(unit)*n;first??=unit;last=unit;
+      left-=n;level=buying?level-n:level+n;
+    }
+    return {total,first,last};
+  }
   function trade(s,profile,c,data){
     const id=data.id==='potions'?'potion':data.id;
     const quantity=amountOf(data.amount??1),item=Inventory.definition(s,id),carried=amountOf(s.player.gold);
     if(!item||item.quest)return fail('Oggetto non commerciabile.');
     if(quantity===null||quantity===0n||carried===null)return fail('Inserisci una quantità intera positiva.');
     const where=fresh(s,s.economy.markets[profile.id],profile,c.day),stock=stockAt(where,id);
-    const {buy,sell}=price(s,profile,where,item,c);
-    const buying=data.op==='buy',priceTotal=BigInt(buying?buy:sell)*quantity;
+    const buying=data.op==='buy';
+    if(!buying){
+      // LW-ECO-02: come Economy.deliver, il mercato accoglie merce solo fino alla capacità del magazzino.
+      const room=capacityFor(profile,id,s.economy.flows)-stock;
+      if(quantity>room)return fail(room>0n?'Il mercato può accogliere ancora '+format.format(room)+' unità di '+item.name+'.':'Il magazzino del mercato è pieno per '+item.name+'.');
+    }
+    if(buying&&stock<quantity)return fail('Scorte insufficienti.');
+    const lot=lotPrice(s,profile,where,item,c,stock,quantity,buying),priceTotal=lot.total;
     if(buying){
-      if(stock<quantity)return fail('Scorte insufficienti.');
       if(carried<priceTotal)return fail('Fondi insufficienti nel borsello.');
       if(!Inventory.add(s,id,quantity))return fail('Non è stato possibile aggiungere l’oggetto.');
       s.player.gold=Number(carried-priceTotal);
@@ -13227,7 +13264,9 @@ window.Lantern = (() => {
     }
     s.economy.markets[profile.id]=where;
     if(s.economy.flows)MarketFlows.external(s.economy.flows,profile.id,id,buying?-quantity:quantity);
-    return done(item.name+' ×'+format.format(quantity)+' · '+(buying?'Pagato ':'Ricevuto ')+wallet(priceTotal).label,
+    window.Careers?.note(s,profile.id);
+    return done(item.name+' ×'+format.format(quantity)+' · '+(buying?'Pagato ':'Ricevuto ')+wallet(priceTotal).label+
+      (lot.first!==lot.last?' (da '+lot.first+' a '+lot.last+' per unità)':''),
       {event:{id:'trade',amount:1,meta:{market:profile.id,item:id,direction:data.op,quantity:String(quantity)}}});
   }
   function command(s,data){
@@ -13238,6 +13277,7 @@ window.Lantern = (() => {
     if(!c.shopOpen)return fail(profile.name+' è chiuso. Orario '+normalHours+'.');
     switch(data.op){
       case 'buy':case 'sell':return trade(s,profile,c,data);
+      case 'armoryOrder':case 'cargoContract':return window.Careers?Careers.command(s,profile.id,data):fail('Operazione non disponibile.');
       case 'bankDeposit':case 'bankWithdraw':return bank(s,data);
       case 'itemDeposit':case 'itemWithdraw':
         return Inventory.command(s,{...data,op:data.op==='itemDeposit'?'deposit':'withdraw'});
@@ -14878,6 +14918,152 @@ window.Lantern = (() => {
 
 (() => {
   'use strict';
+  /* Mestieri con un futuro (Living World 2.0, incremento 2). Due percorsi verticali costruiti sui sistemi esistenti:
+     - Fabbro: pratica e qualità della forgia (Tradecraft, Life) → la qualità conta nel prezzo (Economy) → ordini dell'Armeria
+       del Passo al mercato dei Filoni quando le lame mancano davvero dal banco → fama di fornitore che alza le richieste e la paga.
+     - Mercante: acquisti e vendite (Economy) → taccuino dei prezzi visti di persona nei mercati visitati (nessun prezzo lontano
+       conosciuto senza esserci stati) → contratti del Registro dei Carichi di Calis sulla merce che manca → contratti più grandi.
+     Tutte le merci passano da Economy.deliver (registro esatto, tetto del magazzino): nulla nasce dal nulla. Una sola
+     consegna al giorno per percorso. Dati in `s.careers` (schema 1); il ripristino non rifiuta mai il salvataggio. */
+  const SCHEMA=1,BLADES=['blade-0','blade-1','blade-2','blade-3'],QUALITY=['scarsa','buona','ottima','perfetta'];
+  const ARMORY={market:'filoni',name:'Armeria del Passo',minLevel:4,want:2,trusted:3,pay:[1.25,1.4]};
+  const CARGO={market:'calis',name:'Registro dei Carichi',minLevel:4,size:[3,6],partner:3,pay:1.2};
+  const own=(o,k)=>!!o&&Object.hasOwn(o,k);
+  const object=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+  const int=(n,min,max)=>Number.isInteger(n)&&n>=min&&n<=max;
+  const today=s=>Calendar.absoluteDays(s.calendar,s.time);
+  const marketIds=()=>(window.Economy?.profiles||[]).map(p=>p.id);
+
+  function create(){return {schema:SCHEMA,smith:{orders:0,lastDay:-1},merchant:{contracts:0,lastDay:-1},seen:{}};}
+  function restore(raw,s){
+    const c=create();
+    if(!object(raw)||raw.schema!==SCHEMA)return c;
+    const now=s?.calendar?today(s):Infinity;
+    for(const [key,count] of [['smith','orders'],['merchant','contracts']]){
+      const r=raw[key];
+      if(object(r)&&int(r[count],0,1e6)&&int(r.lastDay,-1,now))c[key]={[count]:r[count],lastDay:r.lastDay};
+    }
+    if(object(raw.seen))for(const id of marketIds()){
+      const m=raw.seen[id];
+      if(!object(m)||!int(m.day,0,now)||!object(m.prices))continue;
+      const prices={};
+      for(const [good,pair] of Object.entries(m.prices).slice(0,40))
+        if(typeof good==='string'&&good.length<=40&&Array.isArray(pair)&&pair.length===2&&pair.every(n=>int(n,0,1e9)))prices[good]=[pair[0],pair[1]];
+      c.seen[id]={day:m.day,prices};
+    }
+    return c;
+  }
+  const state=s=>s.careers||(s.careers=create());
+  const stockOf=(s,market,id)=>{const q=Economy.quote(s,market,id);return q?BigInt(q.stock):0n;};
+
+  // ------------------------------------------------------------------ fabbro: ordini dell'Armeria del Passo (Filoni)
+  function armoryView(s){
+    const st=state(s).smith,level=Life.level(s,'smith'),day=today(s);
+    const tier=st.orders>=ARMORY.trusted?2:1;
+    const onBench=BLADES.reduce((n,id)=>n+stockOf(s,ARMORY.market,id),0n);
+    const blade=BLADES.slice(tier).find(id=>Inventory.quantity(s,id)>0n)||null;
+    const quote=blade&&Economy.quote(s,ARMORY.market,blade);
+    // Il compenso non supera mai il prezzo d'acquisto della stessa lama meno 1: comprarla al banco per consegnarla non rende.
+    const pay=quote?Math.max(1,Math.min(Math.round(quote.sell*ARMORY.pay[tier-1]),quote.buy-1)):0;
+    const why=level<ARMORY.minLevel?'L’armeria ordina solo a fabbri almeno Praticanti (forgia ancora qualche lama).':
+      st.lastDay===day?'Hai già consegnato l’ordine di oggi.':
+      onBench>=BigInt(ARMORY.want)?'Il banco ha lame a sufficienza ('+onBench+'): l’armeria non ordina.':
+      !blade?'Serve una lama di qualità almeno '+QUALITY[tier]+'.':'';
+    return {name:ARMORY.name,market:ARMORY.market,level,orders:st.orders,tier,minQuality:QUALITY[tier],onBench:String(onBench),want:ARMORY.want,
+      blade,bladeName:blade?Inventory.definition(s,blade)?.name:null,pay,available:!why,why,
+      standing:st.orders>=ARMORY.trusted?'Fornitore di fiducia dell’armeria':st.orders?'Fabbro conosciuto ai Filoni':'Sconosciuto all’armeria',
+      next:st.orders<ARMORY.trusted?'Da '+ARMORY.trusted+' ordini l’armeria chiede lame ottime e paga ×'+ARMORY.pay[1]+' invece di ×'+ARMORY.pay[0]+'.':''};
+  }
+  // ------------------------------------------------------------------ mercante: contratti del Registro dei Carichi (Calis)
+  function cargoView(s){
+    const st=state(s).merchant,level=Life.level(s,'merchant'),day=today(s);
+    const profile=Economy.profiles.find(p=>p.id===CARGO.market);
+    let good=null,gap=0;
+    for(const id of Object.keys(profile?.goods||{})){const g=Economy.shortage(s,CARGO.market,id);if(g>gap){gap=g;good=id;}}
+    const size=st.contracts>=CARGO.partner?CARGO.size[1]:CARGO.size[0];
+    const owned=good?Inventory.quantity(s,good):0n;
+    let pay=0;
+    // Ogni unità è pagata al prezzo di vendita a quella scorta ×1,2, mai oltre il suo prezzo d'acquisto meno 1.
+    if(good){const stock=stockOf(s,CARGO.market,good);for(let i=0n;i<BigInt(size);i++){const q=Economy.quote(s,CARGO.market,good,stock+i);pay+=Math.max(1,Math.min(Math.round(q.sell*CARGO.pay),q.buy-1));}}
+    const why=level<CARGO.minLevel?'Il Registro affida contratti solo a mercanti almeno Praticanti.':
+      st.lastDay===day?'Hai già consegnato il contratto di oggi.':
+      !good?'A Calis non manca nessuna merce: oggi nessun contratto.':
+      owned<BigInt(size)?'Porta '+size+' unità di '+Inventory.definition(s,good).name+' (ne hai '+owned+').':'';
+    return {name:CARGO.name,market:CARGO.market,level,contracts:st.contracts,good,goodName:good?Inventory.definition(s,good)?.name:null,
+      gap:Math.round(gap*100),size,pay,available:!why,why,
+      standing:st.contracts>=CARGO.partner?'Socio del Registro':st.contracts?'Mercante conosciuto al porto':'Sconosciuto al Registro',
+      next:st.contracts<CARGO.partner?'Da '+CARGO.partner+' contratti il Registro affida carichi da '+CARGO.size[1]+' unità.':''};
+  }
+  // ------------------------------------------------------------------ taccuino dei prezzi visti di persona
+  function note(s,marketId){
+    const profile=Economy.profiles.find(p=>p.id===marketId);
+    if(!profile||!s.economy)return;
+    const prices={};
+    for(const id of Object.keys(profile.goods)){const q=Economy.quote(s,marketId,id);if(q)prices[id]=[q.buy,q.sell];}
+    state(s).seen[marketId]={day:today(s),prices};
+  }
+  // Per le merci del mercato corrente: il miglior prezzo di vendita annotato altrove (solo mercati già visitati).
+  function notebook(s,marketId){
+    const seen=state(s).seen,here=seen[marketId],rows=[];
+    if(!here)return rows;
+    for(const [good,[buy]] of Object.entries(here.prices)){
+      let best=null;
+      for(const [other,entry] of Object.entries(seen)){
+        if(other===marketId||!entry.prices[good])continue;
+        const sell=entry.prices[good][1];
+        if(!best||sell>best.sell)best={market:other,sell,day:entry.day};
+      }
+      if(best&&best.sell>buy){
+        const name=Economy.profiles.find(p=>p.id===best.market)?.name||best.market;
+        rows.push({good,name:Inventory.definition(s,good)?.name||good,buy,sell:best.sell,market:name,day:best.day+1,margin:best.sell-buy});
+      }
+    }
+    return rows.sort((a,b)=>b.margin-a.margin).slice(0,4);
+  }
+  function view(s,marketId){
+    if(!s?.economy)return null;
+    return {armory:marketId===ARMORY.market?armoryView(s):null,cargo:marketId===CARGO.market?cargoView(s):null,
+      notebook:notebook(s,marketId),visited:Object.keys(state(s).seen).length,smith:state(s).smith,merchant:state(s).merchant};
+  }
+
+  // Comandi dal banco del mercato (Economy.command ha già controllato vicinanza e orario).
+  function command(s,marketId,data){
+    const st=state(s),day=today(s),fail=text=>({ok:false,text});
+    if(data.op==='armoryOrder'){
+      if(marketId!==ARMORY.market)return fail('L’armeria ordina solo al mercato dei Filoni.');
+      const v=armoryView(s);
+      if(!v.available)return fail(v.why);
+      if(s.player.gold+v.pay>1e9)return fail('Versa parte del borsello in banca prima di questa consegna.');
+      if(!Inventory.take(s,v.blade,1))return fail('Serve una lama di qualità almeno '+v.minQuality+'.');
+      if(Economy.deliver(s,ARMORY.market,v.blade,1)!==1n){Inventory.add(s,v.blade,1);return fail('Il banco non può accogliere altre lame.');}
+      s.player.gold+=v.pay;st.smith.orders++;st.smith.lastDay=day;
+      const promoted=st.smith.orders===ARMORY.trusted;
+      return {ok:true,changed:true,text:'Ordine dell’armeria consegnato · '+v.bladeName+' · +'+v.pay+' Scintille'+(promoted?' · ora sei fornitore di fiducia: l’armeria chiederà lame ottime e pagherà di più':''),
+        event:{id:'trade',amount:1,meta:{market:ARMORY.market,item:v.blade,direction:'sell',quantity:'1',kind:'armory-order'}}};
+    }
+    if(data.op==='cargoContract'){
+      if(marketId!==CARGO.market)return fail('I contratti si firmano al Registro dei Carichi di Calis.');
+      const v=cargoView(s);
+      if(!v.available)return fail(v.why);
+      if(s.player.gold+v.pay>1e9)return fail('Versa parte del borsello in banca prima di questa consegna.');
+      const n=BigInt(v.size);
+      if(!Inventory.take(s,v.good,n))return fail(v.why||'Merce insufficiente.');
+      const moved=Economy.deliver(s,CARGO.market,v.good,n);
+      if(moved!==n){Inventory.add(s,v.good,n-moved);if(moved>0n)Economy.procure(s,CARGO.market,v.good,moved);return fail('Il magazzino del porto non può accogliere l’intero carico.');}
+      s.player.gold+=v.pay;st.merchant.contracts++;st.merchant.lastDay=day;
+      const promoted=st.merchant.contracts===CARGO.partner;
+      return {ok:true,changed:true,text:'Contratto consegnato · '+v.size+' '+v.goodName+' · +'+v.pay+' Scintille'+(promoted?' · ora sei socio del Registro: i carichi saranno più grandi':''),
+        event:{id:'trade',amount:1,meta:{market:CARGO.market,item:v.good,direction:'sell',quantity:String(v.size),kind:'cargo-contract'}}};
+    }
+    return fail('Operazione non disponibile.');
+  }
+
+  window.Careers={create,restore,view,note,command,rules:{ARMORY,CARGO}};
+})();
+
+
+(() => {
+  'use strict';
   const info={
     'civic-fountain':{name:'Fonte delle Lenti',description:'La pietra trattiene appena la luce. Il quartiere ha lasciato una canalina per il ripristino.',action:'Ripristina la fonte'},
     'inn-breakfast':{name:'Tavola del Focolare di Vetro',description:'Una razione di pane e acqua pronta per i viandanti del mattino.',action:'Ritira la razione'},
@@ -15826,6 +16012,7 @@ window.Lantern = (() => {
     s.urban=UrbanLife.create(seed);
     s.cityWorks=UrbanServices.create();
     s.memory=WorldMemory.create();
+    s.careers=Careers.create();
     p.hp=stats().hpMax;p.mp=stats().mpMax;
     resetTransient();save();return true;
   }
@@ -17110,6 +17297,7 @@ window.Lantern = (() => {
     d.cityWorks=UrbanServices.restore(d.cityWorks,d);
     if(!d.urban||!d.cityWorks)return null;
     d.memory=WorldMemory.restore(d.memory,d);
+    d.careers=Careers.restore(d.careers,d);
     d.version=version;
     return d;
   }
@@ -18406,12 +18594,40 @@ window.Lantern = (() => {
         'Le botteghe ricevono beni dai mestieri locali all’alba e dalle commissioni consegnate a Velaris. Le scorte influenzano i prezzi.':
         'Le scorte appartengono a questo mercato. I prodotti di base vengono riforniti col passare dei giorni.')+'</p>'+
       '<section aria-label="Scorte e prezzi del mercato">'+(market.rows.length?market.rows.map(r=>row(r,market.available,carried)).join(''):'<p>Le scorte sono esaurite.</p>')+'</section>'+
-      bank(s,data)+'</div>';
+      careers(s,market)+bank(s,data)+'</div>';
+  }
+  /* Mestieri (Living World 2.0): ordini dell'armeria ai Filoni, contratti del Registro a Calis, taccuino dei prezzi visti. */
+  function careerAction(label,op,possible){
+    return '<button class="btn primary" type="button" data-cmd="economy" data-value="'+esc(JSON.stringify({op}))+'"'+off(!possible)+'>'+esc(label)+'</button>';
+  }
+  function careers(s,market){
+    const v=window.Careers?.view(s,market.id);
+    if(!v)return '';
+    let out='';
+    if(v.armory){
+      const a=v.armory;
+      out+='<section class="card economyCareer" aria-label="'+esc(a.name)+'"><h3>'+esc(a.name)+'</h3>'+
+        '<p>'+esc(a.standing)+' · ordini consegnati '+esc(a.orders)+' · lame sul banco '+esc(a.onBench)+' (ordina quando sono meno di '+esc(a.want)+')</p>'+
+        '<p class="caption">'+esc(a.available?'Ordine del giorno: una lama di qualità almeno '+a.minQuality+'. Consegneresti '+a.bladeName+'.':a.why)+(a.next?' '+esc(a.next):'')+'</p>'+
+        careerAction(a.available?'Consegna la lama · +'+a.pay+' Scintille':'Consegna la lama','armoryOrder',a.available&&market.available)+'</section>';
+    }
+    if(v.cargo){
+      const c=v.cargo;
+      out+='<section class="card economyCareer" aria-label="'+esc(c.name)+'"><h3>'+esc(c.name)+'</h3>'+
+        '<p>'+esc(c.standing)+' · contratti consegnati '+esc(c.contracts)+(c.good?' · al porto manca '+c.goodName+' ('+c.gap+'% sotto la scorta)':'')+'</p>'+
+        '<p class="caption">'+esc(c.available?'Contratto del giorno: '+c.size+' '+c.goodName+'.':c.why)+(c.next?' '+esc(c.next):'')+'</p>'+
+        careerAction(c.available?'Consegna il carico · +'+c.pay+' Scintille':'Consegna il carico','cargoContract',c.available&&market.available)+'</section>';
+    }
+    out+='<section class="card economyCareer" aria-label="Taccuino del mercante"><h3>Taccuino del mercante</h3>'+
+      (v.notebook.length?'<ul class="economyNotes">'+v.notebook.map(n=>'<li>'+esc(n.name+' · qui la compri a '+n.buy+' · '+n.market+' la pagava '+n.sell+' (giorno '+n.day+')')+'</li>').join('')+'</ul>':
+        '<p class="caption">'+esc(v.visited<2?'Il taccuino annota i prezzi dei mercati in cui commerci di persona: visitane altri per confrontarli.':'Nessuna merce di qui si vendeva meglio nei mercati che hai visto.')+'</p>')+'</section>';
+    return out;
   }
   const css=[
     '.economyWallets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}',
     '.economyCoins{list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px;padding:0;margin:7px 0 0}',
     '.economyCoins li{min-width:0}',
+    '.economyCareer{margin-top:10px}.economyNotes{margin:6px 0 0;padding-left:18px}',
     '.economyCoins li small{font-size:11px;margin:0}',
     '.economyCoins li b,.economyListing b,.economyStored b{color:var(--gold);overflow-wrap:anywhere}',
     '.economyWhere{border:1px solid var(--line);border-radius:3px;margin:9px 0 7px;padding:7px 10px}',
