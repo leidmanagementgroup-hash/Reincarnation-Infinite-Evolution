@@ -2,6 +2,15 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-23] Operazione RPG Evolution, incremento 5: interfaccia ed esplorazione più chiare — Claude
+Branch `claude/rpg-evolution` (`interface.js`, `panels.js`, `engine.js`, `template.html`, `style.css`, prove).
+### Modificato
+- **Bisogni nell'HUD** (`interface.js`, `template.html`, `style.css`): accanto al ritratto compaiono le etichette «Fame», «Sete», «Stanchezza», «Caldo» o «Freddo» solo quando il bisogno penalizza (sotto 32, la stessa soglia di `daily-life.js`; temperatura oltre ±28), in rosso quando è grave (≤10, oltre ±46); prima le penalità erano visibili solo nel pannello N. **Barra PE accessibile**: `role="img"` con etichetta e suggerimento «Esperienza x su y». **Consigli «prima volta»**: sei consigli brevi (interagire, bisogni, mana, Statue della Rinascita, albero delle evoluzioni, echi da legare) compaiono una sola volta, solo con la Guida attiva (la stessa opzione dei segnali di direzione); quelli già visti restano in `lumora-hints`, fuori dal salvataggio. **Fuoco dei pannelli**: la trappola del fuoco include i `<summary>`, così Maiusc+Tab da un riquadro richiudibile non salta in fondo. **Scheda attiva annunciata**: `aria-current="page"` sulla scheda aperta. **Movimento ridotto**: il rombo delle missioni sopra i personaggi (`engine.js`, `stillMarks`) e il marcatore dell'obiettivo restano fermi con gli effetti ridotti o con `prefers-reduced-motion`. Nessuna regola di gioco cambiata; salvataggio invariato.
+### Aggiunto
+- `tests/prova-browser-interfaccia.cjs` (7 prove): bisogni e PE, consigli spenti senza Guida, Maiusc+Tab da un `<summary>`, `aria-current`, consigli una sola volta e fuori dal salvataggio, nessun errore, rombo fermo con il movimento ridotto.
+### Verifica
+- build `49751893…`. Node: `verifica-integrazione` OK, `verifica-esperienza` 10/10, `verifica-avvisi` 8/8, economia 158 e 147, `economia-flussi-2` codice 0, percorsi 0 bloccati su 41 040, residenti 0, `verifica-perf-002` 181 scene equivalenti; `confronto-mondo` contro la base `f2febd1` identico (contro il `main` locale `7488642` differiscono solo le regioni dei Filoni di Codex, attese). Edge: `prova-browser` 10/10, `velaris-est` 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7, interni 12/12, creature 7/7, combattimento 9/9, famiglie 6/6, progressione 7/7, interfaccia 7/7 (nuova). Scatto HUD PRIMA (`main` `f2febd1`) / DOPO con sete e stanchezza. `sonda-sessione` 6 minuti in Edge visibile: mediana 0,2–0,4 ms, p95 fino a 4,5 ms (main 4,7), massimo 28 ms, nessun fotogramma oltre 33 ms, memoria 9,7–20,9 MB, salvataggio 0,2–0,3 ms.
+
 ## [2026-11-23] Operazione RPG Evolution, incremento 4: boss comprensibili — Claude
 Branch `claude/rpg-evolution` (`engine.js`, `adaptive-combat.js`, prove).
 ### Modificato

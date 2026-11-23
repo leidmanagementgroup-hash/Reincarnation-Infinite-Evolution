@@ -63,7 +63,7 @@
 - [x] Incremento 2: combattimento (memoria d'ingresso, settore reale del colpo, tacche della combo, avvisi coerenti).
 - [x] Incremento 3: evoluzione e abilità (coda dei messaggi, avanzamento, tecnica nuova annunciata).
 - [x] Incremento 4: boss (avvisi corretti di Orveth e Nerav, prisma di Nadir, guardia visibile, reazioni spiegate).
-- [ ] Incremento 5: interfaccia ed esplorazione (bisogni nell'HUD, consigli «prima volta» disattivabili, accessibilità).
+- [x] Incremento 5: interfaccia ed esplorazione (bisogni nell'HUD, consigli «prima volta» disattivabili, accessibilità).
 - [ ] Incremento 6: revisione incrociata, regressioni, benchmark finali.
 
 ## Priorità Media — Contenuti ★

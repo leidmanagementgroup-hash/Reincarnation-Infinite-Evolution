@@ -208,6 +208,22 @@
   // Memoria d'ingresso (RPG Evolution, incremento 2): un comando premuto negli ultimi 0,2 s di ricarica parte appena la
   // ricarica finisce, invece di andare perso. Solo per la ricarica: mana insufficiente e altri rifiuti non vengono ripetuti.
   // Ricariche, danni e tempi restano quelli del motore; le prove che chiamano Game.action direttamente non ne sono toccate.
+  // Consigli «prima volta» (RPG Evolution, incremento 5): ognuno compare una sola volta, solo con la Guida attiva
+  // (stessa opzione dei segnali di direzione); quelli già visti restano in `lumora-hints`, fuori dal salvataggio.
+  const HINTS={
+    interact:'Consiglio · premi E (o tocca il riquadro) per interagire con ciò che hai davanti.',
+    needs:'Consiglio · fame, sete e stanchezza riducono attacco, difesa e velocità: Vita quotidiana con N.',
+    mana:'Consiglio · il mana torna col tempo; nell’attesa usa l’attacco (J) e la schivata (Spazio).',
+    rebirth:'Consiglio · attiva le Statue della Rinascita che incontri: rinasci presso l’ultima attivata.',
+    evolve:'Consiglio · l’albero delle evoluzioni (V) mostra quanto ti manca alla nuova forma.',
+    echoes:'Consiglio · hai abbastanza echi per legare un tratto: aprili nelle Abilità (K).'
+  };
+  let hintsSeen;try{hintsSeen=new Set(JSON.parse(localStorage.getItem('lumora-hints')||'[]'));}catch{hintsSeen=new Set();}
+  function hint(id){
+    if(!guidance||hintsSeen.has(id)||!HINTS[id])return;
+    hintsSeen.add(id);try{localStorage.setItem('lumora-hints',JSON.stringify([...hintsSeen]));}catch{}
+    toast(HINTS[id]);
+  }
   let buffered=null;
   const BUFFER=.2,bufferable=new Set(['attack','dash','skill1','skill2','skill3','innate']);
   function cooldownLeft(name){
@@ -230,7 +246,7 @@
     if(e.altKey||e.ctrlKey||e.metaKey)return;
     if(panel){
       if(e.code==='Escape'){e.preventDefault();closePanel();return;}
-      if(e.code==='Tab'){const items=$$('#dialog button:not(:disabled),#dialog select,#dialog input').filter(el=>el.offsetParent!==null),i=items.indexOf(document.activeElement);if(items.length && ((e.shiftKey && i<=0)||(!e.shiftKey && i===items.length-1))){e.preventDefault();items[e.shiftKey?items.length-1:0].focus();}}
+      if(e.code==='Tab'){const items=$$('#dialog button:not(:disabled),#dialog select,#dialog input,#dialog summary').filter(el=>el.offsetParent!==null),i=items.indexOf(document.activeElement);if(items.length && ((e.shiftKey && i<=0)||(!e.shiftKey && i===items.length-1))){e.preventDefault();items[e.shiftKey?items.length-1:0].focus();}}
       return;
     }
     if(screen==='title'){
@@ -298,6 +314,19 @@
     $('#formName').textContent=v.formName;$('#level').textContent='LV. '+p.level;
     for(const [key,max] of [['hp',v.hpMax],['mp',v.mpMax]]){const el=$('.bar.'+key);el.firstElementChild.style.width=100*Math.max(0,Math.min(1,p[key]/max))+'%';el.lastElementChild.textContent=Math.ceil(p[key])+' / '+max;}
     $('.xp i').style.width=Math.min(100,100*p.xp/v.xpNext)+'%';
+    // Esperienza leggibile da tastiera e lettori di schermo; bisogni nell'HUD quando penalizzano (soglia 32 di daily-life.js).
+    const xpLabel='Esperienza '+Math.floor(p.xp)+' su '+v.xpNext;if($('.xp').title!==xpLabel){$('.xp').title=xpLabel;$('.xp').setAttribute('aria-label',xpLabel);}
+    const d=Game.s.daily,needs=[];
+    if(d){
+      if(d.hunger<32)needs.push(['Fame',d.hunger<=10]);if(d.thirst<32)needs.push(['Sete',d.thirst<=10]);if(d.energy<32)needs.push(['Stanchezza',d.energy<=10]);
+      if(Math.abs(d.temperature)>28)needs.push([d.temperature>0?'Caldo':'Freddo',Math.abs(d.temperature)>46]);
+    }
+    const needSig=needs.map(n=>n.join(':')).join('|');
+    if(needSig!==$('#needs').dataset.sig){$('#needs').dataset.sig=needSig;$('#needs').replaceChildren(...needs.map(([label,crit])=>{const e=document.createElement('span');e.textContent=label;e.title=label+(crit?' grave':'')+' · riduce attacco, difesa o velocità · Vita quotidiana (N)';if(crit)e.className='crit';return e;}));}
+    if(needs.length)hint('needs');
+    if(v.interact)hint('interact');
+    if(p.level>=2&&p.evolutionStage===0)hint('evolve');
+    if(Object.values(p.echoes||{}).some(n=>n>=Game.rules.assimilationEchoes)&&p.traits.length<Game.rules.traitCap)hint('echoes');
     const sig=p.race+'|'+appearance(p);if(sig!==avatarSig){const c=$('#avatar canvas'),g=c.getContext('2d');g.clearRect(0,0,56,56);ActorArt.portrait(g,p.race,0,0,56,{evolution:appearance(p)});avatarSig=sig;}
     $('#location').textContent=v.location;$('#clock').textContent=v.clock+' · '+v.calendar.dayOfSeason+' '+v.calendar.season+' · '+v.weather;
     $('#questChapter').textContent=v.campaignTitle&&v.campaignTitle!==v.objective.title?v.campaignTitle:'Missione principale';
@@ -382,7 +411,7 @@
     const margin=24,top=Math.min(95,c.h*.31),bottom=c.h-43;
     const sx=Math.max(margin,Math.min(c.w-margin,x)),sy=Math.max(top,Math.min(bottom,y));
     const inside=sx===x&&sy===y;
-    ctx.save();ctx.translate(Math.round(sx),Math.round(inside?sy-29+Math.sin(clock*3)*2:sy));
+    ctx.save();ctx.translate(Math.round(sx),Math.round(inside?sy-29+(renderEffects&&!reducedMotion?.matches?Math.sin(clock*3)*2:0):sy));
     if(inside){
       ctx.rotate(Math.PI*.25);ctx.fillStyle='#172b29';ctx.fillRect(-5,-5,10,10);
       ctx.strokeStyle='#ffe59a';ctx.lineWidth=1.3;ctx.strokeRect(-3.5,-3.5,7,7);
@@ -416,7 +445,7 @@
     uiClock-=dt;if(uiClock<=0){syncHud();uiClock=.14;}
   }
   Game.onEvent=(type,data)=>{
-    if(type==='toast')toast(data);
+    if(type==='toast'){toast(data);if(/^Mana insufficiente/.test(data))hint('mana');else if(/Rinasci presso|Riapri gli occhi|Nerea ti risveglia/.test(data))hint('rebirth');}
     else if(type==='sound')Score.play(data);
     else if(type==='panel'&&screen==='play'){
       if(data?.id==='statue'&&data.detail===trackedStatue?.id)trackedStatue=null;

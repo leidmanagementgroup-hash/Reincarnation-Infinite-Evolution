@@ -28,7 +28,7 @@
     $('#dialog').dataset.page=page;
     top.textContent=titles[page]||'Lùmora';kicker.textContent=playing?(v.campaignTitle||'Le radici di Lùmora'):'Reincarnation · Infinite Evolution';
     if(tabSet.some(([id])=>id===page)){
-      tabs.innerHTML=tabSet.map(([id,label])=>'<button data-do="'+id+'" class="'+(page===id?'active':'')+'">'+label+'</button>').join('');
+      tabs.innerHTML=tabSet.map(([id,label])=>'<button data-do="'+id+'" class="'+(page===id?'active':'')+'"'+(page===id?' aria-current="page"':'')+'>'+label+'</button>').join('');
     }
     switch(page){
       case 'confirmNew':html='<p>Il gioco estrarrà specie, predisposizioni e abilità innata per la nuova vita. La nuova incarnazione prenderà il posto della partita salvata su questo browser.</p>'+actions(btn('Conserva la partita','close'),btn('Nuova incarnazione','confirmNew','primary'));break;

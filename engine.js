@@ -1173,6 +1173,9 @@
     if(tickGrowth>=.35){tickGrowth=0;if(tryEvolution())keep();}
     if(autosave>=12){save();autosave=0;}
   }
+  // Marcatori fermi con effetti ridotti o prefers-reduced-motion (RPG Evolution, incremento 5).
+  let motionQuery;
+  function stillMarks(){try{motionQuery??=window.matchMedia?.('(prefers-reduced-motion: reduce)')||null;}catch{motionQuery=null;}return window.UI?.effects===false||!!motionQuery?.matches;}
   function diamond(ctx,x,y,color){
     ctx.fillStyle='#202d32';ctx.fillRect(x-2,y-3,5,7);ctx.fillRect(x-3,y-1,7,3);
     ctx.fillStyle=color;ctx.fillRect(x-1,y-2,3,5);ctx.fillRect(x-2,y-1,5,3);ctx.fillStyle='#ffeed2';ctx.fillRect(x,y-1,1,2);
@@ -1196,7 +1199,7 @@
       if(!point)continue;
       sprite(id,point,{},(ctx,x,y)=>{
         if(id==='elder'&&(s.quest===0||s.quest===3||s.campaign.stage===4)||id==='smith'&&(s.sideQuest===0||s.sideQuest===1&&p.inventory.herb>=3))
-          diamond(ctx,Math.round(x),Math.round(y-30+Math.sin(t*2)),id==='elder'?'#edbd65':'#b7e4cf');
+          diamond(ctx,Math.round(x),Math.round(y-30+(stillMarks()?0:Math.sin(t*2))),id==='elder'?'#edbd65':'#b7e4cf');
       });
     }
     for(const m of s.monsters){
