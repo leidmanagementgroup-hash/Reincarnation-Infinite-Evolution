@@ -2,6 +2,11 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-23] Living World 2.0 unita a main — Claude
+Avanzamento rapido di `main` da `96eb9be` a `8a868a1` (branch `claude/living-world-2`), su autorizzazione dell'utente. Nessun commit di unione, nessun conflitto; branch, worktree e backup conservati. `codex/urban-scale` resta non integrato: l'unione va fatta su un branch separato.
+### Verifica
+- Verifiche sulla cartella di `main` dopo l'avanzamento rapido (build `59818db6…`, identica a quella del branch): `verifica-integrazione` OK, `verifica-esperienza` 10/10, `verifica-avvisi` 8/8, `verifica-memoria` 11/11, `verifica-mestieri` 10/10, `verifica-richieste` 11/11, `verifica-stirpi` 9/9, `verifica-voci` 9/9, `verifica-revisione-lw` 8/8, economia 158 e 147; Edge: `prova-browser` 10/10, scenario finale 9/9, interfaccia 8/8, memoria 7/7, voci 5/5. La serie completa era già stata superata sullo stesso commit nel worktree.
+
 ## [2026-11-23] Operazione Living World 2.0, incremento 6: revisione incrociata, scenario finale e rapporto — Claude
 Branch `claude/living-world-2` (`careers.js`, `world-requests.js`, `world-memory.js`, `world-renown.js`, `trade-economy.js`, `panels.js`, prove, documentazione). Commit dell'incremento 5: `6209a1a`; di questo incremento: `091a2dd`.
 ### Corretto

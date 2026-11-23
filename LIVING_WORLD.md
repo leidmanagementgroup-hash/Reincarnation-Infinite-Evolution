@@ -268,7 +268,7 @@ Nessuna differenza misurabile; la memoria non cresce nel tempo in nessuna delle 
 10. **Benchmark prima/dopo**: tabelle qui sopra; nessuna differenza misurabile per fotogramma, simulazione, salvataggio o memoria.
 11. **Compatibilità dei salvataggi**: stessa chiave v7, nessun cambio di `version`. I salvataggi di `main` si caricano e ricevono campi vuoti; quelli del branch si caricano su `main`, che conserva i campi sconosciuti (`verifica-salvataggi-incrociati` 2/2 nei due sensi). Campi danneggiati (null, stringhe, 100 000 voci, giorni futuri, `__proto__`, id duplicati) tornano vuoti o validi senza rifiutare il salvataggio. Il ripristino del salvataggio con una lama equipaggiata consegnata non può più accadere (rev-LW6-E1).
 12. **Build**: `python build.py Reincarnation.html`, 52 moduli, 2 084 030 byte, offline in un solo file.
-13. **Commit e branch**: branch `claude/living-world-2` su `origin`, base `main` `96eb9be`; `main` non modificato, nessun merge, branch e backup intatti.
+13. **Commit e branch**: branch `claude/living-world-2` su `origin`, base `main` `96eb9be`. **Unito a `main`** il 2026-11-23 per avanzamento rapido (`96eb9be` → `8a868a1`) su autorizzazione dell'utente; branch e backup intatti.
 14. **Problemi rimasti** (nessuno bloccante):
     - LW-SPC-01 profilo termico della Viverna di brina — decisione dell'utente;
     - canali a prezzo fisso (banco delle sementi, bottega della fattoria, residenti che comprano minerale, LW-ECO-05/A3-05) e esperienza del mercante per transazione (A3-06) — decisione dell'utente;

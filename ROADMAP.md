@@ -67,7 +67,8 @@
 - [x] Incremento 4: identità di Slime, Goblin e Viverna di brina senza nuove regole.
 - [x] Incremento 5: conseguenze nel tempo e regole regionali dei cinque continenti.
 - [x] Incremento 6: revisione, prove complete, sessione lunga, benchmark, rapporto finale.
-- [ ] Integrazione su `main` (solo con autorizzazione dell'utente) e, separatamente, unione con `codex/urban-scale` su un branch dedicato.
+- [x] Integrazione su `main` (avanzamento rapido a `8a868a1`, autorizzazione dell'utente).
+- [ ] Unione con `codex/urban-scale` su un branch dedicato, quando Codex lo considera pronto.
 - Decisioni dell'utente: profilo termico della Viverna di brina (LW-SPC-01); canali a prezzo fisso (banco delle sementi, bottega della fattoria, residenti che comprano minerale); fama a buon mercato (rev-LW6-M4: che cosa conta come carenza).
 - Idee: voci che raggiungono gli abitanti di Society e Velaris; fama regionale che incide su prezzi o reputazione; prove Edge per i contratti di Calis e per gilda e cambusa.
 
