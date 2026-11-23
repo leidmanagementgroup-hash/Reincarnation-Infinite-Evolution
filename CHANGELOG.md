@@ -3,7 +3,7 @@
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
 ## [2026-11-23] Living World 2.0: prove Edge di Calis, cambusa e gilda — Claude
-Branch `claude/living-world-prove-edge` (da `main` `beb8bf5`), solo prove e documentazione: nessun sorgente del gioco modificato, `Reincarnation.html` invariato.
+Branch `claude/living-world-prove-edge` (da `main` `beb8bf5`), solo prove e documentazione: nessun sorgente del gioco modificato, `Reincarnation.html` invariato. Commit `99ee41a`, portato su `main` per avanzamento rapido (`beb8bf5` → `99ee41a`) su autorizzazione dell'utente; sulla cartella di `main` passano `verifica-integrazione`, `prova-browser-calis-lw` 6/6 e `prova-browser-gilda-lw` 7/7.
 ### Aggiunto
 - `tests/prova-browser-calis-lw.cjs` (6 passi) e `tests/prova-browser-gilda-lw.cjs` (7 passi): colmano le verifiche in Edge che mancavano nel rapporto finale.
 ### Verifica
