@@ -1,6 +1,6 @@
 # Operazione RPG Evolution — gameplay e qualità
 
-Piano e registro dell'operazione «RPG Evolution» (richiesta dell'utente del 2026-11-22). Branch `claude/rpg-evolution`, worktree `C:\Users\elaro\Downloads\Reincarnation-rpg-evolution`, base `main` `f2febd1` (verificato sul remoto). Nessuna modifica a `main`, nessun merge senza consenso.
+Piano e registro dell'operazione «RPG Evolution» (richiesta dell'utente del 2026-11-22). **Unita a `main` il 2026-11-23** con il commit `b1dc116`, su autorizzazione dell'utente. Branch `claude/rpg-evolution`, worktree `C:\Users\elaro\Downloads\Reincarnation-rpg-evolution`, base `main` `f2febd1` (verificato sul remoto). Nessuna modifica a `main`, nessun merge senza consenso.
 
 Vincoli permanenti di questa operazione:
 - Conservare PERF-001 e PERF-002; non toccare `urban-life.js` (PERF-003 resta separato).
