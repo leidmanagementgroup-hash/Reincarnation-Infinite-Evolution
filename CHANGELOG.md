@@ -2,6 +2,16 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-23] Operazione RPG Evolution, incremento 4: boss comprensibili — Claude
+Branch `claude/rpg-evolution` (`engine.js`, `adaptive-combat.js`, prove).
+### Modificato
+- **Corsie dei proiettili** (`engine.js`): radici, frantumi, costellazioni, schegge, forgia, tiri e il ventaglio del prisma di Nadir mostrano durante il preavviso una corsia tratteggiata con la freccia per ogni proiettile, nelle direzioni in cui partirà (prima un anellino uguale per tutti; il ventaglio del prisma non era segnalato). Lancio e avviso usano le stesse funzioni d'angolo (`fanAngles`, `spreadAngles`, `volleyAngles`) con gli stessi numeri di prima. **Riposizionamenti** (schivata laterale, cambio di linea): frecce laterali o all'indietro invece dell'anellino. **Guardia adattiva visibile**: ellisse tratteggiata azzurra e scudo sul nemico finché i colpi ravvicinati sono ridotti (×0,84 per 1,9 s; `Adaptive.guardLeft`, sola lettura). **Reazioni spiegate**: oltre all'etichetta, un messaggio dice perché il nemico reagisce e come rispondere (es. «ha letto i tuoi colpi ravvicinati · esci dal cerchio o cambia ritmo»). **Disimpegno segnalato**: se ci si allontana e il boss torna a vita piena, un messaggio lo dice. **Vittoria su Nadir e Nerav**: come per gli altri boss, i loro proiettili e le aree non feriscono più dopo la vittoria; ricompense, `legendary.js`, trono e Armi Divine invariati. Preavvisi, danni, fasi e soglie adattive invariati.
+### Aggiunto
+- `tests/verifica-avvisi.cjs` 5–8: corsie = proiettili reali (radici di Orveth fasi I e II, forgia di Kharun, schegge e frantumi di Syrava), guardia visibile finché dura, reazione spiegata, disimpegno segnalato.
+- `scatti-combattimento.cjs`: scene `avviso-radici`, `avviso-forgia`, `guardia`.
+### Verifica
+- build `8dafb966…`. Node: `verifica-integrazione` OK, `verifica-esperienza` 10/10, `verifica-avvisi` 8/8, economia 158 e 147, `economia-flussi-2` codice 0, percorsi 0 bloccati su 41 040, residenti 0, `verifica-perf-002` 181 scene equivalenti; `confronto-mondo` contro la base `f2febd1` identico. Edge: `prova-browser` 10/10, `velaris-est` 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7 (vittoria su Nadir), interni 12/12, creature 7/7, combattimento 9/9, famiglie 6/6, progressione 7/7. `scatti-combattimento` PRIMA (`main` `f2febd1`) / DOPO: stato di gioco identico in tutte le 19 scene. Benchmark in Edge visibile (3 giri × 600 fotogrammi): mischia fotogramma medio 0,77 → 0,83 ms, `drawFX` 0,036 → 0,039 ms; boss con aura 0,47 → 0,56 ms, `drawFX` 0,028 → 0,040 ms; `sonda-sessione` 6 minuti: mediana 0,2–0,4 ms, p95 fino a 4,4 ms, nessun fotogramma oltre 33 ms, memoria 9–25 MB.
+
 ## [2026-11-23] Operazione RPG Evolution, incremento 3: evoluzione e abilità più chiare — Claude
 Branch `claude/rpg-evolution` (`interface.js`, `engine.js`, `growth.js`, `panels.js`, prove).
 ### Modificato

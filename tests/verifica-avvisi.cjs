@@ -103,6 +103,68 @@ check('4. Carica del lupo e di Orveth: ogni punto colpito sta nella corsia diseg
   return notes.join(', ');
 });
 
+// ---------------------------------------------------------------- incremento 4: boss
+const events = [];
+Game.onEvent = (type, data) => events.push([type, typeof data === 'string' ? data : '']);
+const angleOf = (x, y, m) => Math.atan2(y - (m.y - 7), x - m.x);
+const norm = a => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+function lanesVsShots(type, pattern, phase) {
+  const s = fresh(); s.campaign.stage = 5;
+  const m = s.monsters.find(x => x.type === 'boss');
+  Object.assign(m, { type, engaged: true, cd: 99, pattern, wind: 1 / 60, windDuration: .7, aimX: .6, aimY: .8, grace: 0, phase, x: m.homeX, y: m.homeY });
+  Object.assign(s.player, { x: m.x - 120, y: m.y, invul: 99 });
+  // Corsie: tratti tratteggiati disegnati dal motore durante il preavviso (punta finale di ogni corsia).
+  const calls = record(ctx => Game.drawFX(ctx));
+  // Una punta di freccia per corsia: è l'unico moveTo lontano dal mostro (le corsie partono a 14 px).
+  const tips = calls.filter(c => c[0] === 'moveTo' && Math.hypot(c[1] - m.x, c[2] - (m.y - 7)) > 25).map(c => norm(angleOf(c[1], c[2], m)));
+  const origin = { x: m.x, y: m.y }; // il boss si muove dopo il lancio: le direzioni si misurano dal punto di partenza
+  for (let i = 0; i < 20; i++) Game.step(1 / 60, {}); // ~30 px: l arrotondamento al pixel non falsa più la direzione
+  // Proiettili: il motore li disegna come croce 7×3 (effetti decorativi spenti); il centro dà la direzione.
+  const shots = record(ctx => Game.drawFX(ctx)).filter(c => c[0] === 'fillRect' && c[3] === 7 && c[4] === 3).map(c => norm(angleOf(c[1] + 3, c[2] + 1, origin)));
+  const uniq = a => [...new Set(a.map(x => x.toFixed(2)))].map(Number).sort((x, y) => x - y);
+  return { lanes: uniq(tips), shots: uniq(shots) };
+}
+check('5. Raffiche e ventagli dei boss: una corsia per ogni proiettile, nelle stesse direzioni', () => {
+  const notes = [];
+  for (const [type, pattern, phase] of [['boss', 'roots', 1], ['boss', 'roots', 2], ['kharun', 'forge', 2], ['syrava', 'shards', 2], ['syrava', 'shatter', 2]]) {
+    const r = lanesVsShots(type, pattern, phase);
+    assert(r.shots.length > 2, `${type}/${pattern}: proiettili non visti`);
+    assert.equal(r.lanes.length, r.shots.length, `${type}/${pattern} fase ${phase}: ${r.lanes.length} corsie, ${r.shots.length} proiettili`);
+    if (process.env.DEBUG) console.log(type, pattern, JSON.stringify(r));
+    const off = r.shots.filter(a => !r.lanes.some(b => Math.min(Math.abs(a - b), 2 * Math.PI - Math.abs(a - b)) < .06));
+    assert.equal(off.length, 0, `${type}/${pattern}: proiettili fuori dalle corsie`);
+    notes.push(`${type} ${pattern} ${r.shots.length}`);
+  }
+  return notes.join(', ');
+});
+check('6. Guardia adattiva visibile finché dura', () => {
+  const s = fresh(), m = s.monsters.find(x => x.type === 'boss'); Object.assign(m, { engaged: true, cd: 99 });
+  scope.Adaptive.guard(s, m, 1.9);
+  const shown = record(ctx => Game.drawFX(ctx)).some(c => c[0] === 'ellipse' && c[3] === 20 && c[4] === 24 && Math.abs(c[1] - m.x) < .01);
+  s.time += 2;
+  const gone = !record(ctx => Game.drawFX(ctx)).some(c => c[0] === 'ellipse' && c[3] === 20 && c[4] === 24);
+  assert(shown, 'guardia non disegnata'); assert(gone, 'guardia ancora disegnata dopo la scadenza');
+  return 'visibile per 1,9 s';
+});
+check('7. Reazione adattiva spiegata: causa e consiglio nel messaggio', () => {
+  const s = fresh(), p = s.player, m = s.monsters.find(x => x.type === 'boss');
+  Object.assign(m, { engaged: true, cd: 0, x: m.homeX, y: m.homeY }); Object.assign(p, { x: m.x - 30, y: m.y, invul: 99 });
+  for (let i = 0; i < 6; i++) scope.Adaptive.seeHit(s, m, 'melee');
+  events.length = 0; Game.step(1 / 60, {});
+  const t = events.find(e => e[0] === 'toast' && /ha letto i tuoi colpi ravvicinati/.test(e[1]));
+  assert(t, 'messaggio mancante: ' + JSON.stringify(events.slice(0, 4)));
+  assert.equal(m.pattern, 'counter');
+  return t[1];
+});
+check('8. Disimpegno del boss segnalato quando ci si allontana', () => {
+  const s = fresh(), p = s.player, m = s.monsters.find(x => x.type === 'boss');
+  Object.assign(m, { engaged: true, cd: 99, x: m.homeX, y: m.homeY }); m.hp = m.maxHp - 30; Object.assign(p, { x: m.homeX - 260, y: m.homeY, invul: 99 });
+  events.length = 0; Game.step(1 / 60, {});
+  const t = events.find(e => e[0] === 'toast' && /torna al suo posto/.test(e[1]));
+  assert(t, 'nessun messaggio'); assert.equal(m.hp, m.maxHp); assert.equal(m.engaged, false);
+  return t[1];
+});
+
 const fails = results.filter(r => r[0] === 'FAIL').length;
 console.log(fails ? `\n${fails} prove fallite su ${results.length}` : `\nTutte le ${results.length} prove superate`);
 process.exit(fails ? 1 : 0);
