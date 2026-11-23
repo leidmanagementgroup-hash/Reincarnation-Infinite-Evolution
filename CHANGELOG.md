@@ -2,6 +2,12 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-23] Registra il collaudo di Calis e Filoni su main — Codex
+
+- Fast-forward autorizzato da `df21ad7` a `fff2484`. L'HTML offline ricostruito coincide con la build approvata. Entrambi i quartieri sono visitabili nella stessa partita.
+- Rieseguiti 55 semi per quartiere, 27 visite nei nove interni, attività, vecchi salvataggi, PERF-001/002 e regressioni di economia e grafica. RISK-011 resta aperto.
+- Aggiunte le misure CPU e degli intervalli tra fotogrammi con simulazione attiva, distinte dalla prova grafica precedente. [Registro e dati di collaudo](PROGRESS.md#porto-di-calis-e-filoni-su-main)
+
 ## [2026-11-22] Apri la Baia del Carico al Porto di Calis — Codex
 
 - Secondo profilo urbano da `df21ad7` sul branch `codex/porto-di-calis`, commit `a8c2ee2`. `urban-profiles.js` separa i dati dei due quartieri dal generatore e `urban-world.js` gestisce più ingressi regionali.

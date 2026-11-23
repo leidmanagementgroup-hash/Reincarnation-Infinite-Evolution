@@ -21,7 +21,7 @@
 - [x] **PERF-002**: pianificazione delle soste per celle e preparazione distribuita dalle 22:00. Unito a `main` per fast-forward da `972e31c` ad `a4a7c20`. [Misure e regressioni su `main`](PROGRESS.md#perf-002-su-main).
 - [ ] **PERF-003 · Salto di calendario anticipato con popolazione elevata**: nel test con 500 residenti sintetici e 120 fotogrammi serali, il completamento sincrono porta ancora il picco CPU a 110 ms in Edge. Lavoro futuro separato dal cambio di giorno ordinario. Misurare anche il primo ingresso con il piano assente.
 - [x] **Generatore Procedurale Urbano 2.0 · Prototipo dei Filoni**: quartiere giocabile da 13 lotti, cinque interni e tre residenti. La build con le famiglie della Fase 4 è unita a `main` con fast-forward `f2febd1` → `24d33eb`. [Collaudo su main](PROGRESS.md#piazzale-degli-argani-su-main).
-- [x] **Secondo profilo urbano · Porto di Calis**: prototipo giocabile sul branch `codex/porto-di-calis` da `df21ad7`. Entrambi i quartieri usano lo stesso generatore. [Test e misure](PROGRESS.md#porto-di-calis--secondo-profilo-urbano). Integrazione subordinata alla revisione dell'utente.
+- [x] **Secondo profilo urbano · Porto di Calis**: integrato su `main` con fast-forward autorizzato da `df21ad7` a `fff2484`. Calis e Filoni sono visitabili nella stessa build. [Collaudo con simulazione attiva](PROGRESS.md#porto-di-calis-e-filoni-su-main).
 - [ ] **Scala urbana successiva**: navigazione gerarchica e prova di più settori, cache e turni prima di aumentare la popolazione. Conservare le revisioni pubblicate e gli ingressi persistenti.
 - [x] BUG-011: risolto e unito a `main` (2026-11-21).
 - [ ] Verificare in partita il bilanciamento dei danni ai compagni (quanto spesso scendono in stato critico).
