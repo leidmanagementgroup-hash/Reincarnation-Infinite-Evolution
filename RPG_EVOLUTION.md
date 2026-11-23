@@ -59,7 +59,7 @@ Analisi del codice reale (`main` `f2febd1`), in parte con tre revisori in sola l
 | Incremento | Contenuto | Stato |
 |---|---|---|
 | 0 | Rapporto, matrice, rischi, benchmark di riferimento, sonda di sessione lunga | ✅ |
-| 1 | RISK-011 diagnosticato e corretto nella prova; `verifica-esperienza.cjs` (10 scenari) | in corso |
+| 1 | RISK-011 diagnosticato e corretto nella prova; `verifica-esperienza.cjs` (10 scenari) | ✅ |
 | 2 | Combattimento: memoria d'ingresso, settore reale del colpo, tacche della combo, avvisi dei mostri normali coerenti col colpo | da fare |
 | 3 | Evoluzione e abilità: coda dei messaggi, messaggio d'evoluzione con la tecnica, avanzamento verso lo stadio, «pronta dopo lo scontro», soglie dell'innata, barra rapida aggiornata | da fare |
 | 4 | Boss: Orveth e Nerav per primi (pestone, carica, radici), poi prisma di Nadir, guardia visibile, reazioni spiegate, disimpegno segnalato, pulizia alla vittoria | da fare |

@@ -2,6 +2,21 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-23] Operazione RPG Evolution, incremento 1: RISK-011 e prove dell'esperienza — Claude
+Branch `claude/rpg-evolution`. Nessun sorgente del gioco modificato.
+### Corretto
+- RISK-011: `tests/prova-browser-velaris-est.cjs` falliva circa una volta su dodici perché creava la partita con seme casuale e usava per gli Orti dell'Alambicco la coordinata fissa (2516,1260), occupata da un edificio con il 7,5% dei semi. Ora seme fisso (`SEED`, predefinito 19425) e mete prese dalla pianta della città (`arcades-court`, `orchards-court`). Diagnosi con sonde deterministiche su ore, velocità, punti d'arrivo (268 combinazioni) e su 200 semi; verifica 11/11 esecuzioni, anche con i semi che prima fallivano. Nessun aumento dei tempi d'attesa, nessuna ripetizione.
+### Aggiunto
+- `tests/verifica-esperienza.cjs`: dieci scenari sul motore reale in Node (stirpe, crescita, maestria, evoluzione e blocco durante un boss, attacchi nemici e schivata, Orveth, morte e rinascita alla statua, minigioco della forgia, passaggio del tempo, salvataggio della partita avanzata). 10/10.
+
+## [2026-11-23] Operazione RPG Evolution, incremento 0: rapporto, matrice, rischi e benchmark — Claude
+Branch `claude/rpg-evolution` da `main` `f2febd1`; commit `c9e2390` (documento e sonda) e registrazione successiva.
+### Documentazione
+- `RPG_EVOLUTION.md` nuovo: rapporto tecnico iniziale con matrice delle funzionalità (presenti, incomplete, difetti confermati con righe di codice), mappa dei rischi (anche le righe toccate dal branch `codex/generatore-urbano-filoni`), piano degli incrementi 1–6 e benchmark di riferimento. Analisi in parte con tre revisori in sola lettura (evoluzione, boss, interfaccia), combattimento seguito direttamente. `AGENTS.md`: documento aggiunto all'elenco dei file.
+### Aggiunto
+- `tests/sonda-sessione.cjs`: sessione lunga nel browser con orologio manuale (combattimento a più nemici, tecniche, schivate, passaggi di regione) che misura per minuto fotogramma, memoria JS, salvataggio e ingresso in regione.
+- Benchmark su `main`: fotogramma mediana 0,2–0,4 ms, p95 fino a 4,7 ms in combattimento, nessun fotogramma oltre 33 ms in 12 minuti, memoria 10–32 MB senza crescita costante, salvataggio 0,1–0,5 ms.
+
 ## [2026-11-22] Integrazione: fase 4 del World Art Overhaul su `main` dopo PERF-002 — Claude
 Branch `claude/integrazione-fase4` da `main` `3ff458b` (PERF-002 di Codex): merge di `claude/world-art-fase4` (`16b6317`), poi fast-forward di `main` con l'approvazione dell'utente. Branch originali `claude/world-art-fase4` e `codex/perf-002-npc` conservati, come le build di prova.
 - Fast-forward di `main` da `3ff458b` a `1f684e1` (merge `claude/integrazione-fase4`); `Reincarnation.html` ricostruito su `main` identico al commit (SHA-256 `0c49851c…`). Verifiche ripetute su `main`: `verifica-integrazione`, economia 158, `sonda-percorsi` 0 bloccati su 41 040, `verifica-perf-002` 181 scene equivalenti rispetto a prima di PERF-002 (worktree della fase 4), Edge `prova-browser` 10/10, `velaris-est` 12/12, mondo 15/15, creature 7/7, combattimento 7/7, famiglie 6/6.
