@@ -3,6 +3,7 @@
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
 ## [2026-11-23] Operazione RPG Evolution, incremento 6: revisione incrociata e rapporto finale — Claude
+Commit `544e6cd`. Albero unito con `main` `7488642` sul commit finale: `verifica-integrazione` OK, `verifica-esperienza` 10/10, `verifica-avvisi` 8/8, `verifica-salvataggi-incrociati` 2/2 contro `main` `7488642`, `verifica-filoni` 55 semi, `verifica-calis` 55 semi, `confronto-mondo` identico a `7488642`; Edge: `prova-browser` 10/10, combattimento 9/9, interfaccia 8/8, progressione 7/7, `prova-browser-filoni` (15 visite) e `prova-browser-calis` (12 visite) superate.
 Branch `claude/rpg-evolution` (`engine.js`, `interface.js`, prove, documenti). Commit degli incrementi precedenti: 0 `c9e2390`, 1 `a76cf70`, 2 `cc34b10`, 3 `654f1cf`, 4 `a43b6da`, 5 `7f7baf8`.
 ### Corretto
 - Corsia della carica disegnata come capsula completa: prima mancava il semicerchio posteriore e si veniva colpiti fino a ~12 px dietro il lupo fuori dall'area mostrata (`engine.js` `dashLane`).
