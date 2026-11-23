@@ -131,6 +131,9 @@ function setup({ population, seed }) {
       Game.s.calendar.offset += change;
     }
     const nextDay = Math.floor((time() + 1) / 1440) + 1;
+    // Pianificazione avvenuta fuori dai fotogrammi dopo l'ultimo azzeramento (per esempio nei timer dell'interfaccia fra il
+    // caricamento e il primo fotogramma): si conta a parte, così nessun costo sfugge alla misura.
+    const between = bench.perf.planner;
     let previous = null, readyAfter = null, invalid = 0;
     const out = [];
     for (let i = 0; i < max && (i < frames || (untilReady && readyAfter === null)); i++) {
@@ -147,7 +150,7 @@ function setup({ population, seed }) {
       if (i % 30 === 0) invalid += visible.filter(q => !World.canWalk(q.x, q.y, 5)).length;
     }
     if (untilReady && readyAfter === null) throw new Error('Piano del giorno dopo non pronto in ' + max + ' fotogrammi');
-    return { frames: out, readyAfter, invalid };
+    return { frames: out, readyAfter, invalid, between };
   };
   // Rientro in città dopo ore: uscita dal varco, salto del calendario, ritorno dal varco (azioni vere del gioco).
   const travel = target => {
@@ -170,7 +173,16 @@ function setup({ population, seed }) {
     Object.assign(Game.s.player, { x: at.x, y: at.y });
   };
   // Caricamento della partita salvata: stato nuovo, quindi piani e tratte da ricostruire (caso a freddo, PERF-003).
-  window.__benchLoad = () => { if (!Game.save() || !Game.load()) throw new Error('Salvataggio o caricamento non riusciti'); Object.assign(Game.s.player, { x: at.x, y: at.y }); };
+  // Si misura anche Game.load: l'interfaccia può chiedere i residenti (e quindi i piani) già durante il caricamento.
+  window.__benchLoad = () => {
+    if (!Game.save()) throw new Error('Salvataggio non riuscito');
+    bench.perf.planner = 0;
+    const t = performance.now();
+    if (!Game.load()) throw new Error('Caricamento non riuscito');
+    const loadMs = performance.now() - t, loadPlanner = bench.perf.planner;
+    Object.assign(Game.s.player, { x: at.x, y: at.y });
+    return { loadMs, loadPlanner };
+  };
   window.__benchSave = () => {
     const times = [];
     let text = '';
@@ -232,14 +244,14 @@ async function scenario(browser, build, population) {
     const midnight = await page.evaluate(o => window.__benchRun(o), { minute: 24 * 60 - .04, frames: FRAMES.midnight });
     await page.evaluate(m => window.__benchReenter(m), 24 * 60 + 8 * 60);
     const reenter = await page.evaluate(o => window.__benchRun(o), { minute: null, frames: 60 });
-    await page.evaluate(() => window.__benchLoad());
+    const loadCall = await page.evaluate(() => window.__benchLoad());
     const loaded = await page.evaluate(o => window.__benchRun(o), { minute: null, frames: 60 });
     const heapEnd = await heap();
     const save = await page.evaluate(() => window.__benchSave());
     assert(midnight.frames.some(f => f.minute >= 24 * 60), 'Manca il passaggio della mezzanotte');
     assert.equal(day.invalid + evening.invalid + midnight.invalid + reenter.invalid + loaded.invalid, 0, 'Residenti fuori dalla griglia percorribile');
     assert.deepEqual(errors, [], errors.join(' | '));
-    return { crossOriginIsolated: env.crossOriginIsolated, day: summarize(day), evening: summarize(evening), midnight: summarize(midnight), reenter: summarize(reenter), loaded: summarize(loaded),
+    return { crossOriginIsolated: env.crossOriginIsolated, day: summarize(day), evening: summarize(evening), midnight: summarize(midnight), reenter: summarize(reenter), loaded: { ...summarize(loaded), call: loadCall, between: loaded.between },
       heap: { startMB: r3(heap0 / 1048576), endMB: r3(heapEnd / 1048576) }, save };
   } finally { await context.close(); }
 }
@@ -271,7 +283,7 @@ const avg = d => d ? d.mean.toFixed(3) : '—';
           `   MEZZANOTTE  cpu ${fmt(m.cpu)}${m.overBudget ? ' OLTRE' : ''} [peggiore: sim ${m.worst.step}, salvataggio ${m.worst.save}, attori ${m.worst.actors}, percorsi ${m.worst.path}]\n` +
           `   SALTO 10:00→21:59  cpu ${j.cpu}${j.cpu > BUDGET.max ? ' OLTRE' : ''} · percorsi ${j.path} in ${j.pathCalls} chiamate · attori ${j.actors} · interfaccia ${j.view} · disegno ${j.draw}\n` +
           `   RIENTRO alle 08:00 del giorno dopo  cpu ${r.reenter.jump.cpu}${r.reenter.jump.cpu > BUDGET.max ? ' OLTRE' : ''} · percorsi ${r.reenter.jump.path} in ${r.reenter.jump.pathCalls} · poi p95/max ${fmt(r.reenter.cpu)}\n` +
-          `   CARICAMENTO (a freddo, PERF-003)  cpu ${r.loaded.jump.cpu}${r.loaded.jump.cpu > BUDGET.max ? ' OLTRE' : ''} · pianificatore ${r.loaded.jump.planner} · percorsi ${r.loaded.jump.path} in ${r.loaded.jump.pathCalls} · poi p95/max ${fmt(r.loaded.cpu)}\n` +
+          `   CARICAMENTO (a freddo, PERF-003)  Game.load ${r3(r.loaded.call.loadMs)} ms (pianificatore ${r3(r.loaded.call.loadPlanner)}) + fra caricamento e fotogramma pianificatore ${r3(r.loaded.between)} + primo fotogramma ${r.loaded.jump.cpu}${r.loaded.call.loadMs + r.loaded.jump.cpu > BUDGET.max ? ' OLTRE' : ''} · pianificatore ${r.loaded.jump.planner} · percorsi ${r.loaded.jump.path} in ${r.loaded.jump.pathCalls} · poi p95/max ${fmt(r.loaded.cpu)}\n` +
           `   memoria ${r.heap.startMB}→${r.heap.endMB} MB · salvataggio ${(r.save.bytes / 1024).toFixed(1)} KB in ${r3(r.save.p50)} ms`);
       }
     }

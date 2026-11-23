@@ -256,6 +256,47 @@
     }
     return room;
   }
+  /* PERF-003: vicino più prossimo esatto su una griglia locale delle soste occupate. Prima ogni candidata misurava la distanza
+     da tutte le soste occupate vicine (circa 11,6 milioni di distanze per un giorno con 500 residenti). Restituisce lo stesso
+     valore di closestStop: la distanza minima esatta (stessa funzione distance) oppure, se esiste una sosta entro `minimum`,
+     un valore non superiore a `minimum`, che per chi chiama equivale. Le celle si visitano ad anelli crescenti e la ricerca si
+     ferma quando nessuna sosta non ancora vista può essere più vicina: dopo l'anello k ogni altra sosta dista almeno k·cella. */
+  const nearCell=16;
+  function nearGrid(busy){
+    const grid=new Map();
+    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+    for(const p of busy){
+      const x=Math.floor(p.x/nearCell),y=Math.floor(p.y/nearCell),key=x*65536+y;
+      let list=grid.get(key);
+      if(!list){list=[];grid.set(key,list);}
+      list.push(p);
+      if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y;
+    }
+    return {grid,minX,maxX,minY,maxY,size:busy.length};
+  }
+  function nearestStop(near,point,minimum){
+    if(!near.size)return Infinity;
+    const qx=Math.floor(point.x/nearCell),qy=Math.floor(point.y/nearCell);
+    const limit=Math.max(qx-near.minX,near.maxX-qx,qy-near.minY,near.maxY-qy);
+    // Gli anelli più vicini del riquadro delle celle occupate sono vuoti: si parte dal primo che può contenerne.
+    const first=Math.max(0,near.minX-qx,qx-near.maxX,near.minY-qy,qy-near.maxY);
+    let room=Infinity;
+    for(let k=first;k<=limit;k++){
+      for(let y=qy-k;y<=qy+k;y++){
+        const edge=y===qy-k||y===qy+k;
+        for(let x=qx-k;x<=qx+k;x+=edge?1:2*k){
+          const list=near.grid.get(x*65536+y);
+          if(list)for(const other of list){
+            const d=distance(other,point);
+            if(d<room){room=d;if(room<=minimum)return room;}
+          }
+          if(k===0)break;
+        }
+      }
+      if(room<=k*nearCell)return room;
+    }
+    return room;
+  }
   function assignStop(runtime,job,from,to,base,bias){
     const {cells,busy}=job;
     const cx=Math.floor(base.x/neighborRadius),cy=Math.floor(base.y/neighborRadius);
@@ -270,8 +311,10 @@
           if(o.from<to&&from<o.to&&distance(o.point,base)<neighborRadius)busy.push(o.point);
       }
     }
+    // Prima verifica con la scansione lineare (caso più comune: la sosta è libera); la griglia solo se servono candidate.
     let pick=base,best=closestStop(busy,base,-1);
     if(best>=gap)return pick;
+    const near=nearGrid(busy),nearest=(q,minimum)=>nearestStop(near,q,minimum);
     const q={x:0,y:0};
     // Stesso ordine dei candidati di sempre, con la distanza minore già nota per la posizione iniziale.
     for(const ring of rings){
@@ -279,7 +322,7 @@
       for(let i=0;i<ring.length;i++){
         const o=ring[(start+i)%ring.length];
         q.x=base.x+o.x;q.y=base.y+o.y;
-        const room=closestStop(busy,q,best);
+        const room=nearest(q,best);
         if(room<=best||!checkPathPoint(runtime,q.x,q.y)||!straight(runtime,base,q))continue;
         best=room;pick={...base,x:q.x,y:q.y};
         if(room>=gap)return pick;
@@ -287,7 +330,7 @@
     }
     for(const q of runtime.places.nodes){
       if(distance(q,base)>130)continue;
-      const room=closestStop(busy,q,best);
+      const room=nearest(q,best);
       if(room<=best||!route(runtime,base,q))continue;
       best=room;pick={...base,x:q.x,y:q.y};
       if(room>=gap)break;
@@ -318,7 +361,8 @@
       job.index++;job.stop=0;job.plan=null;
     }
   }
-  const prewarmMinute=22*60,stopsPerFrame=8,prewarmMs=2;
+  // PERF-002: al massimo 8 soste e circa 2 ms per fotogramma. Dal PERF-003 la preparazione non aspetta più le 22:00 (vedi backgroundWork).
+  const stopsPerFrame=8,prewarmMs=2;
   function prepareNextDay(s,runtime,stamp){
     const d=Math.floor(stamp/1440)+1;
     if(runtime.nextPlans?.day===d)return;
@@ -416,7 +460,7 @@
   /* PERF-004: dopo un salto di tempo (sonno, uscita da un edificio, ore che passano in città) ogni residente in cammino
      chiedeva il suo percorso nello stesso fotogramma (200 percorsi con 500 residenti). Qui, nei fotogrammi tranquilli e con un
      limite di tempo, si calcolano in anticipo le tratte dei piani già pronti: prima quelle del giorno corrente, cominciando dai
-     residenti vicini al giocatore, poi quelle del giorno dopo appena il piano serale è completo. Stessa funzione di ricerca,
+     residenti vicini al giocatore, poi quelle del giorno dopo appena il piano di domani è pronto (vedi backgroundWork). Stessa funzione di ricerca,
      stessi risultati: cambia solo quando vengono calcolati. I piani non vengono mai creati qui (resta compito di PERF-002/003). */
   const warmMs=1,warmSkips=600;
   function warmJob(runtime,d,plans){
@@ -424,16 +468,20 @@
     const ids=[...new Set([...near,...plans.keys()])];
     return {day:d,plans,ids,index:0,stop:1};
   }
+  // Nuovo giorno: restano solo le tratte di oggi e di domani (chiamata a ogni fotogramma dal lavoro di fondo: costo nullo
+  // se il giorno non è cambiato).
+  function pruneLegs(runtime,d){
+    const store=runtime.store;
+    if(store.legDay===d)return;
+    store.legDay=d;
+    for(const [key,leg] of runtime.legs)if(leg.day<d)runtime.legs.delete(key);
+    for(const x of store.warmed)if(x<d)store.warmed.delete(x);
+    if(runtime.warm?.day<d)runtime.warm=null;
+  }
   function warmRoutes(s,runtime){
     const d=day(s);
-    const store=runtime.store,warmed=store.warmed;
-    if(store.legDay!==d){
-      // Nuovo giorno: restano solo le tratte di oggi e di domani.
-      store.legDay=d;
-      for(const [key,leg] of runtime.legs)if(leg.day<d)runtime.legs.delete(key);
-      for(const x of warmed)if(x<d)warmed.delete(x);
-      if(runtime.warm?.day<d)runtime.warm=null;
-    }
+    const warmed=runtime.store.warmed;
+    pruneLegs(runtime,d);
     let job=runtime.warm;
     if(!job||job.done){
       if(job?.done)warmed.add(job.day);
@@ -573,16 +621,28 @@
     stock[id]-=Number(delivered);
   }
 
-  function tick(s,delta,worldAccess){
-    if(delta>0&&s?.urban&&present(s.region)){
-      const stamp=clock(s),runtime=useRuntime(s);
-      if(runtime){
-        // PERF-004: tratte in anticipo, mai in un fotogramma in cui si preparano i piani (compreso quello in cui finiscono).
-        const planning=stamp%1440>=prewarmMinute&&runtime.nextPlans?.day!==Math.floor(stamp/1440)+1;
-        if(stamp%1440>=prewarmMinute)prepareNextDay(s,runtime,stamp);
-        if(!planning)warmRoutes(s,runtime);
-      }
+  /* Lavoro di fondo, al massimo un compito per fotogramma (PERF-002, PERF-003, PERF-004). In città: il piano di oggi se manca,
+     poi le tratte di oggi, poi il piano di domani (PERF-003: appena la città è tranquilla, non più solo dalle 22:00, così il
+     sonno a qualunque ora trova il giorno pronto), poi le tratte di domani. Fuori città, solo se la città è già stata visitata
+     in questa partita (mai generare la sua mappa nel mondo aperto): il piano di oggi se il giorno è cambiato e quello di domani,
+     così rientrare non costa più il piano intero. Stessa funzione di preparazione e stesse regole: i piani sono identici. */
+  function backgroundWork(s){
+    const inside=present(s.region),runtime=inside?useRuntime(s):cached.get(s.urban);
+    if(!runtime)return;
+    const stamp=clock(s),d=Math.floor(stamp/1440),late=stamp-d*1440>=22*60,tomorrow=runtime.nextPlans?.day===d+1;
+    pruneLegs(runtime,d);
+    if(runtime.plansDay!==d){
+      if(runtime.nextPlans?.day===d){spread(s,runtime,d);return;} // piano già pronto: si adotta (è il compito del fotogramma)
+      else{prepareNextDay(s,runtime,stamp-1440);return;}
     }
+    // Dalle 22:00 il piano di domani ha la precedenza (deve essere pronto a mezzanotte, come in PERF-002).
+    if(late&&!tomorrow){prepareNextDay(s,runtime,stamp);return;}
+    if(inside&&!runtime.store.warmed.has(d)){warmRoutes(s,runtime);return;}
+    if(!tomorrow){prepareNextDay(s,runtime,stamp);return;}
+    if(inside)warmRoutes(s,runtime);
+  }
+  function tick(s,delta,worldAccess){
+    if(delta>0&&s?.urban)backgroundWork(s);
     if(!s?.urban||s.urban.pulse>s.time)return [];
     const state=s.urban,city=state.city,now=day(s);
     state.pulse=s.time+3;
