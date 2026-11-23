@@ -3,7 +3,7 @@
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
 ## [2026-11-23] Banco di prova della popolazione — Claude
-Branch `claude/banco-popolazione` (da `main` `e5b825b`), solo prove e documentazione: nessun sorgente del gioco modificato, `Reincarnation.html` invariato.
+Branch `claude/banco-popolazione` (da `main` `e5b825b`, commit `e895a53`), solo prove e documentazione: nessun sorgente del gioco modificato, `Reincarnation.html` invariato.
 ### Aggiunto
 - `tests/banco-popolazione.cjs`: banco in Edge con 25–500 residenti di Velaris (riusa la popolazione sintetica di `tests/benchmark-npc.cjs` senza modificarla), costo per fotogramma di ogni sistema in tre finestre, fotogramma del salto di tempo, memoria JS via protocollo DevTools e salvataggio; timer isolato tramite pagina servita con COOP/COEP senza rete.
 ### Documentazione
