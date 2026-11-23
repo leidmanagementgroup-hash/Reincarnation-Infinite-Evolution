@@ -923,6 +923,7 @@
   const dashTime=def=>def.boss?.42:.32;
   const dashSpeedOf=m=>m.type==='syrava'?231:m.type==='shade'?211:172;
   const dashReach=def=>def.boss?22:15;
+  let stepDt=1/60; // ultimo passo del motore, solo per disegnare la corsia della carica (non salvato)
   function hazard(x,y,r,duration,damage,color){
     hazards.push({x,y,r,ttl:duration,damage,color,tag:fxTag});
   }
@@ -1107,7 +1108,7 @@
   }
   function step(delta,input={},elapsed=delta){
     if(!s || !Number.isFinite(delta)||delta<=0)return;
-    const dt=Math.min(.1,delta),p=s.player,epoch=worldEpoch;
+    const dt=Math.min(.1,delta),p=s.player,epoch=worldEpoch;stepDt=dt;
     s.time+=dt;Calendar.advance(s.calendar,elapsed-dt);combat=Math.max(0,combat-dt);autosave+=dt;
     for(const id of Object.keys(p.cooldowns))p.cooldowns[id]=Math.max(0,p.cooldowns[id]-dt);
     for(const f of ['invul','hit','swing','wardTime'])p[f]=Math.max(0,p[f]-dt);
@@ -1266,9 +1267,9 @@
   }
   function dashLane(ctx,m,len,r,color,progress){
     ctx.save();ctx.translate(m.x,m.y);ctx.rotate(Math.atan2(m.aimY,m.aimX));
-    ctx.globalAlpha=.10+.12*progress;ctx.fillStyle=color;ctx.fillRect(0,-r,len,r*2);
-    ctx.beginPath();ctx.arc(len,0,r,-Math.PI/2,Math.PI/2);ctx.fill();
-    ctx.globalAlpha=.8;ctx.strokeStyle=color;ctx.beginPath();ctx.moveTo(0,-r);ctx.lineTo(len,-r);ctx.arc(len,0,r,-Math.PI/2,Math.PI/2);ctx.lineTo(0,r);ctx.stroke();
+    // Capsula completa: il contatto è un cerchio di raggio r attorno al mostro lungo tutta la corsa, anche dietro il punto di partenza.
+    ctx.globalAlpha=.10+.12*progress;ctx.fillStyle=color;ctx.beginPath();ctx.arc(len,0,r,-Math.PI/2,Math.PI/2);ctx.arc(0,0,r,Math.PI/2,Math.PI*1.5);ctx.closePath();ctx.fill();
+    ctx.globalAlpha=.8;ctx.strokeStyle=color;ctx.beginPath();ctx.arc(len,0,r,-Math.PI/2,Math.PI/2);ctx.arc(0,0,r,Math.PI/2,Math.PI*1.5);ctx.closePath();ctx.stroke();
     ctx.globalAlpha=.28;ctx.fillRect(0,-r,len*progress,r*2);
     ctx.restore();
   }
@@ -1318,8 +1319,9 @@
       // Pestone: prima un'ellisse più piccola del colpo (e per i boss diversi da Orveth il raggio dei mostri normali).
       if(pattern==='stomp'){warnCircle(ctx,m.x,m.y,stompRadius(m,def)+5,color,progress);continue;}
       // Carica: corsia lunga quanto la corsa reale (durata × velocità) e larga quanto il raggio del contatto.
-      // La corsa avanza a passi di un fotogramma: l'ultimo passo può superare la durata nominale di 1/60 s.
-      if(pattern==='dash'){dashLane(ctx,m,(dashTime(def)+1/60)*dashSpeedOf(m),dashReach(def),color,progress);continue;}
+      // La corsa avanza a passi interi del passo reale (stepDt): dura ceil(durata/passo) passi, quindi a pochi fotogrammi
+      // al secondo va più lontano della durata nominale; la corsia segue il passo corrente.
+      if(pattern==='dash'){dashLane(ctx,m,Math.ceil(dashTime(def)/stepDt-1e-6)*stepDt*dashSpeedOf(m),dashReach(def),color,progress);continue;}
       if(pattern==='nadir-prism'){
         for(const side of [-1,1])warnCircle(ctx,m.targetX+side*m.aimY*28,m.targetY-side*m.aimX*28,m.phase===3?22:17,color,progress);
         volleyLanes(ctx,m,color,progress);

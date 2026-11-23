@@ -47,7 +47,7 @@
     toastQueue.push(txt);
     while(toastQueue.length>3){const drop=toastQueue.findIndex(x=>!toastKey.test(x));toastQueue.splice(drop<0?0:drop,1);}
   }
-  function showToast(txt){const el=$('#toast');toastShown=txt;el.textContent=txt;el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(nextToast,toastQueue.length?2000:2600);}
+  function showToast(txt){const el=$('#toast');toastShown=txt;if(txt.startsWith('Consiglio · '))hintShown(txt);el.textContent=txt;el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(nextToast,toastQueue.length?2000:2600);}
   function nextToast(){const next=toastQueue.shift();if(next){showToast(next);return;}$('#toast').classList.remove('visible');toastShown='';}
   function updateAudioIcon(){
     const on=Score.enabled && Score.started;
@@ -56,6 +56,7 @@
   function title(){screen='title';closePanel();$('#titleScreen').hidden=false;$('#playScreen').hidden=true;prevLoc='';refreshTitle();paintSymbols();$('#playBtn').focus({preventScroll:true});}
   function refreshTitle(){const has=Game.hasSave(),b=$('#playBtn');b.dataset.do=has?'continue':'new';b.querySelector('span').textContent=has?'Continua il viaggio':'Nuova incarnazione';$('#otherPlay').hidden=!has;}
   function start(newLife) {
+    toastQueue.length=0;
     const ok=newLife?Game.newGame():Game.load();
     if(ok===false){toast(newLife?'La nuova vita non è ancora disponibile.':'Caricamento non riuscito. Puoi importare una copia dalle opzioni.');return;}
     screen='play';$('#titleScreen').hidden=true;$('#playScreen').hidden=false;prevLoc='';uiClock=0;cam.x=NaN;
@@ -219,9 +220,13 @@
     echoes:'Consiglio · hai abbastanza echi per legare un tratto: aprili nelle Abilità (K).'
   };
   let hintsSeen;try{hintsSeen=new Set(JSON.parse(localStorage.getItem('lumora-hints')||'[]'));}catch{hintsSeen=new Set();}
+  // Chiamata da showToast: il consiglio conta come visto solo quando è davvero comparso.
+  function hintShown(txt){
+    const id=Object.keys(HINTS).find(k=>HINTS[k]===txt);if(!id||hintsSeen.has(id))return;
+    hintsSeen.add(id);try{localStorage.setItem('lumora-hints',JSON.stringify([...hintsSeen]));}catch{}
+  }
   function hint(id){
     if(!guidance||hintsSeen.has(id)||!HINTS[id])return;
-    hintsSeen.add(id);try{localStorage.setItem('lumora-hints',JSON.stringify([...hintsSeen]));}catch{}
     toast(HINTS[id]);
   }
   let buffered=null;

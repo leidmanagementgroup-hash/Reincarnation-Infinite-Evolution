@@ -64,7 +64,7 @@
 - [x] Incremento 3: evoluzione e abilità (coda dei messaggi, avanzamento, tecnica nuova annunciata).
 - [x] Incremento 4: boss (avvisi corretti di Orveth e Nerav, prisma di Nadir, guardia visibile, reazioni spiegate).
 - [x] Incremento 5: interfaccia ed esplorazione (bisogni nell'HUD, consigli «prima volta» disattivabili, accessibilità).
-- [ ] Incremento 6: revisione incrociata, regressioni, benchmark finali.
+- [x] Incremento 6: revisione incrociata, regressioni, benchmark finali.
 
 ## Priorità Media — Contenuti ★
 - [x] ★ **Primo ampliamento di Velaris** con quattro quartieri, sette interni e servizi integrati.

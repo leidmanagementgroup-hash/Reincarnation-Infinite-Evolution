@@ -64,7 +64,7 @@ Analisi del codice reale (`main` `f2febd1`), in parte con tre revisori in sola l
 | 3 | Evoluzione e abilità: coda dei messaggi, messaggio d'evoluzione con la tecnica, avanzamento verso lo stadio, «pronta dopo lo scontro», soglie dell'innata, barra rapida aggiornata | ✅ |
 | 4 | Boss: Orveth e Nerav per primi (pestone, carica, radici), poi prisma di Nadir, guardia visibile, reazioni spiegate, disimpegno segnalato, pulizia alla vittoria | ✅ (pestone e carica nell'incremento 2) |
 | 5 | Interfaccia ed esplorazione: bisogni nell'HUD, consigli «prima volta» disattivabili, fuoco dei pannelli, schede ARIA, movimento ridotto dei marcatori | ✅ |
-| 6 | Revisione incrociata, regressioni complete, benchmark finali | da fare |
+| 6 | Revisione incrociata, regressioni complete, benchmark finali | ✅ |
 
 ## Incremento 1 — RISK-011 e prove critiche
 
@@ -106,6 +106,73 @@ Non verificato in partita: la pulizia alla vittoria su Nadir e Nerav (solo lettu
 Verifiche: build `49751893…`. Node: `verifica-integrazione` OK, `verifica-esperienza` 10/10, `verifica-avvisi` 8/8, economia 158 e 147, `economia-flussi-2` codice 0, percorsi 0 bloccati su 41 040, residenti 0, `verifica-perf-002` 181 scene equivalenti; `confronto-mondo` contro la base `f2febd1` identico (contro il `main` locale `7488642` differiscono solo le regioni dei Filoni di Codex, attese). Edge: `prova-browser` 10/10, `velaris-est` 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7, interni 12/12, creature 7/7, combattimento 9/9, famiglie 6/6, progressione 7/7, interfaccia 7/7 (nuova). Scatto HUD PRIMA (`main` `f2febd1`) / DOPO con sete e stanchezza. `sonda-sessione` 6 minuti in Edge visibile: mediana 0,2–0,4 ms, p95 fino a 4,5 ms (main 4,7), massimo 28 ms, nessun fotogramma oltre 33 ms, memoria 9,7–20,9 MB, salvataggio 0,2–0,3 ms.
 
 Non verificato: lettura reale con un lettore di schermo (NVDA o Narratore); solo attributi ARIA controllati nella prova.
+
+## Incremento 6 — Revisione incrociata e rapporto finale
+
+### Revisione incrociata
+Un revisore indipendente in sola lettura ha riletto l'intero diff `f2febd1..7f7baf8` (8 file, 238 righe) cercando difetti di correttezza, cambiamenti di bilanciamento, salvataggi, escape HTML, eccezioni e perdite. Confermato corretto: angoli dei proiettili e misure dei colpi identici a `f2febd1`; nessun campo nuovo nel salvataggio; testo dinamico sempre con `esc()` o `textContent`; `matchMedia` e `localStorage` assenti gestiti; code limitate. Unico cambiamento di gioco, dichiarato: la pulizia dei colpi alla vittoria su Nadir e Nerav.
+
+Difetti confermati e corretti in questo incremento (ognuno con una prova che fallisce sul codice precedente e passa ora):
+
+| Difetto | Gravità | Correzione | Prova |
+|---|---|---|---|
+| Corsia della carica senza semicerchio posteriore: il contatto è un cerchio attorno al mostro fin dal primo passo, quindi si veniva colpiti fino a ~12 px dietro il lupo (~19 px dietro un boss) fuori dall'area disegnata | bassa-media | `dashLane` disegna la capsula completa | `verifica-avvisi` 4 ora legge la capsula e prova anche punti dietro il mostro: con la forma vecchia 12 punti colpiti fuori |
+| Lunghezza della corsia tarata su 1/60 s: il motore non suddivide il passo (fino a 0,05 s dall'interfaccia), quindi a ~20 fps la corsa va 5–7 px oltre la punta | bassa | la corsia usa il passo reale (`ceil(durata/passo)·passo`, `stepDt` non salvato) | `verifica-avvisi` 4 ripetuta a 0,05 s |
+| Consiglio «prima volta» segnato come visto prima di comparire: se la fila piena lo scartava, era perso per sempre | bassa | segnato in `lumora-hints` solo quando compare (`hintShown`); se scartato torna alla prossima occasione | `prova-browser-interfaccia` 5b fallisce sulla build dell'incremento 5 |
+| Messaggi in fila della partita precedente mostrati in quella nuova | bassa | la fila si svuota a ogni nuova partita o caricamento | lettura del codice |
+
+Rilievi non corretti, registrati come problemi aperti: RPG-001…RPG-004 in `PROGRESS.md`.
+
+### Unione con `main` attuale (simulata, nessuna modifica a `main`)
+`origin/main` è avanzato a `7488642` (Filoni e Porto di Calis di Codex). `git merge-tree` di `7488642` con `7f7baf8`: il codice si unisce senza conflitti (anche `interface.js` e `panels.js`, toccati da entrambi); conflitti solo in `CHANGELOG.md` e `PROGRESS.md` (voci in cima ai due registri). L'albero unito, estratto in una cartella temporanea con `git archive` (nessun branch o worktree creato), ricostruito e provato: tutte le prove di questa operazione e quelle di Codex superate (`verifica-filoni` 55 semi, `verifica-calis` 55 semi, `prova-browser-filoni`, `prova-browser-calis`, più la serie completa: integrazione, esperienza, avvisi, economia, percorsi, residenti, PERF-002, prova-browser, Velaris, mondo, Cava, Santuario, interni, creature, combattimento, famiglie, progressione, interfaccia); `confronto-mondo` dell'albero unito contro `main` `7488642` identico (34 regioni). Le correzioni dell'incremento 6 toccano solo `dashLane` e i consigli, lontano dalle righe di Codex; la simulazione va ripetuta sul commit finale prima dell'unione.
+
+### Compatibilità dei salvataggi
+Nuova prova `tests/verifica-salvataggi-incrociati.cjs <cartella-A> <cartella-B> […]`: per ogni coppia gioca tre minuti reali in A (seme fisso, movimento, attacchi, schivate), esporta, importa in B, riesporta e confronta campo per campo, poi continua a giocare in B, salva, ricarica e reimporta in A. Superata in tutte e sei le combinazioni fra `main` `f2febd1`, questo branch e l'albero unito con `main` `7488642`: salvataggi identici dopo l'importazione, in entrambe le direzioni. Il confronto è stato controllato alterando di proposito un campo (rilevato). Formato invariato (versione 7, chiave `reincarnation.lumora.save.v7`); preferenze nuove solo in `lumora-hints`, fuori dal salvataggio. Nessuna partita reale toccata: salvataggi in memoria.
+
+### Regressioni finali
+build `bc390b3e…`. Node: `verifica-integrazione` OK, `verifica-esperienza` 10/10, `verifica-avvisi` 8/8, `verifica-salvataggi-incrociati` 2/2 (nuova), economia 158 e 147, `economia-flussi-2` codice 0, percorsi 0 bloccati su 41 040, residenti 0, `verifica-perf-002` 181 scene equivalenti; `confronto-mondo` contro la base `f2febd1` identico. Edge: `prova-browser` 10/10, `velaris-est` 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7, interni 12/12, creature 7/7, combattimento 9/9, famiglie 6/6, progressione 7/7, interfaccia 8/8. `scatti-combattimento` PRIMA (`main` `f2febd1`) / DOPO: stato di gioco identico in tutte le 19 scene.
+
+### Benchmark finali (prima `main` `f2febd1` / dopo `bc390b3e…`, stessa macchina, Edge visibile, eseguiti uno alla volta)
+
+| Misura | Prima | Dopo |
+|---|---|---|
+| Mischia con tecniche, fotogramma medio (mediana/p95/max) | 0,79 ms (0,50/1,10/16,7) | 0,84 ms (0,50/1,10/16,1) |
+| Mischia, `drawFX` medio | 0,035 ms | 0,041 ms |
+| Boss in fase II con aura, fotogramma medio (mediana/p95/max) | 0,49 ms (0,40/0,60/15,3) | 0,53 ms (0,40/0,70/16,2) |
+| Boss, `drawFX` medio | 0,026 ms | 0,035 ms |
+| `sonda-sessione` 6 minuti, mediana / p95 | 0,2–0,4 / 0,5–4,5 ms | 0,2–0,4 / 0,5–4,3 ms |
+| Massimo per minuto | 5,4–33,6 ms | 5,7–27,5 ms |
+| Fotogrammi oltre 33 ms | 1 (avvio) | 0 |
+| Memoria JS | 8,5–14,9 MB | 8,4–21,8 MB (dente di sega, nessuna crescita costante) |
+| Salvataggio | 0,2–0,3 ms, 28–40 KB | 0,2–0,3 ms, 28–40 KB |
+| Primo ingresso in Vaelthoria | 70,4 ms | 60,1 ms |
+
+Combattimento: 3 giri alternati × 600 fotogrammi (`scatti-combattimento.cjs BENCH=1 ROUNDS=3`). Il costo aggiunto è nel disegno degli avvisi, del settore e delle tacche: da +0,006 a +0,009 ms per fotogramma, sotto l'1% del bilancio di 16,7 ms. Variazioni del massimo e della memoria fra due esecuzioni rientrano nel rumore già visto nell'incremento 0 (12 minuti su `main`: massimo fino a 29,1 ms, memoria 10–32 MB).
+
+### RISK-011
+Risolto nell'incremento 1 come difetto della prova (seme casuale e meta a coordinata fissa occupata da un edificio nel 7,5% dei semi), senza aumentare i tempi d'attesa né ripetere i passaggi falliti. Da allora `prova-browser-velaris-est` ha dato 12/12 in 11 esecuzioni dedicate e in 7 serie complete (incrementi 2–6, albero unito con `main` `7488642`). Residuo noto e accettato: la prova usa il ciclo di disegno reale fra un passaggio e l'altro, quindi la durata dei cammini varia con la macchina, senza effetto sugli esiti.
+
+### Commit del branch `claude/rpg-evolution`
+
+| Incremento | Commit | Contenuto |
+|---|---|---|
+| 0 | `c9e2390` | rapporto iniziale, matrice, rischi, benchmark, `sonda-sessione.cjs` |
+| 1 | `a76cf70` | RISK-011 risolto nella prova, `verifica-esperienza.cjs` |
+| 2 | `cc34b10` | combattimento: memoria d'ingresso, settore reale, tacche della combo, avvisi uguali al colpo |
+| 3 | `654f1cf` | evoluzione e abilità: coda dei messaggi, tecnica annunciata, avanzamento per via, soglie dell'innata |
+| 4 | `a43b6da` | boss: corsie dei proiettili, prisma di Nadir, guardia visibile, reazioni spiegate, disimpegno |
+| 5 | `7f7baf8` | interfaccia: bisogni nell'HUD, PE accessibile, consigli «prima volta», fuoco, `aria-current`, movimento ridotto |
+| 6 | questo commit | revisione incrociata e correzioni, salvataggi incrociati, unione simulata, benchmark finali |
+
+### Problemi aperti
+- **RPG-001** · i messaggi in fila possono arrivare fino a ~6 s dopo l'evento durante un combattimento concitato (fila di 3 × 2 s); nessuna perdita, ma a volte fuori contesto.
+- **RPG-002** · il settore del colpo mostra portata e cono, non la zona «sempre a segno» entro 15 px né i +9 px di portata contro i boss: il colpo reale è un po' più generoso dell'area mostrata (a favore del giocatore).
+- **RPG-003** · gli avvisi del prisma di Nadir e delle spore dell'Erede si disegnano anche dove il terreno impedisce l'area reale; comportamento già presente in `f2febd1`.
+- **RPG-004** · non verificati in partita reale: la pulizia dei colpi alla vittoria su Nerav (solo codice e prova contro Nadir), la lettura con un vero lettore di schermo (NVDA o Narratore), il contrasto delle corsie della forgia sul pavimento della Cava (leggibile ma basso).
+- Restano fuori da questa operazione, come da matrice dell'incremento 0: sprite dedicati per le forme 3–4 delle stirpi che li prendono in prestito, biologia di Umano e Scheletro (decisione di bilanciamento dell'utente), critici (nessuna nuova meccanica senza decisione).
+
+### Raccomandazione sul merge
+**Raccomandato, con il tuo consenso**, come merge di `claude/rpg-evolution` su `main` `7488642` (non fast-forward, perché `main` è avanzato). Motivi: nessun cambiamento di regole salvo la pulizia dichiarata alla vittoria su Nadir e Nerav; stato di gioco identico a `f2febd1` in tutte le scene di combattimento; salvataggi compatibili in entrambe le direzioni; mondo identico; costo di disegno trascurabile; codice che si unisce senza conflitti con il lavoro di Codex e albero unito che passa anche le sue prove. Procedura consigliata: unione su un branch di integrazione, conflitti solo nei registri (`CHANGELOG.md`: tenere entrambe le serie di voci in ordine di data; `PROGRESS.md`: tenere entrambe le note in cima), ricostruzione di `Reincarnation.html`, serie completa più `verifica-filoni`, `verifica-calis`, `prova-browser-filoni` e `prova-browser-calis`, poi fast-forward di `main`.
 
 ## Benchmark di riferimento (`main` `f2febd1`)
 Strumenti: `tests/sonda-sessione.cjs` (nuovo: sessione lunga con combattimento a più nemici, tecniche, schivate e passaggi Valle ↔ Vaelthoria; ogni minuto di gioco misura fotogramma intero, memoria JS, salvataggio, ingresso in regione), `tests/scatti-combattimento.cjs BENCH=1` (mischia e boss con aura, fase 4 C), `tests/scatti-mondo.cjs BENCH=1`. Edge visibile con GPU, stessa macchina e finestra 1280×720.

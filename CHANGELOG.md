@@ -2,6 +2,21 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-23] Operazione RPG Evolution, incremento 6: revisione incrociata e rapporto finale — Claude
+Branch `claude/rpg-evolution` (`engine.js`, `interface.js`, prove, documenti). Commit degli incrementi precedenti: 0 `c9e2390`, 1 `a76cf70`, 2 `cc34b10`, 3 `654f1cf`, 4 `a43b6da`, 5 `7f7baf8`.
+### Corretto
+- Corsia della carica disegnata come capsula completa: prima mancava il semicerchio posteriore e si veniva colpiti fino a ~12 px dietro il lupo fuori dall'area mostrata (`engine.js` `dashLane`).
+- Lunghezza della corsia con il passo reale del motore: a ~20 fps la corsa superava la punta disegnata di 5–7 px (`engine.js`, `stepDt` non salvato).
+- Consiglio «prima volta» registrato come visto solo quando compare; prima, se la fila piena lo scartava, era perso (`interface.js` `hintShown`).
+- Fila dei messaggi svuotata a ogni nuova partita o caricamento (`interface.js`).
+### Aggiunto
+- `tests/verifica-salvataggi-incrociati.cjs`: salvataggi giocati in una versione, importati in un'altra e confrontati campo per campo, in entrambe le direzioni.
+- `verifica-avvisi` 4: capsula della corsia, punti dietro il mostro, passo di 0,05 s; `prova-browser-interfaccia` 5b: consiglio scartato dalla fila piena.
+### Documentazione
+- `RPG_EVOLUTION.md` «Incremento 6»: revisione incrociata, unione simulata con `main` `7488642`, compatibilità dei salvataggi, benchmark finali, stato di RISK-011, problemi aperti RPG-001…004, raccomandazione sul merge.
+### Verifica
+- build `bc390b3e…`. Node: `verifica-integrazione` OK, `verifica-esperienza` 10/10, `verifica-avvisi` 8/8, `verifica-salvataggi-incrociati` 2/2 (nuova), economia 158 e 147, `economia-flussi-2` codice 0, percorsi 0 bloccati su 41 040, residenti 0, `verifica-perf-002` 181 scene equivalenti; `confronto-mondo` contro la base `f2febd1` identico. Edge: `prova-browser` 10/10, `velaris-est` 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7, interni 12/12, creature 7/7, combattimento 9/9, famiglie 6/6, progressione 7/7, interfaccia 8/8. `scatti-combattimento` PRIMA (`main` `f2febd1`) / DOPO: stato di gioco identico in tutte le 19 scene. Albero unito con `main` `7488642` (cartella temporanea): tutte le prove, comprese quelle di Filoni e Calis; mondo identico a `7488642`. Benchmark finali in `RPG_EVOLUTION.md`.
+
 ## [2026-11-23] Operazione RPG Evolution, incremento 5: interfaccia ed esplorazione più chiare — Claude
 Branch `claude/rpg-evolution` (`interface.js`, `panels.js`, `engine.js`, `template.html`, `style.css`, prove).
 ### Modificato

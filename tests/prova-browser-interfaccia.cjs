@@ -86,15 +86,36 @@ const CROP = ([x, y, w, h]) => {
       const r = await page.evaluate(() => {
         Game.s.daily.thirst = 20; __tick(30); Game.s.daily.thirst = 90; __tick(30); Game.s.daily.thirst = 20; __tick(30); Game.s.daily.thirst = 90;
         const elder = World.points.elder; Object.assign(Game.s.player, { x: elder.x + 10, y: elder.y + 6 }); __tick(30);
-        return { stored: JSON.parse(localStorage.getItem('lumora-hints') || '[]'), save: Game.exportSave() };
+        return { save: Game.exportSave() };
       });
       await page.waitForTimeout(6500);
+      // Il consiglio conta come visto solo quando compare (incremento 6): il registro si legge dopo la fila dei messaggi.
       const toasts = await page.evaluate(() => __toasts.slice());
+      r.stored = await page.evaluate(() => JSON.parse(localStorage.getItem('lumora-hints') || '[]'));
       const needs = toasts.filter(t => /^Consiglio · fame, sete/.test(t)).length, interact = toasts.filter(t => /^Consiglio · premi E/.test(t)).length;
       assert.equal(needs, 1, 'consiglio dei bisogni ' + needs + ' volte'); assert.equal(interact, 1, 'consiglio di interazione ' + interact + ' volte: ' + toasts.join(' | '));
       assert.ok(r.stored.includes('needs') && r.stored.includes('interact'));
       assert.ok(!/lumora-hints|Consiglio/.test(r.save), 'consigli nel salvataggio');
       return r.stored.join(', ');
+    });
+    await step('5b. Consiglio scartato dalla fila piena: non segnato come visto, torna alla prossima occasione', async () => {
+      const r = await page.evaluate(() => {
+        // Fila piena: dietro al consiglio sul mana arrivano tre messaggi di livello (protetti), che lo fanno scartare.
+        __toasts.length = 0; Game.onEvent('toast', 'Uno'); Game.onEvent('toast', 'Mana insufficiente: 3 su 10.');
+        Game.onEvent('toast', 'Livello 2'); Game.onEvent('toast', 'Livello 3'); Game.onEvent('toast', 'Livello 4');
+        return JSON.parse(localStorage.getItem('lumora-hints') || '[]');
+      });
+      assert.ok(!r.includes('mana'), 'consiglio sul mana segnato come visto senza comparire');
+      await page.waitForTimeout(9000);
+      const lost = await page.evaluate(() => ({ toasts: __toasts.slice(), stored: JSON.parse(localStorage.getItem('lumora-hints') || '[]') }));
+      assert.ok(!lost.toasts.some(t => /^Consiglio · il mana/.test(t)), 'il consiglio doveva essere scartato: ' + lost.toasts.join(' | '));
+      assert.ok(!lost.stored.includes('mana'), 'consiglio scartato ma registrato come visto');
+      await page.evaluate(() => { __toasts.length = 0; Game.onEvent('toast', 'Mana insufficiente: 2 su 10.'); });
+      await page.waitForTimeout(3600); // il messaggio sul mana resta 2,6 s, poi compare il consiglio
+      const again = await page.evaluate(() => ({ toasts: __toasts.slice(), stored: JSON.parse(localStorage.getItem('lumora-hints') || '[]') }));
+      assert.ok(again.toasts.some(t => /^Consiglio · il mana/.test(t)), again.toasts.join(' | '));
+      assert.ok(again.stored.includes('mana'));
+      return 'mostrato alla volta successiva e poi registrato';
     });
     await step('6. Nessun errore JavaScript', async () => { assert.deepEqual([...run.errors], [], run.errors.join(' | ')); });
     await run.context.close();

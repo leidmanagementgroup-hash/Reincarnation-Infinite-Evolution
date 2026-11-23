@@ -15591,6 +15591,7 @@ window.Lantern = (() => {
   const dashTime=def=>def.boss?.42:.32;
   const dashSpeedOf=m=>m.type==='syrava'?231:m.type==='shade'?211:172;
   const dashReach=def=>def.boss?22:15;
+  let stepDt=1/60; // ultimo passo del motore, solo per disegnare la corsia della carica (non salvato)
   function hazard(x,y,r,duration,damage,color){
     hazards.push({x,y,r,ttl:duration,damage,color,tag:fxTag});
   }
@@ -15775,7 +15776,7 @@ window.Lantern = (() => {
   }
   function step(delta,input={},elapsed=delta){
     if(!s || !Number.isFinite(delta)||delta<=0)return;
-    const dt=Math.min(.1,delta),p=s.player,epoch=worldEpoch;
+    const dt=Math.min(.1,delta),p=s.player,epoch=worldEpoch;stepDt=dt;
     s.time+=dt;Calendar.advance(s.calendar,elapsed-dt);combat=Math.max(0,combat-dt);autosave+=dt;
     for(const id of Object.keys(p.cooldowns))p.cooldowns[id]=Math.max(0,p.cooldowns[id]-dt);
     for(const f of ['invul','hit','swing','wardTime'])p[f]=Math.max(0,p[f]-dt);
@@ -15934,9 +15935,9 @@ window.Lantern = (() => {
   }
   function dashLane(ctx,m,len,r,color,progress){
     ctx.save();ctx.translate(m.x,m.y);ctx.rotate(Math.atan2(m.aimY,m.aimX));
-    ctx.globalAlpha=.10+.12*progress;ctx.fillStyle=color;ctx.fillRect(0,-r,len,r*2);
-    ctx.beginPath();ctx.arc(len,0,r,-Math.PI/2,Math.PI/2);ctx.fill();
-    ctx.globalAlpha=.8;ctx.strokeStyle=color;ctx.beginPath();ctx.moveTo(0,-r);ctx.lineTo(len,-r);ctx.arc(len,0,r,-Math.PI/2,Math.PI/2);ctx.lineTo(0,r);ctx.stroke();
+    // Capsula completa: il contatto è un cerchio di raggio r attorno al mostro lungo tutta la corsa, anche dietro il punto di partenza.
+    ctx.globalAlpha=.10+.12*progress;ctx.fillStyle=color;ctx.beginPath();ctx.arc(len,0,r,-Math.PI/2,Math.PI/2);ctx.arc(0,0,r,Math.PI/2,Math.PI*1.5);ctx.closePath();ctx.fill();
+    ctx.globalAlpha=.8;ctx.strokeStyle=color;ctx.beginPath();ctx.arc(len,0,r,-Math.PI/2,Math.PI/2);ctx.arc(0,0,r,Math.PI/2,Math.PI*1.5);ctx.closePath();ctx.stroke();
     ctx.globalAlpha=.28;ctx.fillRect(0,-r,len*progress,r*2);
     ctx.restore();
   }
@@ -15986,8 +15987,9 @@ window.Lantern = (() => {
       // Pestone: prima un'ellisse più piccola del colpo (e per i boss diversi da Orveth il raggio dei mostri normali).
       if(pattern==='stomp'){warnCircle(ctx,m.x,m.y,stompRadius(m,def)+5,color,progress);continue;}
       // Carica: corsia lunga quanto la corsa reale (durata × velocità) e larga quanto il raggio del contatto.
-      // La corsa avanza a passi di un fotogramma: l'ultimo passo può superare la durata nominale di 1/60 s.
-      if(pattern==='dash'){dashLane(ctx,m,(dashTime(def)+1/60)*dashSpeedOf(m),dashReach(def),color,progress);continue;}
+      // La corsa avanza a passi interi del passo reale (stepDt): dura ceil(durata/passo) passi, quindi a pochi fotogrammi
+      // al secondo va più lontano della durata nominale; la corsia segue il passo corrente.
+      if(pattern==='dash'){dashLane(ctx,m,Math.ceil(dashTime(def)/stepDt-1e-6)*stepDt*dashSpeedOf(m),dashReach(def),color,progress);continue;}
       if(pattern==='nadir-prism'){
         for(const side of [-1,1])warnCircle(ctx,m.targetX+side*m.aimY*28,m.targetY-side*m.aimX*28,m.phase===3?22:17,color,progress);
         volleyLanes(ctx,m,color,progress);
@@ -18327,7 +18329,7 @@ window.Lantern = (() => {
     toastQueue.push(txt);
     while(toastQueue.length>3){const drop=toastQueue.findIndex(x=>!toastKey.test(x));toastQueue.splice(drop<0?0:drop,1);}
   }
-  function showToast(txt){const el=$('#toast');toastShown=txt;el.textContent=txt;el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(nextToast,toastQueue.length?2000:2600);}
+  function showToast(txt){const el=$('#toast');toastShown=txt;if(txt.startsWith('Consiglio · '))hintShown(txt);el.textContent=txt;el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(nextToast,toastQueue.length?2000:2600);}
   function nextToast(){const next=toastQueue.shift();if(next){showToast(next);return;}$('#toast').classList.remove('visible');toastShown='';}
   function updateAudioIcon(){
     const on=Score.enabled && Score.started;
@@ -18336,6 +18338,7 @@ window.Lantern = (() => {
   function title(){screen='title';closePanel();$('#titleScreen').hidden=false;$('#playScreen').hidden=true;prevLoc='';refreshTitle();paintSymbols();$('#playBtn').focus({preventScroll:true});}
   function refreshTitle(){const has=Game.hasSave(),b=$('#playBtn');b.dataset.do=has?'continue':'new';b.querySelector('span').textContent=has?'Continua il viaggio':'Nuova incarnazione';$('#otherPlay').hidden=!has;}
   function start(newLife) {
+    toastQueue.length=0;
     const ok=newLife?Game.newGame():Game.load();
     if(ok===false){toast(newLife?'La nuova vita non è ancora disponibile.':'Caricamento non riuscito. Puoi importare una copia dalle opzioni.');return;}
     screen='play';$('#titleScreen').hidden=true;$('#playScreen').hidden=false;prevLoc='';uiClock=0;cam.x=NaN;
@@ -18499,9 +18502,13 @@ window.Lantern = (() => {
     echoes:'Consiglio · hai abbastanza echi per legare un tratto: aprili nelle Abilità (K).'
   };
   let hintsSeen;try{hintsSeen=new Set(JSON.parse(localStorage.getItem('lumora-hints')||'[]'));}catch{hintsSeen=new Set();}
+  // Chiamata da showToast: il consiglio conta come visto solo quando è davvero comparso.
+  function hintShown(txt){
+    const id=Object.keys(HINTS).find(k=>HINTS[k]===txt);if(!id||hintsSeen.has(id))return;
+    hintsSeen.add(id);try{localStorage.setItem('lumora-hints',JSON.stringify([...hintsSeen]));}catch{}
+  }
   function hint(id){
     if(!guidance||hintsSeen.has(id)||!HINTS[id])return;
-    hintsSeen.add(id);try{localStorage.setItem('lumora-hints',JSON.stringify([...hintsSeen]));}catch{}
     toast(HINTS[id]);
   }
   let buffered=null;

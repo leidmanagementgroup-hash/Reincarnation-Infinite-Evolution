@@ -48,12 +48,14 @@ function record(fn) {
   return calls;
 }
 // Arma un attacco del mostro con preavviso quasi finito, legge l'avviso disegnato, poi lo lascia partire contro il giocatore.
-function trial(setup, dx, dy) {
+// dt: passo del motore (1/60 di norma; 0,05 = il passo massimo che l'interfaccia passa a pochi fotogrammi al secondo).
+function trial(setup, dx, dy, dt = 1 / 60) {
   const s = fresh(), p = s.player, m = setup(s);
   // Vitalità sotto il massimo: un valore oltre il massimo verrebbe riportato giù dal gioco e sembrerebbe un colpo.
   Object.assign(p, { x: m.x + dx, y: m.y + dy, invul: 0, dash: 0 }); p.hp = Game.view({ detailed: false }).hpMax - 20;
+  if (dt !== 1 / 60) { m.wind = dt + .01; Game.step(dt, {}); Object.assign(p, { x: m.x + dx, y: m.y + dy }); }
   const calls = record(ctx => Game.drawFX(ctx));
-  const hp = p.hp; for (let i = 0; i < 40 && (m.wind > 0 || m.dash > 0); i++) Game.step(1 / 60, {});
+  const hp = p.hp; for (let i = 0; i < 80 && (m.wind > 0 || m.dash > 0); i++) Game.step(dt, {});
   return { hit: p.hp < hp - 1, calls, m };
 }
 // Raggio massimo dei cerchi pieni disegnati attorno al mostro (warnCircle → arc centrato sul mostro).
@@ -82,15 +84,17 @@ check('1. Pestone del Germoglio spinoso: avviso = area colpita', () => areaCheck
 check('2. Pestone di Orveth in fase I e II: avviso = area colpita (prima ellisse più piccola)', () =>
   areaCheck('fase I', arm('boss', 'stomp', { phase: 1 }), 64) + '; ' + areaCheck('fase II', arm('boss', 'stomp', { phase: 2 }), 72));
 check('3. Contrattacco adattivo: avviso = area colpita', () => areaCheck('contrattacco', arm('thorn', 'counter'), 56));
-check('4. Carica del lupo e di Orveth: ogni punto colpito sta nella corsia disegnata', () => {
+check('4. Carica del lupo e di Orveth: ogni punto colpito sta nella corsia disegnata (anche dietro il mostro e a 20 fps)', () => {
   const notes = [];
-  for (const [type, extra] of [['wolf', {}], ['boss', { phase: 1 }]]) {
+  for (const [type, extra, dt] of [['wolf', {}, 1 / 60], ['boss', { phase: 1 }, 1 / 60], ['wolf', {}, .05], ['boss', { phase: 1 }, .05]]) {
     let hits = 0; const bad = [];
-    for (let dy = -28; dy <= 28; dy += 4) for (let dx = -8; dx <= 110; dx += 6) {
-      const t = trial(arm(type, 'dash', extra), dx, dy);
-      const lane = t.calls.find(c => c[0] === 'fillRect' && c.at(-1).tx !== 0);
-      assert(lane, 'corsia della carica non disegnata');
-      const len = lane[3], r = -lane[2];
+    for (let dy = -28; dy <= 28; dy += 4) for (let dx = -26; dx <= 124; dx += 6) {
+      const t = trial(arm(type, 'dash', extra), dx, dy, dt);
+      // Corsia = capsula: semicerchio anteriore centrato a (len, 0) e posteriore a (0, 0), nel riferimento ruotato del mostro.
+      const caps = t.calls.filter(c => c[0] === 'arc' && c.at(-1).tx !== 0 && c[2] === 0);
+      const front = caps.find(c => c[1] > 0), back = caps.find(c => c[1] === 0);
+      assert(front && back, 'corsia della carica non disegnata come capsula');
+      const len = front[1], r = front[3];
       if (!t.hit) continue; hits++;
       // Distanza del punto dal segmento [0, len] lungo la direzione di mira (1,0).
       const ex = Math.max(0, Math.min(len, dx)), d = Math.hypot(dx - ex, dy);
@@ -98,7 +102,7 @@ check('4. Carica del lupo e di Orveth: ogni punto colpito sta nella corsia diseg
     }
     assert.equal(bad.length, 0, type + ': ' + bad.slice(0, 3).join('; '));
     assert(hits > 3, type + ': nessun colpo');
-    notes.push(type + ' ' + hits + ' colpi dentro la corsia');
+    notes.push(`${type}${dt === 1 / 60 ? '' : ' a 20 fps'} ${hits} colpi dentro la corsia`);
   }
   return notes.join(', ');
 });
