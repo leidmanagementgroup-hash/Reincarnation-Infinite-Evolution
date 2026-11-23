@@ -6,7 +6,8 @@
 // direzione), la scheda di un residente e i luoghi d'interazione, e si controlla che ogni residente disegnato stia su suolo
 // percorribile. Scene: giorno (salto alle 10:00 e poi tempo che scorre), salto alle 21:59, sera fino al piano pronto,
 // mezzanotte, salto alle 08:00 del giorno dopo (come il sonno), spostamento del giocatore lontano (come l'uscita da un edificio).
-// Controlla anche: nessun percorso nel fotogramma del salto quando il calcolo anticipato ha finito, memoria delle tratte limitata
+// Controlla anche: salti ripetuti per cinque giorni (sera, sonno, salti rapidi nella giornata) con memoria stabile, nessun
+// percorso nel fotogramma del salto quando il calcolo anticipato ha finito, memoria delle tratte limitata
 // a oggi e domani, stesso risultato in due esecuzioni (determinismo), salvataggi identici, e una mutazione (tratta ricostruita
 // senza l'ultimo punto) che deve far fallire il confronto.
 const assert = require('node:assert/strict');
@@ -176,6 +177,42 @@ for (const population of sizes) {
     const again = scenario(population);
     assert.equal(again.notes.hash, first.notes.hash);
     return 'impronta ' + first.notes.hash;
+  });
+}
+// Salti ripetuti per più giorni: sera, sonno fino al mattino dopo, salti rapidi nella stessa giornata (12:00, 15:00, 18:00),
+// sempre contro main. Controlla scene identiche, nessun percorso nei fotogrammi dei salti e memoria che non cresce con i giorni.
+function repeated(population, days = 5) {
+  const a = load(reference), b = load(target);
+  begin(a, population); begin(b, population);
+  const stats = { scenes: 0, residents: 0 }, jumps = [], legs = [];
+  a.jump(10 * 60); b.jump(10 * 60);
+  compare(a, b, 'salto alle 10:00', stats);
+  run(a, b, 6000, 300, 'primo giorno', stats, x => legsOf(x)?.warmedToday);
+  for (let k = 0; k < days; k++) {
+    const at = minute => { a.jump(k * 1440 + minute); b.jump(k * 1440 + minute); };
+    at(22 * 60 - .04); jumps.push(['sera ' + (k + 1), compare(a, b, `giorno ${k + 1}, salto alle 21:59`, stats)]);
+    run(a, b, 9000, 400, `giorno ${k + 1}, sera`, stats, x => legsOf(x)?.warmedTomorrow);
+    for (const minute of [1440 + 8 * 60, 1440 + 12 * 60, 1440 + 15 * 60, 1440 + 18 * 60]) {
+      at(minute); jumps.push([`giorno ${k + 2} ${minute / 60 - 24}:00`, compare(a, b, `giorno ${k + 2}, salto alle ${minute / 60 - 24}:00`, stats)]);
+    }
+    run(a, b, 120, 60, `giorno ${k + 2}, pomeriggio`, stats);
+    legs.push(legsOf(b));
+  }
+  for (const key of ['urban', 'economy', 'reputation', 'calendar'])
+    assert.equal(JSON.stringify(b.Game.s[key]), JSON.stringify(a.Game.s[key]), 'Stato salvato diverso: ' + key);
+  return { stats, jumps, legs };
+}
+for (const population of sizes.includes(500) ? [500] : sizes.slice(-1)) {
+  const label = population ?? 'nativa (95)';
+  check(`${label}: salti ripetuti per cinque giorni (sera, sonno, 08:00, 12:00, 15:00, 18:00) identici a main, memoria stabile`, () => {
+    const r = repeated(population);
+    const busy = r.jumps.filter(([, j]) => j.target > 0);
+    assert.deepEqual(busy.map(([n, j]) => n + ': ' + j.target), [], 'percorsi calcolati nel fotogramma del salto');
+    assert(r.legs.every(l => l.days.every(d => d >= l.today)), 'tratte di giorni passati conservate');
+    const sizesKB = r.legs.map(l => Math.round(l.bytes / 1024));
+    assert(Math.max(...sizesKB) <= 1.25 * Math.min(...sizesKB) + 50, 'la memoria delle tratte cresce con i giorni: ' + sizesKB.join(', '));
+    const saved = r.jumps.reduce((n, [, j]) => n + j.reference, 0);
+    return `${r.stats.scenes} scene identiche, ${r.jumps.length} salti, percorsi nei fotogrammi dei salti: main ${saved}, PERF-004 0; memoria per giorno ${sizesKB.join(', ')} KB`;
   });
 }
 check('Mutazione: tratta conservata senza l’ultimo punto → il confronto con main deve fallire', () => {

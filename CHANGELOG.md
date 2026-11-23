@@ -2,6 +2,13 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-23] PERF-004: verifiche aggiuntive — Claude
+Branch `claude/perf-004-verifiche` (da `main` `913c258`), solo prove e documentazione: nessun sorgente del gioco modificato, `Reincarnation.html` invariato.
+### Aggiunto
+- `tests/verifica-perf-004.cjs`: prova dei salti ripetuti per cinque giorni (sera, sonno, salti rapidi nella giornata) con memoria stabile.
+### Verifica
+- Verifiche aggiuntive (branch `claude/perf-004-verifiche`, da `main` `913c258`, riferimento «prima» = worktree `Reincarnation-living-world` a `46afac6`, con lo stesso `urban-life.js` di prima di PERF-004): (1) **salti ripetuti per cinque giorni** con 500 residenti (sera, sonno fino alle 08:00, salti alle 12:00, 15:00 e 18:00): 60 scene identiche a `main`, 25 salti, percorsi nei fotogrammi dei salti 4 935 su `main` e 0 con PERF-004, memoria delle tratte stabile (472–477 KB per giorno); con i 95 residenti 42 scene, 240 → 0 percorsi, 86–92 KB; (2) **PERF-001** (`sonda-prestazioni-percorsi`, 3 350 tratte, 10 050 chiamate, stesse tratte salvate): percorsi identici byte per byte (SHA-256 `f85a0a12…`), `path()` media 0,77 → 0,77 ms, p95 2,01 → 2,01 ms; (3) **PERF-002** (`benchmark-npc.cjs`, due semi, due giri): pianificazione mediana invariata (95 residenti 19,9 → 19,4 ms, 250: 210,0 → 210,4 ms, 500: 1 189 → 1 179 ms), fotogramma logico peggiore invariato entro il rumore, nessun fotogramma oltre il bilancio; un residente bloccato con 500 sintetici in entrambe le versioni (già noto). `verifica-perf-004` ora 12/12.
+
 ## [2026-11-23] PERF-004: calcolo anticipato delle tratte dei residenti — Claude
 Branch `claude/perf-004` (da `main` `b9e77fa`; commit `09d039b`; portato su `main` per avanzamento rapido `b9e77fa` → `78345df` con l'autorizzazione dell'utente; sulla cartella di `main` ripetute integrazione, `verifica-perf-002` (181 scene), `verifica-perf-004` con i residenti nativi, `prova-browser` 10/10 e Velaris est 12/12). Unione simulata con `codex/urban-scale` (albero temporaneo, nessun branch creato): codice senza conflitti (solo `CHANGELOG.md` e `PROGRESS.md`); sulla build unita passano integrazione, `verifica-scala-urbana` (250 edifici), `verifica-perf-002`, `verifica-perf-004` con 500 residenti (mutazione compresa), `prova-browser-scala-urbana` con i laboratori da 25 e 250 edifici e `prova-browser`. Le modifiche locali non pubblicate di Codex (`engine.js`, `build.py`) non toccano `urban-life.js`. File: `urban-life.js`, `Reincarnation.html`, `tests/verifica-perf-004.cjs` (nuovo), `tests/banco-popolazione.cjs`, documentazione.
 ### Corretto
