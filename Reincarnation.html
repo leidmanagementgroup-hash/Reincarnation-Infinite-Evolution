@@ -15616,6 +15616,7 @@ window.Lantern = (() => {
   const charter='velaris-staff-guild';
   const profilesBySeed=new Map();
   const cached=new WeakMap();
+  const legStores=new WeakMap();
   const own=(o,k)=>o!=null&&Object.hasOwn(o,k);
   const object=v=>!!v&&typeof v==='object'&&!Array.isArray(v);
   const finite=(n,a,b)=>Number.isFinite(n)&&n>=a&&n<=b;
@@ -15722,7 +15723,11 @@ window.Lantern = (() => {
     if(!ext)return null;
     const old=cached.get(key);
     if(old?.ext===ext)return old;
-    const data={ext,routes:new Map(),places:null,near:null};
+    // PERF-004: le tratte dipendono solo dalla mappa (ext), non dalla partita: si conservano per mappa, così restano valide
+    // anche dopo un caricamento nella stessa sessione. legs: tratte in forma compatta; warm: calcolo anticipato in corso.
+    let store=legStores.get(ext);
+    if(!store){store={legs:new Map(),legDay:-1,seenDay:-1,warmed:new Set()};legStores.set(ext,store);}
+    const data={ext,routes:new Map(),places:null,near:null,store,legs:store.legs,warm:null};
     cached.set(key,data);
     return data;
   }
@@ -15942,10 +15947,36 @@ window.Lantern = (() => {
     for(let i=0;i<=steps;i++)if(!checkPathPoint(runtime,a.x+(b.x-a.x)*i/steps,a.y+(b.y-a.y)*i/steps))return false;
     return true;
   }
+  const legKey=(a,b)=>[a.x,a.y,b.x,b.y].join('/');
+  // PERF-004: una tratta calcolata si conserva come coppie x,y a doppia precisione (stessi numeri, quindi stesso risultato).
+  // Invariante: le tappe dei piani hanno coordinate intere (porte, punti del tracciato, sidestep arrotondato), quindi la
+  // memoria interna di ext.path, a chiavi arrotondate, non rende il risultato dipendente dall'ordine delle chiamate.
+  function pack(result){
+    if(!result)return null;
+    const pts=new Float64Array(result.points.length*2);
+    result.points.forEach((q,i)=>{pts[2*i]=q.x;pts[2*i+1]=q.y;});
+    return pts;
+  }
+  function unpack(pts){
+    if(!pts)return null;
+    const points=[],lengths=[0];
+    for(let i=0;i<pts.length;i+=2)points.push({x:pts[i],y:pts[i+1]});
+    for(let i=1;i<points.length;i++)lengths.push(lengths[i-1]+distance(points[i-1],points[i]));
+    return {points,lengths,sum:lengths.at(-1)};
+  }
   function route(runtime,a,b){
     if(distance(a,b)<1)return {points:[a],sum:0,lengths:[0]};
-    const key=[a.x,a.y,b.x,b.y].join('/');
+    const key=legKey(a,b);
     if(runtime.routes.has(key))return runtime.routes.get(key);
+    const kept=runtime.legs.get(key);
+    const result=kept?unpack(kept.pts):findRoute(runtime,a,b);
+    if(!kept)runtime.legs.set(key,{day:Math.max(runtime.store.legDay,runtime.store.seenDay),pts:pack(result)});
+    runtime.routes.set(key,result);
+    if(runtime.routes.size>380)runtime.routes.delete(runtime.routes.keys().next().value);
+    return result;
+  }
+  // Ricerca vera e propria (invariata): percorso della mappa, controllo di ogni tratto, lunghezze cumulative.
+  function findRoute(runtime,a,b){
     const out=runtime.ext.path?.(a,b,5);
     const given=Array.isArray(out)?out:out?.points;
     let points=given?.map(rawPoint).filter(Boolean)||[];
@@ -15957,10 +15988,54 @@ window.Lantern = (() => {
     }
     const lengths=[0];
     for(let i=1;i<points.length;i++)lengths.push(lengths[i-1]+distance(points[i-1],points[i]));
-    const result=points.length?{points,lengths,sum:lengths.at(-1)}:null;
-    runtime.routes.set(key,result);
-    if(runtime.routes.size>380)runtime.routes.delete(runtime.routes.keys().next().value);
-    return result;
+    return points.length?{points,lengths,sum:lengths.at(-1)}:null;
+  }
+  /* PERF-004: dopo un salto di tempo (sonno, uscita da un edificio, ore che passano in città) ogni residente in cammino
+     chiedeva il suo percorso nello stesso fotogramma (200 percorsi con 500 residenti). Qui, nei fotogrammi tranquilli e con un
+     limite di tempo, si calcolano in anticipo le tratte dei piani già pronti: prima quelle del giorno corrente, cominciando dai
+     residenti vicini al giocatore, poi quelle del giorno dopo appena il piano serale è completo. Stessa funzione di ricerca,
+     stessi risultati: cambia solo quando vengono calcolati. I piani non vengono mai creati qui (resta compito di PERF-002/003). */
+  const warmMs=1,warmSkips=600;
+  function warmJob(runtime,d,plans){
+    const near=runtime.near?.day===d?runtime.near.possible.map(x=>x.p.id):[];
+    const ids=[...new Set([...near,...plans.keys()])];
+    return {day:d,plans,ids,index:0,stop:1};
+  }
+  function warmRoutes(s,runtime){
+    const d=day(s);
+    const store=runtime.store,warmed=store.warmed;
+    if(store.legDay!==d){
+      // Nuovo giorno: restano solo le tratte di oggi e di domani.
+      store.legDay=d;
+      for(const [key,leg] of runtime.legs)if(leg.day<d)runtime.legs.delete(key);
+      for(const x of warmed)if(x<d)warmed.delete(x);
+      if(runtime.warm?.day<d)runtime.warm=null;
+    }
+    let job=runtime.warm;
+    if(!job||job.done){
+      if(job?.done)warmed.add(job.day);
+      if(!warmed.has(d)&&runtime.plansDay===d&&runtime.plans)job=warmJob(runtime,d,runtime.plans);
+      else if(!warmed.has(d+1)&&runtime.nextPlans?.day===d+1)job=warmJob(runtime,d+1,runtime.nextPlans.plans);
+      else{runtime.warm=null;return;}
+      runtime.warm=job;
+    }
+    const timer=window.performance,start=timer?.now();
+    for(let skips=0;job.index<job.ids.length;){
+      const plan=job.plans.get(job.ids[job.index]),list=plan?.schedule;
+      if(!list||job.stop>=list.length){job.index++;job.stop=1;continue;}
+      const a=list[job.stop-1].point,b=list[job.stop].point;job.stop++;
+      if(distance(a,b)<1)continue;
+      const key=legKey(a,b),kept=runtime.legs.get(key);
+      if(kept||runtime.routes.has(key)){
+        if(kept)kept.day=Math.max(kept.day,job.day);
+        else runtime.legs.set(key,{day:job.day,pts:pack(runtime.routes.get(key))});
+        if(++skips>=warmSkips)break;
+        continue;
+      }
+      runtime.legs.set(key,{day:job.day,pts:pack(findRoute(runtime,a,b))});
+      if(!timer||timer.now()-start>=warmMs)break;
+    }
+    if(job.index>=job.ids.length)job.done=true;
   }
 
   function direction(a,b){
@@ -15997,6 +16072,7 @@ window.Lantern = (() => {
     const runtime=useRuntime(s);
     if(!runtime)return [];
     const region=s.region,kind=interiorKind(region),now=clock(s),near=runtime.near,d=Math.floor(now/1440);
+    runtime.store.seenDay=Math.max(runtime.store.seenDay,d); // giorno delle tratte calcolate qui prima del primo calcolo anticipato
     const localMinute=((now%1440)+1440)%1440;
     const tag=kind||cityId;
     if(!near||near.tag!==tag||near.day!==d||Math.abs(near.at-now)>.6||distance(near,s.player)>98){
@@ -16076,10 +16152,12 @@ window.Lantern = (() => {
 
   function tick(s,delta,worldAccess){
     if(delta>0&&s?.urban&&present(s.region)){
-      const stamp=clock(s);
-      if(stamp%1440>=prewarmMinute){
-        const runtime=useRuntime(s);
-        if(runtime)prepareNextDay(s,runtime,stamp);
+      const stamp=clock(s),runtime=useRuntime(s);
+      if(runtime){
+        // PERF-004: tratte in anticipo, mai in un fotogramma in cui si preparano i piani (compreso quello in cui finiscono).
+        const planning=stamp%1440>=prewarmMinute&&runtime.nextPlans?.day!==Math.floor(stamp/1440)+1;
+        if(stamp%1440>=prewarmMinute)prepareNextDay(s,runtime,stamp);
+        if(!planning)warmRoutes(s,runtime);
       }
     }
     if(!s?.urban||s.urban.pulse>s.time)return [];

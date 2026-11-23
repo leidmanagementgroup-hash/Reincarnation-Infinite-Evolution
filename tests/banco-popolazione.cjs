@@ -8,7 +8,9 @@
 //     numero di fotogrammi necessari), MEZZANOTTE (cambio di giorno, 240 fotogrammi: il rinnovo dei residenti scatta ogni
 //     180 fotogrammi e gli impulsi seguono s.life.nextPulse, non il calendario);
 //   - il primo fotogramma dopo ogni salto del calendario a parte («salto di tempo»): è il costo di dormire, entrare in città
-//     dopo ore o caricare una partita, non quello del tempo che scorre;
+//     dopo ore o caricare una partita, non quello del tempo che scorre; dopo la mezzanotte due casi del gioco vero: RIENTRO
+//     (uscita dal varco, ore che passano fuori, ritorno alle 08:00) e CARICAMENTO della partita salvata (caso a freddo:
+//     piani e tratte da ricostruire, competenza di PERF-003);
 //   - il costo per fotogramma di ogni sistema (le colonne si annidano, vedi COLONNE);
 //   - memoria JS dopo una raccolta forzata (protocollo DevTools), all'inizio e alla fine, mai subito prima di un salto;
 //   - salvataggio: byte UTF-8 e durata di Game.exportSave (esclusa la scrittura in localStorage).
@@ -117,7 +119,7 @@ function setup({ population, seed }) {
   if (s.region !== 'city-velaris' || World.region !== s.region) throw new Error('Velaris non raggiunta');
   const at = exterior.plaza.point || exterior.plaza;
   Object.assign(s.player, { x: at.x, y: at.y });
-  const time = () => Calendar.timestamp(s.calendar, s.time);
+  const time = () => Calendar.timestamp(Game.s.calendar, Game.s.time);
   let base = Math.floor(time() / 1440) * 1440; if (time() > base + 590) base += 1440; // giorno in cui le 10:00 non sono passate
   const KEYS = ['cpu', 'step', 'residents', 'economy', 'society', 'conflicts', 'living', 'save', 'view', 'sites', 'actors', 'urban', 'draw', 'path', 'planner', 'rest'];
   // Una finestra: salto del calendario (se minute non è null), poi fotogrammi finché `frames` è raggiunto e, se richiesto,
@@ -126,7 +128,7 @@ function setup({ population, seed }) {
     if (minute !== null) {
       const change = base + minute - time();
       if (change < 0) throw new Error('Il calendario può solo avanzare');
-      s.calendar.offset += change;
+      Game.s.calendar.offset += change;
     }
     const nextDay = Math.floor((time() + 1) / 1440) + 1;
     let previous = null, readyAfter = null, invalid = 0;
@@ -141,12 +143,34 @@ function setup({ population, seed }) {
       row.planner = Math.max(0, bench.perf.planner - (usage.plannerPath || 0));
       row.rest = Math.max(0, f.cpu - row.step - row.view - row.actors - row.draw);
       out.push(row); previous = f.actual;
-      if (untilReady && readyAfter === null && bench.useRuntime(s)?.nextPlans?.day >= nextDay) readyAfter = i + 1;
+      if (untilReady && readyAfter === null && bench.useRuntime(Game.s)?.nextPlans?.day >= nextDay) readyAfter = i + 1;
       if (i % 30 === 0) invalid += visible.filter(q => !World.canWalk(q.x, q.y, 5)).length;
     }
     if (untilReady && readyAfter === null) throw new Error('Piano del giorno dopo non pronto in ' + max + ' fotogrammi');
     return { frames: out, readyAfter, invalid };
   };
+  // Rientro in città dopo ore: uscita dal varco, salto del calendario, ritorno dal varco (azioni vere del gioco).
+  const travel = target => {
+    for (let i = 0; i < 8 && Game.s.region !== target; i++) {
+      const gate = World.route(Game.s.region, target, Game.s.campaign.stage);
+      if (!gate) throw new Error('Percorso assente verso ' + target);
+      Object.assign(Game.s.player, { x: gate.x, y: gate.y });
+      if (!Game.action('interact')) throw new Error('Varco rifiutato: ' + gate.id);
+    }
+    if (Game.s.region !== target) throw new Error('Destinazione non raggiunta: ' + target);
+  };
+  window.__benchReenter = minute => {
+    const gate = World.route('city-velaris', 'valley', Game.s.campaign.stage);
+    Object.assign(Game.s.player, { x: gate.x, y: gate.y });
+    if (!Game.action('interact') || Game.s.region === 'city-velaris') throw new Error('Uscita da Velaris non riuscita');
+    const change = base + minute - time();
+    if (change < 0) throw new Error('Il calendario può solo avanzare');
+    Game.s.calendar.offset += change;
+    travel('city-velaris');
+    Object.assign(Game.s.player, { x: at.x, y: at.y });
+  };
+  // Caricamento della partita salvata: stato nuovo, quindi piani e tratte da ricostruire (caso a freddo, PERF-003).
+  window.__benchLoad = () => { if (!Game.save() || !Game.load()) throw new Error('Salvataggio o caricamento non riusciti'); Object.assign(Game.s.player, { x: at.x, y: at.y }); };
   window.__benchSave = () => {
     const times = [];
     let text = '';
@@ -206,12 +230,16 @@ async function scenario(browser, build, population) {
     const evening = await page.evaluate(o => window.__benchRun(o), { minute: 22 * 60 - .04, frames: FRAMES.eveningMin, untilReady: true, max: FRAMES.eveningMax });
     // Fino alle 23:59,96 il gioco continua a girare: il salto verso la mezzanotte avviene a piano già pronto.
     const midnight = await page.evaluate(o => window.__benchRun(o), { minute: 24 * 60 - .04, frames: FRAMES.midnight });
+    await page.evaluate(m => window.__benchReenter(m), 24 * 60 + 8 * 60);
+    const reenter = await page.evaluate(o => window.__benchRun(o), { minute: null, frames: 60 });
+    await page.evaluate(() => window.__benchLoad());
+    const loaded = await page.evaluate(o => window.__benchRun(o), { minute: null, frames: 60 });
     const heapEnd = await heap();
     const save = await page.evaluate(() => window.__benchSave());
     assert(midnight.frames.some(f => f.minute >= 24 * 60), 'Manca il passaggio della mezzanotte');
-    assert.equal(day.invalid + evening.invalid + midnight.invalid, 0, 'Residenti fuori dalla griglia percorribile');
+    assert.equal(day.invalid + evening.invalid + midnight.invalid + reenter.invalid + loaded.invalid, 0, 'Residenti fuori dalla griglia percorribile');
     assert.deepEqual(errors, [], errors.join(' | '));
-    return { crossOriginIsolated: env.crossOriginIsolated, day: summarize(day), evening: summarize(evening), midnight: summarize(midnight),
+    return { crossOriginIsolated: env.crossOriginIsolated, day: summarize(day), evening: summarize(evening), midnight: summarize(midnight), reenter: summarize(reenter), loaded: summarize(loaded),
       heap: { startMB: r3(heap0 / 1048576), endMB: r3(heapEnd / 1048576) }, save };
   } finally { await context.close(); }
 }
@@ -242,6 +270,8 @@ const avg = d => d ? d.mean.toFixed(3) : '—';
           `[peggiore: sim ${e.worst.step}, salvataggio ${e.worst.save}, interfaccia ${e.worst.view}, attori ${e.worst.actors}, percorsi ${e.worst.path} in ${e.worst.pathCalls}, disegno ${e.worst.draw}]\n` +
           `   MEZZANOTTE  cpu ${fmt(m.cpu)}${m.overBudget ? ' OLTRE' : ''} [peggiore: sim ${m.worst.step}, salvataggio ${m.worst.save}, attori ${m.worst.actors}, percorsi ${m.worst.path}]\n` +
           `   SALTO 10:00→21:59  cpu ${j.cpu}${j.cpu > BUDGET.max ? ' OLTRE' : ''} · percorsi ${j.path} in ${j.pathCalls} chiamate · attori ${j.actors} · interfaccia ${j.view} · disegno ${j.draw}\n` +
+          `   RIENTRO alle 08:00 del giorno dopo  cpu ${r.reenter.jump.cpu}${r.reenter.jump.cpu > BUDGET.max ? ' OLTRE' : ''} · percorsi ${r.reenter.jump.path} in ${r.reenter.jump.pathCalls} · poi p95/max ${fmt(r.reenter.cpu)}\n` +
+          `   CARICAMENTO (a freddo, PERF-003)  cpu ${r.loaded.jump.cpu}${r.loaded.jump.cpu > BUDGET.max ? ' OLTRE' : ''} · pianificatore ${r.loaded.jump.planner} · percorsi ${r.loaded.jump.path} in ${r.loaded.jump.pathCalls} · poi p95/max ${fmt(r.loaded.cpu)}\n` +
           `   memoria ${r.heap.startMB}→${r.heap.endMB} MB · salvataggio ${(r.save.bytes / 1024).toFixed(1)} KB in ${r3(r.save.p50)} ms`);
       }
     }
