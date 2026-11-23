@@ -2,6 +2,13 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-23] Living World 2.0: prove Edge di Calis, cambusa e gilda — Claude
+Branch `claude/living-world-prove-edge` (da `main` `beb8bf5`), solo prove e documentazione: nessun sorgente del gioco modificato, `Reincarnation.html` invariato.
+### Aggiunto
+- `tests/prova-browser-calis-lw.cjs` (6 passi) e `tests/prova-browser-gilda-lw.cjs` (7 passi): colmano le verifiche in Edge che mancavano nel rapporto finale.
+### Verifica
+- `prova-browser-calis-lw` 6/6: tre scambi veri a Vela (mercante Praticante senza esperienza aggiunta), viaggio fino al Porto di Calis, «Consegna il carico» al Registro dei Carichi (3 Essenza, +50 Scintille, scorta 2→5, voce commercio@calis, secondo contratto disabilitato; l'essenza, troppo cara per il borsello iniziale, arriva come preparazione dichiarata), «Erbe per la cambusa» accettata e riscossa al Registro nel quartiere del porto con 3 erbe comprate a Vela (+16 Scintille, scorta del porto 3→6, nessun secondo pagamento), ricarica della pagina. `prova-browser-gilda-lw` 7/7: «Iscriviti» alla bacheca di Vela, richiesta assente finché il fabbro non è Praticante, minerale comprato vendendo pozioni e travi, due lame forgiate con il minigioco, «Accetta» alla bacheca, due «Ripara» veri da Ivo (durabilità consumata come preparazione dichiarata), «Riscuoti» +24 Scintille e voce craft@vela, nessun doppio pagamento, ricarica della pagina. Nessun errore JavaScript.
+
 ## [2026-11-23] Living World 2.0 unita a main — Claude
 Avanzamento rapido di `main` da `96eb9be` a `8a868a1` (branch `claude/living-world-2`), su autorizzazione dell'utente. Nessun commit di unione, nessun conflitto; branch, worktree e backup conservati. `codex/urban-scale` resta non integrato: l'unione va fatta su un branch separato.
 ### Verifica

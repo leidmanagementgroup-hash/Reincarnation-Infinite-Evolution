@@ -70,7 +70,8 @@
 - [x] Integrazione su `main` (avanzamento rapido a `8a868a1`, autorizzazione dell'utente).
 - [ ] Unione con `codex/urban-scale` su un branch dedicato, quando Codex lo considera pronto.
 - Decisioni dell'utente: profilo termico della Viverna di brina (LW-SPC-01); canali a prezzo fisso (banco delle sementi, bottega della fattoria, residenti che comprano minerale); fama a buon mercato (rev-LW6-M4: che cosa conta come carenza).
-- Idee: voci che raggiungono gli abitanti di Society e Velaris; fama regionale che incide su prezzi o reputazione; prove Edge per i contratti di Calis e per gilda e cambusa.
+- Idee: voci che raggiungono gli abitanti di Society e Velaris; fama regionale che incide su prezzi o reputazione.
+- [x] Prove Edge per i contratti di Calis, la cambusa e gli attrezzi della squadra (`prova-browser-calis-lw`, `prova-browser-gilda-lw`).
 
 ## Operazione RPG Evolution (branch `claude/rpg-evolution`, piano in `RPG_EVOLUTION.md`)
 - [x] Incremento 0: rapporto, matrice, rischi, benchmark di riferimento.
