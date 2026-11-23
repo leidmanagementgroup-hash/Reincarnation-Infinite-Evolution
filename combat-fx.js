@@ -513,6 +513,7 @@
       }
     }
     if (!still && scene.player) drawGhosts(ctx, scene.player, t); else ghosts = [];
+    if (scene.player) { const m0 = mask; mask = null; comboPips(ctx, scene.player, scene.combo, t); mask = m0; }
     for (const f of live) drawLive(ctx, f, t);
     ctx.restore();
   }
@@ -524,6 +525,7 @@
       case 'arc': {
         const k = 1 - f.ttl / f.duration, r = f.r * (.77 + .23 * k), a0 = f.angle - 1.1 + k * .7, a1 = f.angle + .8 + k * .45;
         const strong = tg.strong;
+        if (f.reach) reachSector(ctx, f, P, k);
         ctx.globalAlpha = alpha * .55; ctx.strokeStyle = P.lo; ctx.lineWidth = strong ? 4.5 : 3.5;
         ctx.beginPath(); ctx.arc(x, y, r, a0, a1); ctx.stroke();
         ctx.globalAlpha = alpha; ctx.strokeStyle = tg.el === 'physical' ? f.color : P.mid; ctx.lineWidth = 2.5;
@@ -559,6 +561,33 @@
       }
     }
     ctx.globalAlpha = 1; ctx.lineWidth = 1;
+  }
+
+  // Settore reale del colpo (RPG Evolution, incremento 2): la portata e il cono che il motore usa davvero
+  // (`dx*vx+dy*vy > cone`, distanza ≤ portata, sempre a segno entro 15 px), tenue e solo nel primo istante.
+  function reachSector(ctx, f, P, k) {
+    if (k > .55) return;
+    const x = Math.round(f.x), y = Math.round(f.y + 7), half = f.cone <= -1 ? Math.PI : Math.acos(Math.max(-1, Math.min(1, f.cone)));
+    const a = (1 - k / .55) * (still ? .7 : 1), path = () => {
+      ctx.beginPath();
+      if (half >= Math.PI) ctx.arc(x, y, f.reach, 0, TAU);
+      else { ctx.moveTo(x, y); ctx.arc(x, y, f.reach, f.angle - half, f.angle + half); ctx.closePath(); }
+    };
+    ctx.save();
+    if (mask) { ctx.beginPath(); ctx.rect(x - f.reach - 4, y - f.reach - 4, f.reach * 2 + 8, f.reach * 2 + 8); ctx.rect(mask.l, mask.t, mask.r - mask.l, mask.b - mask.t); ctx.clip('evenodd'); }
+    path(); ctx.globalAlpha = a * .13; ctx.fillStyle = P.mid; ctx.fill();
+    ctx.globalAlpha = a * .45; ctx.strokeStyle = P.hi; ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+  }
+  // Tacche della combo: tre punti ai piedi del personaggio; pieni i colpi già messi a segno, il terzo pulsa quando è il colpo forte.
+  function comboPips(ctx, p, combo, t) {
+    if (!combo || combo.stage <= 0 || combo.left <= 0) return;
+    const fade = Math.min(1, combo.left / .35), x0 = Math.round(p.x) - 7, y = Math.round(p.y) + 4;
+    for (let i = 0; i < 3; i++) {
+      const on = i < combo.stage, next = i === combo.stage && combo.stage === 2, x = x0 + i * 6;
+      fill(ctx, x - 1, y - 1, 4, 4, '#1d2129', fade * .7);
+      fill(ctx, x, y, 2, 2, on ? '#ffd88d' : next ? (still || Math.sin(t * 12) > 0 ? '#fff3c4' : '#a8844a') : '#4a4236', fade);
+    }
   }
 
   // Proiettile con la forma del suo elemento. I proiettili nemici hanno un bordo scuro: restano leggibili.

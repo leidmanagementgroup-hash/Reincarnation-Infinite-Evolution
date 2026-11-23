@@ -273,7 +273,9 @@
     if(equippedSlot>=0&&!p.slots.includes(form.skill))p.slots[equippedSlot]=form.skill;
     p.hp=stats().hpMax;p.mp=stats().mpMax;
     ring(p.x,p.y,60,'#eec482',null);spark(p.x,p.y,'#ffd5e8',32,null);fx('evolve',{x:p.x,y:p.y,race:p.race});
-    emit('sound','evolve');announce(['Evoluzione · '+form.name,...(notes||[])]);
+    // La tecnica della nuova forma viene nominata con il suo tasto (prima era appresa e assegnata in silenzio).
+    const slotNow=p.slots.indexOf(form.skill),learned='Nuova tecnica · '+skills[form.skill].name+(slotNow>=0?' · tasto '+(slotNow+1):' · assegnala con K');
+    emit('sound','evolve');announce(['Evoluzione · '+form.name,learned,...(notes||[])]);
     return true;
   }
   function npcPoint(id){
@@ -372,7 +374,8 @@
     const p=s.player,r=raceBook[p.race],m=s.monsters.find(m=>m.hp>0&&m.engaged&&codex[m.type].boss);
     const location=UrbanWorld.location(s)||(World.landmarks?.length?World.landmarks.reduce((a,b)=>distance(a,p)<distance(b,p)?a:b).name:'Borgo di Vela');
     const calendar=Calendar.view(s.calendar,s.time,s.region);
-    const next=detailed?evolution():null, campaignStage=s.campaign.stage;
+    // `waiting`: requisiti completi ma un boss è ingaggiato, quindi l'evoluzione avverrà a fine scontro (tryEvolution).
+    const plan=detailed?evolution():null,next=plan&&{...plan,waiting:plan.ready&&s.monsters.some(m=>m.hp>0&&m.engaged&&codex[m.type].boss)},campaignStage=s.campaign.stage;
     return {...stats(),race:r,formName:formFor(p)?.name||r.name,objective:objective(),
       region:s.region,regionName:regionInfo(s.region)?.name||'Valle di Lùmora',campaignTitle:chapterNames[campaignStage],campaignStage,
       evolution:next, growth:detailed?Growth.view(p.growth,r,calendar.ageDays*480):{innate:Growth.innate(p.growth)},
@@ -415,6 +418,8 @@
     if(p.race==='vampire')p.hp=Math.min(stats().hpMax,p.hp+5);
     if(p.race==='secret')p.mp=Math.min(stats().mpMax,p.mp+4);
     if(m.type==='boss'){s.bossDefeated=true;p.inventory.crown=1;shots=shots.filter(b=>!b.hostile);}
+    // Boss leggendari senza oggetto (Nadir, Nerav): i loro colpi e le aree non feriscono più dopo la vittoria, come per gli altri boss.
+    if(def.boss&&def.legendary&&!def.item){shots=shots.filter(b=>!b.hostile);hazards=[];}
     if(def.item){
       p.inventory[def.item]=1;
       if(s.campaign.stage===def.stage)s.campaign.stage++;
@@ -521,7 +526,7 @@
     const p=s.player, near=nearest(p,reach),current=dirVectors[p.dir];
     if(near && (distance(p,near)<21 || (near.x-p.x)*current[0]+(near.y-p.y)*current[1]>-4))p.dir=heading(near.x-p.x,near.y-p.y);
     const [vx,vy]=dirVectors[p.dir],angle=Math.atan2(vy,vx);
-    effects.push({kind:'arc',x:p.x,y:p.y-7,angle,r:reach*.86,ttl:.21,duration:.21,color,tag:fxTag});
+    effects.push({kind:'arc',x:p.x,y:p.y-7,angle,r:reach*.86,ttl:.21,duration:.21,color,tag:fxTag,reach,cone:width});
     let hits=0,boss=false;
     for(const m of s.monsters){
       if(!targetable(m)||distance(p,m)>reach+(codex[m.type].boss?9:0))continue;
@@ -887,20 +892,38 @@
   const patternDistance={stomp:45,hammer:53,nova:83,'nadir-prism':118,'heir-spore':104};
   const patternWind={dash:.65,hammer:.88,slag:.84,forge:.78,shards:.65,shatter:.79,nova:1.1,sigil:.91,constellation:.93,'nadir-prism':1.18,'heir-spore':.86};
   const reactionLines={counter:'Prepara un contrattacco',sidestep:'Cerca spazio per schivare','break-line':'Cambia posizione'};
+  // Perché il nemico reagisce e come rispondere (RPG Evolution, incremento 4): prima si leggeva solo che cosa faceva.
+  const reactionCause={counter:['ha letto i tuoi colpi ravvicinati','esci dal cerchio o cambia ritmo'],sidestep:['ha letto i tuoi colpi a distanza','alterna tecniche e attacchi'],'break-line':['ha letto le tue tecniche ad area','cambia posizione o tecnica']};
   const phaseCooldown=(m,def)=>def.boss?(m.phase===3?.84:m.phase===2?.99:1.44):(def.behavior==='caster'||m.type==='moth'?2:1.25);
+  // Direzioni di ventagli e raffiche, usate sia dal lancio sia dall'avviso (RPG Evolution, incremento 4): stesse formule di prima.
+  const fanAngles=(m,count,spread,start=0)=>{const angle=Math.atan2(m.aimY,m.aimX)+start;return Array.from({length:count},(_,i)=>angle+(i/(count-1)-.5)*spread);};
+  const spreadAngles=(m,count,offset=0)=>Array.from({length:count},(_,i)=>Math.PI*2*i/count+Math.atan2(m.aimY,m.aimX)+offset);
   function fanEnemy(m,count,spread,speed,color,damage,start=0){
-    const angle=Math.atan2(m.aimY,m.aimX)+start;
-    for(let i=0;i<count;i++){
-      const a=angle+(i/(count-1)-.5)*spread;
-      launch(m.x,m.y,[Math.cos(a),Math.sin(a)],'spark',damage,color,true,speed);
-    }
+    for(const a of fanAngles(m,count,spread,start))launch(m.x,m.y,[Math.cos(a),Math.sin(a)],'spark',damage,color,true,speed);
   }
   function spreadEnemy(m,count,speed,color,damage,offset=0){
-    for(let i=0;i<count;i++){
-      const a=Math.PI*2*i/count+Math.atan2(m.aimY,m.aimX)+offset;
-      launch(m.x,m.y,[Math.cos(a),Math.sin(a)],'root',damage,color,true,speed);
-    }
+    for(const a of spreadAngles(m,count,offset))launch(m.x,m.y,[Math.cos(a),Math.sin(a)],'root',damage,color,true,speed);
   }
+  // Proiettili che partiranno a fine preavviso, per pattern (stessi numeri di burstEnemy; controllati da verifica-avvisi.cjs).
+  function volleyAngles(m){
+    switch(m.pattern){
+      case 'roots':return spreadAngles(m,m.phase===2?11:7);
+      case 'shatter':return spreadAngles(m,m.phase===2?14:9);
+      case 'constellation':return [...spreadAngles(m,m.phase===3?17:12,.17),...(m.phase>1?fanAngles(m,5,1.1,.04):[])];
+      case 'shards':return fanAngles(m,m.phase===2?7:5,1.22);
+      case 'forge':return fanAngles(m,7,Math.PI*.81);
+      case 'nadir-prism':return fanAngles(m,m.phase===3?7:5,1.22);
+      case 'shot':return m.type==='shardling'?fanAngles(m,3,.5):[Math.atan2(m.aimY,m.aimX)];
+    }
+    return null;
+  }
+  // Misure degli attacchi dei mostri usate sia dal colpo sia dal suo avviso (RPG Evolution, incremento 2): stessi valori di prima.
+  const stompRadius=(m,def)=>def.boss?(m.phase===2?55:44):m.type==='crystalguard'?36:25;
+  const hammerRadius=m=>m.phase===2?63:51;
+  const dashTime=def=>def.boss?.42:.32;
+  const dashSpeedOf=m=>m.type==='syrava'?231:m.type==='shade'?211:172;
+  const dashReach=def=>def.boss?22:15;
+  let stepDt=1/60; // ultimo passo del motore, solo per disegnare la corsia della carica (non salvato)
   function hazard(x,y,r,duration,damage,color){
     hazards.push({x,y,r,ttl:duration,damage,color,tag:fxTag});
   }
@@ -920,16 +943,16 @@
         if(m.type==='shardling')fanEnemy(m,3,.5,106,'#9cf3ff',damage);
         else launch(m.x,m.y,[m.aimX,m.aimY],'dust',damage,m.type==='ember'?'#ffbd7c':color,true);
         break;
-      case 'dash':m.dash=def.boss?.42:.32;break;
+      case 'dash':m.dash=dashTime(def);break;
       case 'roots':{
         spreadEnemy(m,m.phase===2?11:7,88,color,damage);
         ring(m.x,m.y,42,color);break;}
       case 'stomp':{
-        const radius=def.boss?(m.phase===2?55:44):m.type==='crystalguard'?36:25;
+        const radius=stompRadius(m,def);
         ring(m.x,m.y,radius,color);if(distance(m,p)<radius+5)hurtPlayer(damage);
         break;}
       case 'hammer':{
-        const r=m.phase===2?63:51;
+        const r=hammerRadius(m);
         ring(m.x,m.y,r,color);spark(m.x,m.y,color,21);
         if(distance(m,p)<r+4)hurtPlayer(damage+6);
         break;}
@@ -1017,12 +1040,15 @@
     m.moving=false;
     if(!unlocked(m))return;
     const homeDist=Math.hypot(p.x-m.homeX,p.y-m.homeY),leash=boss?183:150;
-    if(m.engaged && homeDist>leash+48){m.engaged=false;m.wind=0;m.dash=0;Adaptive.clearGuard(s,m);if(boss){m.hp=m.maxHp;m.phase=1;m.cycle=0;m.grace=0;}}
+    if(m.engaged && homeDist>leash+48){m.engaged=false;m.wind=0;m.dash=0;Adaptive.clearGuard(s,m);if(boss){
+      // Prima il boss tornava a vita piena senza dirlo (RPG Evolution, incremento 4).
+      if(m.hp<m.maxHp||m.phase>1)emit('toast',def.name+' torna al suo posto e recupera le forze: lo scontro ricomincia.');
+      m.hp=m.maxHp;m.phase=1;m.cycle=0;m.grace=0;}}
     if(!m.engaged && d<(boss?112:80) && homeDist<leash){m.engaged=true;Adaptive.encounter(s,m);if(boss){emit('sound','boss');emit('toast',def.name);}}
     if(m.dash>0){
-      const dashSpeed=m.type==='syrava'?231:m.type==='shade'?211:172;
+      const dashSpeed=dashSpeedOf(m);
       m.dash=Math.max(0,m.dash-dt);m.moving=move(m,m.aimX*dashSpeed*dt,m.aimY*dashSpeed*dt,boss?7:5);
-      if(distance(m,p)<(boss?22:15)){fxTag=fxOf({monster:m.type});hurtPlayer(def.damage+2);fxTag=null;}
+      if(distance(m,p)<dashReach(def)){fxTag=fxOf({monster:m.type});hurtPlayer(def.damage+2);fxTag=null;}
       return;
     }
     if(m.wind>0){m.wind=Math.max(0,m.wind-dt);if(!m.wind)burstEnemy(m);return;}
@@ -1038,7 +1064,8 @@
     m.dir=heading(x,y);
     if(m.cd<=0){
       const response=Adaptive.response(s,m,d);
-      if(response){beginWind(m,response,response==='counter'?.66:.5,x,y);label(m.x,m.y,reactionLines[response],def.color||'#f4cca0');return;}
+      if(response){beginWind(m,response,response==='counter'?.66:.5,x,y);label(m.x,m.y,reactionLines[response],def.color||'#f4cca0');
+        const [why,tip]=reactionCause[response];emit('toast',def.name+' '+why+' · '+tip+'.');return;}
     }
     if(boss){
       const patterns=bossPatterns[m.type][m.phase-1], next=patterns[m.cycle%patterns.length];
@@ -1081,7 +1108,7 @@
   }
   function step(delta,input={},elapsed=delta){
     if(!s || !Number.isFinite(delta)||delta<=0)return;
-    const dt=Math.min(.1,delta),p=s.player,epoch=worldEpoch;
+    const dt=Math.min(.1,delta),p=s.player,epoch=worldEpoch;stepDt=dt;
     s.time+=dt;Calendar.advance(s.calendar,elapsed-dt);combat=Math.max(0,combat-dt);autosave+=dt;
     for(const id of Object.keys(p.cooldowns))p.cooldowns[id]=Math.max(0,p.cooldowns[id]-dt);
     for(const f of ['invul','hit','swing','wardTime'])p[f]=Math.max(0,p[f]-dt);
@@ -1147,6 +1174,9 @@
     if(tickGrowth>=.35){tickGrowth=0;if(tryEvolution())keep();}
     if(autosave>=12){save();autosave=0;}
   }
+  // Marcatori fermi con effetti ridotti o prefers-reduced-motion (RPG Evolution, incremento 5).
+  let motionQuery;
+  function stillMarks(){try{motionQuery??=window.matchMedia?.('(prefers-reduced-motion: reduce)')||null;}catch{motionQuery=null;}return window.UI?.effects===false||!!motionQuery?.matches;}
   function diamond(ctx,x,y,color){
     ctx.fillStyle='#202d32';ctx.fillRect(x-2,y-3,5,7);ctx.fillRect(x-3,y-1,7,3);
     ctx.fillStyle=color;ctx.fillRect(x-1,y-2,3,5);ctx.fillRect(x-2,y-1,5,3);ctx.fillStyle='#ffeed2';ctx.fillRect(x,y-1,1,2);
@@ -1170,7 +1200,7 @@
       if(!point)continue;
       sprite(id,point,{},(ctx,x,y)=>{
         if(id==='elder'&&(s.quest===0||s.quest===3||s.campaign.stage===4)||id==='smith'&&(s.sideQuest===0||s.sideQuest===1&&p.inventory.herb>=3))
-          diamond(ctx,Math.round(x),Math.round(y-30+Math.sin(t*2)),id==='elder'?'#edbd65':'#b7e4cf');
+          diamond(ctx,Math.round(x),Math.round(y-30+(stillMarks()?0:Math.sin(t*2))),id==='elder'?'#edbd65':'#b7e4cf');
       });
     }
     for(const m of s.monsters){
@@ -1211,6 +1241,38 @@
     if(filled){ctx.fillStyle=color;ctx.fill();}
     else{ctx.strokeStyle=color;ctx.stroke();}
   }
+  function volleyLanes(ctx,m,color,progress){
+    const angles=volleyAngles(m);if(!angles)return;
+    ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1;ctx.setLineDash([4,3]);
+    for(const a of angles){
+      const c=Math.cos(a),d=Math.sin(a),x0=m.x+c*14,y0=m.y-7+d*14,x1=m.x+c*(30+42*progress),y1=m.y-7+d*(30+42*progress);
+      ctx.globalAlpha=.85;ctx.strokeStyle='#1d2129';ctx.beginPath();ctx.moveTo(x0+1,y0+1);ctx.lineTo(x1+1,y1+1);ctx.stroke();
+      ctx.strokeStyle=color;ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+      ctx.setLineDash([]);ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x1+c*4,y1+d*4);ctx.lineTo(x1-d*2.5,y1+c*2.5);ctx.lineTo(x1+d*2.5,y1-c*2.5);ctx.closePath();ctx.fill();ctx.setLineDash([4,3]);
+    }
+    ctx.restore();
+  }
+  function moveHint(ctx,m,color,progress){
+    const sides=m.pattern==='sidestep'?[[m.aimY,-m.aimX],[-m.aimY,m.aimX]]:[[-m.aimX,-m.aimY]];
+    ctx.save();ctx.globalAlpha=.5+.4*progress;ctx.strokeStyle=color;ctx.lineWidth=2;
+    for(const [x,y] of sides){const bx=m.x+x*18,by=m.y-6+y*18;ctx.beginPath();ctx.moveTo(bx-y*5-x*4,by+x*5-y*4);ctx.lineTo(bx,by);ctx.lineTo(bx+y*5-x*4,by-x*5-y*4);ctx.stroke();}
+    ctx.restore();
+  }
+  // Guardia adattiva (colpi ravvicinati ×0,84 per 1,9 s): prima invisibile.
+  function guardHint(ctx,m,left){
+    ctx.save();ctx.globalAlpha=Math.min(1,left*2)*.85;ctx.strokeStyle='#bfe3ff';ctx.lineWidth=2;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.ellipse(m.x,m.y-12,20,24,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#bfe3ff';ctx.fillRect(Math.round(m.x)-3,Math.round(m.y)-40,7,2);ctx.fillRect(Math.round(m.x)-3,Math.round(m.y)-40,2,6);ctx.fillRect(Math.round(m.x)+2,Math.round(m.y)-40,2,6);ctx.fillRect(Math.round(m.x)-1,Math.round(m.y)-35,3,2);
+    ctx.restore();
+  }
+  function dashLane(ctx,m,len,r,color,progress){
+    ctx.save();ctx.translate(m.x,m.y);ctx.rotate(Math.atan2(m.aimY,m.aimX));
+    // Capsula completa: il contatto è un cerchio di raggio r attorno al mostro lungo tutta la corsa, anche dietro il punto di partenza.
+    ctx.globalAlpha=.10+.12*progress;ctx.fillStyle=color;ctx.beginPath();ctx.arc(len,0,r,-Math.PI/2,Math.PI/2);ctx.arc(0,0,r,Math.PI/2,Math.PI*1.5);ctx.closePath();ctx.fill();
+    ctx.globalAlpha=.8;ctx.strokeStyle=color;ctx.beginPath();ctx.arc(len,0,r,-Math.PI/2,Math.PI/2);ctx.arc(0,0,r,Math.PI/2,Math.PI*1.5);ctx.closePath();ctx.stroke();
+    ctx.globalAlpha=.28;ctx.fillRect(0,-r,len*progress,r*2);
+    ctx.restore();
+  }
   function warnCircle(ctx,x,y,r,color,progress){
     ctx.globalAlpha=.10+.15*progress;groundCircle(ctx,x,y,r,color,true);
     ctx.globalAlpha=.8;groundCircle(ctx,x,y,r,color,false);
@@ -1232,7 +1294,7 @@
   }
   function drawFX(ctx){
     if(!s)return;
-    const art=window.CombatFX,scene=art?{t:s.time,region:s.region,player:s.player,monsters:s.monsters,hazards,codex}:null;
+    const art=window.CombatFX,scene=art?{t:s.time,region:s.region,player:s.player,monsters:s.monsters,hazards,codex,combo:{stage:combo,left:Math.max(0,comboUntil-s.time)}}:null;
     ctx.save();ctx.lineWidth=1;
     // Decorazioni del combattimento (aure, impatti, archi, anelli, scintille) sotto avvisi di pericolo, proiettili
     // e numeri: restano leggibili anche negli scontri affollati (combat-fx.js, solo disegno).
@@ -1240,8 +1302,9 @@
     for(const f of effects){if(f.kind==='label')continue;if(art&&f.tag)art.effect(ctx,f,scene);else drawEffect(ctx,f);}
     ctx.globalAlpha=1;ctx.lineWidth=1;
     for(const m of s.monsters){
+      if(m.hp>0){const left=Adaptive.guardLeft?.(s,m)||0;if(left>0)guardHint(ctx,m,left);}
       if(m.hp<=0||!m.wind)continue;
-      const pattern=m.pattern,progress=1-m.wind/m.windDuration,color=codex[m.type].color||(m.phase===2?'#ff9db9':'#ffbf75');
+      const def=codex[m.type],pattern=m.pattern,progress=1-m.wind/m.windDuration,color=def.color||(m.phase===2?'#ff9db9':'#ffbf75');
       if(pattern==='slag'){
         warnCircle(ctx,m.targetX,m.targetY,24,color,progress);
         if(m.phase===2){
@@ -1250,12 +1313,24 @@
         }
         continue;
       }
-      if(pattern==='hammer'){warnCircle(ctx,m.x,m.y,m.phase===2?63:51,color,progress);continue;}
-      if(pattern==='counter'){warnCircle(ctx,m.x,m.y,40,color,progress);continue;}
+      // L'area disegnata è quella che colpisce (prima il maglio e il contrattacco erano più piccoli di 3-4 px).
+      if(pattern==='hammer'){warnCircle(ctx,m.x,m.y,hammerRadius(m)+4,color,progress);continue;}
+      if(pattern==='counter'){warnCircle(ctx,m.x,m.y,43,color,progress);continue;}
+      // Pestone: prima un'ellisse più piccola del colpo (e per i boss diversi da Orveth il raggio dei mostri normali).
+      if(pattern==='stomp'){warnCircle(ctx,m.x,m.y,stompRadius(m,def)+5,color,progress);continue;}
+      // Carica: corsia lunga quanto la corsa reale (durata × velocità) e larga quanto il raggio del contatto.
+      // La corsa avanza a passi interi del passo reale (stepDt): dura ceil(durata/passo) passi, quindi a pochi fotogrammi
+      // al secondo va più lontano della durata nominale; la corsia segue il passo corrente.
+      if(pattern==='dash'){dashLane(ctx,m,Math.ceil(dashTime(def)/stepDt-1e-6)*stepDt*dashSpeedOf(m),dashReach(def),color,progress);continue;}
       if(pattern==='nadir-prism'){
         for(const side of [-1,1])warnCircle(ctx,m.targetX+side*m.aimY*28,m.targetY-side*m.aimX*28,m.phase===3?22:17,color,progress);
+        volleyLanes(ctx,m,color,progress);
         continue;
       }
+      // Raffiche e ventagli: una corsia per proiettile, nelle direzioni in cui partiranno (prima un anellino uguale per tutti).
+      if(volleyAngles(m)){ctx.globalAlpha=.55;circle(ctx,m.x,m.y,12,color);volleyLanes(ctx,m,color,progress);continue;}
+      // Riposizionamenti (nessun danno): frecce laterali o all'indietro.
+      if(pattern==='sidestep'||pattern==='break-line'){moveHint(ctx,m,color,progress);continue;}
       if(pattern==='heir-spore'){
         for(let i=0;i<3;i++)warnCircle(ctx,m.targetX+m.aimX*(i-1)*28,m.targetY+m.aimY*(i-1)*28,19,color,progress);
         continue;
@@ -1277,9 +1352,10 @@
         ctx.strokeRect(m.targetX-width,m.targetY-len,width*2,len*2);
         continue;
       }
-      const r=pattern==='stomp'?(m.type==='boss'?(m.phase===2?55:44):m.type==='crystalguard'?36:25):12;
+      // Altri attacchi (tiro, frantumi, forgia, radici, riposizionamenti): anellino e direzione; stomp e dash escono prima.
+      const r=12;
       ctx.globalAlpha=.55;circle(ctx,m.x,m.y,r,color);
-      if(pattern==='shot'||pattern==='dash'||pattern==='shards'||pattern==='forge'){
+      if(pattern==='shot'||pattern==='shards'||pattern==='forge'){
         const length=m.type==='syrava'?105:55;
         ctx.setLineDash([3,3]);ctx.strokeStyle=color;ctx.beginPath();ctx.moveTo(m.x,m.y-4);
         ctx.lineTo(m.x+m.aimX*length,m.y-4+m.aimY*length);ctx.stroke();ctx.setLineDash([]);

@@ -4,6 +4,10 @@
 //   PW_CORE = percorso di playwright-core installato fuori dal progetto (vedi tests/prova-browser.cjs); PW_HEADED=1 per vedere la finestra.
 // Il personaggio cammina con i comandi di movimento del motore (Game.step), lungo il percorso calcolato dalla città: niente teletrasporto
 // dentro Velaris. Fra la valle e la città si usano i varchi come nelle altre prove.
+// RISK-011 (2026-11-22): la prova falliva circa una volta su dodici perché ogni partita nasceva con un seme casuale mentre la
+// meta degli Orti era una coordinata fissa (2516,1260): con il 7,5% dei semi lì sorge un edificio e non esiste alcun percorso.
+// Ora la partita ha un seme fisso (SEED, predefinito 19425) e le mete sono le soste della città (`arcades-court`,
+// `orchards-court`), percorribili e collegate con ogni seme (verificato su 200 semi). Tempi d'attesa invariati, nessuna ripetizione.
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const { chromium } = require(process.env.PW_CORE || 'playwright-core');
@@ -11,6 +15,9 @@ const { chromium } = require(process.env.PW_CORE || 'playwright-core');
 const fileUrl = p => 'file:///' + path.resolve(p).replace(/\\/g, '/');
 const html = process.argv[2] || path.join(__dirname, '..', 'Reincarnation.html');
 const older = process.argv[3] || null;
+const SEED = Number(process.env.SEED || 19425) >>> 0;
+// Partita nuova con il seme della prova (il secondo numero casuale, la stirpe, resta quello del browser).
+const seededNewGame = seed => { const r0 = Math.random; let n = 0; Math.random = () => n++ === 0 ? seed / 4294967296 : r0(); try { Game.newGame(); } finally { Math.random = r0; } if (window.UI?.panel) UI.close(); };
 const results = [];
 const step = async (name, fn) => {
   try { const note = await fn(); results.push(['OK', name]); console.log('OK   ' + name + (note ? ' — ' + note : '')); }
@@ -19,6 +26,8 @@ const step = async (name, fn) => {
 
 // Funzioni eseguite nella pagina.
 const pageHelpers = () => {
+  // Soste della città con nome: le mete dei cammini vengono dalla pianta generata, non da coordinate scritte a mano.
+  window.__stop = id => UrbanWorld.exterior(Game.s.seed).waypoints.find(w => w.id === id);
   window.__toCity = () => {
     const s = Game.s;
     for (const id of ['ancient-valley', 'verdant-canopy', 'city-velaris']) {
@@ -64,13 +73,13 @@ const pageHelpers = () => {
       await page.click('#playBtn');
       const resume = page.locator('#dialog button[data-do="resume"]').first();
       if (await resume.isVisible().catch(() => false) || await resume.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false)) await resume.click();
-      await wait(500); await page.evaluate(pageHelpers);
+      await wait(500); await page.evaluate(seededNewGame, SEED); await page.evaluate(pageHelpers);
     };
 
     if (older) await step('Vecchio salvataggio: creato con la build precedente', async () => {
       await page.goto(fileUrl(older)); await wait(600);
       await page.click('#playBtn'); await wait(600);
-      await page.evaluate(() => { Game.newGame(); });
+      await page.evaluate(seededNewGame, SEED);
       await page.evaluate(pageHelpers);
       const saved = await page.evaluate(() => {
         if (!__toCity()) return null;
@@ -96,11 +105,11 @@ const pageHelpers = () => {
       assert.match(text, /Cittadina di Velaris/); assert.match(text, /Portici del Vetro/); assert.match(text, /Orti dell.Alambicco/);
     });
     await step('A piedi fino ai Portici del Vetro (Corte dei Soffiatori)', async () => {
-      const r = await page.evaluate(() => __walk({ x: 2460, y: 520 }));
+      const r = await page.evaluate(() => __walk(__stop('arcades-court')));
       assert(r.ok, JSON.stringify(r)); assert.equal(r.district, 'Portici del Vetro'); return r.seconds + ' s di cammino, blocchi ' + r.stuck;
     });
     await step('A piedi fino agli Orti dell\'Alambicco (Piazzetta delle Radici)', async () => {
-      const r = await page.evaluate(() => __walk({ x: 2516, y: 1260 }));
+      const r = await page.evaluate(() => __walk(__stop('orchards-court')));
       assert(r.ok, JSON.stringify(r)); assert.equal(r.district, 'Orti dell’Alambicco'); return r.seconds + ' s di cammino, blocchi ' + r.stuck;
     });
     await step('A piedi fino alla porta della Serra e ingresso', async () => {
@@ -166,7 +175,7 @@ const pageHelpers = () => {
       assert(r.ok, 'importazione'); assert.equal(r.region, global.__oldSave.region);
       assert.equal(r.x, global.__oldSave.x); assert.equal(r.y, global.__oldSave.y); assert.equal(r.ore, global.__oldSave.ore);
       assert.equal(r.seedbed, -1, 'aiuola vuota per i salvataggi precedenti'); assert(r.walkable, 'posizione ancora percorribile');
-      const after = await page.evaluate(() => __walk({ x: 2460, y: 520 }));
+      const after = await page.evaluate(() => __walk(__stop('arcades-court')));
       assert(after.ok, 'dal vecchio confine ai Portici: ' + JSON.stringify(after));
       return 'posizione, inventario e regione conservati';
     });

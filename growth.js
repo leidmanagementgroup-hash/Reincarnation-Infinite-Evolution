@@ -404,7 +404,8 @@
     return {stage,level,essence,condition,ready:stage<2&&levelReady&&essenceReady&&conditionReady,
       levelReady,essenceReady,conditionReady,branch,reason,memory,mutation:findMutation(g),
       influences:ranking.slice(0,3).map(h=>({name:h.label,description:h.detail})),
-      progress:{fights,work,profession:profession?vocation:null}};
+      // Contatori per le soglie mostrate nel pannello V (sola lettura: le regole sopra non cambiano).
+      progress:{fights,work,profession:profession?vocation:null,peak:Math.max(0,...(life?.professions||[]).map(row=>row.level||0)),story,mix:fights+work*.65,levelThree:p.level>2}};
   }
   function transform(g,plan){
     const next=plan.stage+1;

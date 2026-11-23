@@ -28,7 +28,7 @@
     $('#dialog').dataset.page=page;
     top.textContent=titles[page]||'Lùmora';kicker.textContent=playing?(v.campaignTitle||'Le radici di Lùmora'):'Reincarnation · Infinite Evolution';
     if(tabSet.some(([id])=>id===page)){
-      tabs.innerHTML=tabSet.map(([id,label])=>'<button data-do="'+id+'" class="'+(page===id?'active':'')+'">'+label+'</button>').join('');
+      tabs.innerHTML=tabSet.map(([id,label])=>'<button data-do="'+id+'" class="'+(page===id?'active':'')+'"'+(page===id?' aria-current="page"':'')+'>'+label+'</button>').join('');
     }
     switch(page){
       case 'confirmNew':html='<p>Il gioco estrarrà specie, predisposizioni e abilità innata per la nuova vita. La nuova incarnazione prenderà il posto della partita salvata su questo browser.</p>'+actions(btn('Conserva la partita','close'),btn('Nuova incarnazione','confirmNew','primary'));break;
@@ -313,12 +313,21 @@
     if(!mutation)return '';
     return row(mutation.name||'Mutazione',mutation.description||mutation.reason||'Una traccia rara maturata durante il viaggio.','<span class="gateStatus open">Mutazione</span>');
   }
+  // Soglie dell'innata (stesse di growth.js): ramo a 5 utilizzi efficaci, maestria ogni 4, risonanza dai 15 con i talenti in armonia.
+  function innateSteps(a){
+    const uses=Number(a.uses)||0,parts=[uses+' utilizzi efficaci'];
+    parts.push(a.branch?'ramo manifestato':'ramo a 5 utilizzi ('+Math.min(uses,5)+' / 5), orientato da come la usi');
+    if((a.level||1)<5)parts.push('maestria '+((a.level||1)+1)+' a '+4*(a.level||1)+' utilizzi');
+    else parts.push('maestria massima');
+    parts.push(a.resonance?'in risonanza':a.branch?'risonanza dai 15 utilizzi ('+Math.min(uses,15)+' / 15) quando i talenti sono in armonia':'risonanza dopo il ramo');
+    return parts.join(' · ')+'.';
+  }
   function innatePanel(innate,details){
     if(!innate)return '';
     const summary=[innate.description,innate.rarity,'Livello '+innate.level].filter(Boolean).join(' · ')+
       (details?' · '+innate.cost+' mana · '+Number(innate.cooldown).toLocaleString('it')+' s di ricarica'+(innate.power?' · Intensità ×'+Number(innate.power).toLocaleString('it',{maximumFractionDigits:2}):''):'');
     return h('Abilità innata')+row(innate.name,summary,'<kbd>R</kbd>',icon(innate.icon||'core'))+
-      (details?'<p class="caption">'+esc(innate.uses)+' utilizzi. La pratica orienta il ramo dell’innata.</p>':
+      (details?'<p class="caption">'+esc(innateSteps(innate))+'</p>':
         '')+(details?(innate.branches||[]).map(b=>row(b.name,[b.description,b.hint].filter(Boolean).join(' '),'<span class="gateStatus '+(b.id===innate.branch?'open':'')+'">'+(b.id===innate.branch?'Manifestata':'Possibile')+'</span>')).join(''):'');
   }
   function stationList(life,p){
@@ -526,6 +535,22 @@
       return row(g.label||to,open?'Verso '+to+' · avvicinati e premi E.':'Verso '+to+' · avanza nella missione principale.','<span class="gateStatus '+(open?'open':'')+'">'+(open?'Aperto':'Chiuso')+'</span>');
     }).join('');
   }
+  // Avanzamento per ciascuna via della condizione (RPG Evolution, incremento 3): basta una via; le soglie sono quelle di growth.js.
+  function conditionPaths(evo){
+    const g=evo.progress;if(!g||evo.conditionReady)return '';
+    const way=(done,txt)=>'<li class="'+(done?'met':'')+'"><span aria-hidden="true">'+(done?'✓':'·')+'</span>'+esc(txt)+'</li>';
+    const n=x=>Math.floor(x);
+    const ways=evo.stage===0?[
+      way(g.fights>=3,'Scontri vinti '+Math.min(g.fights,3)+' / 3'),
+      way(g.work>=5,'Pratiche di mestiere '+Math.min(n(g.work),5)+' / 5'),
+      way(g.mix>=3&&g.levelThree,'Le due vie insieme '+Math.min(n(g.mix*10)/10,3).toLocaleString('it')+' / 3'+(g.levelThree?'':' (dal livello 3)'))
+    ]:[
+      way(g.story,'Kharun sconfitto'),
+      way(g.peak>=4,'Un mestiere al grado 4 · migliore grado '+(g.peak||0)),
+      way(g.work>=32,'Pratiche di mestiere '+Math.min(n(g.work),32)+' / 32')
+    ];
+    return '<p class="caption">Basta una di queste vie:</p><ul class="evoPaths">'+ways.join('')+'</ul>';
+  }
   function evolutionChecklist(evo,p){
     if(!evo)return '';
     if(evo.stage>=2)return '<p class="caption">Hai raggiunto la forma finale di questa stirpe.</p>';
@@ -534,7 +559,7 @@
       requirement(evo.levelReady??p.level>=evo.level,'Livello '+evo.level+' · attuale '+p.level)+
       requirement(evo.essenceReady??p.inventory.essence>=evo.essence,'Essenze '+p.inventory.essence+' / '+evo.essence)+
       (evo.condition?requirement(evo.conditionReady,evo.condition):'')+
-      '</ul>'+(evo.influences?.length?'<p class="caption">Influenze recenti · '+evo.influences.map(x=>esc(x.name)).join(' · ')+'</p>':'')+
+      '</ul>'+conditionPaths(evo)+(evo.waiting?'<p class="caption evoWaiting">✦ Pronta: avverrà alla fine dello scontro con il boss.</p>':'')+(evo.influences?.length?'<p class="caption">Influenze recenti · '+evo.influences.map(x=>esc(x.name)).join(' · ')+'</p>':'')+
       (evo.progress?'<p class="caption">Scontri vinti '+esc(evo.progress.fights)+' · Pratiche '+Math.floor(evo.progress.work)+(evo.progress.profession?' · '+esc(evo.progress.profession):'')+'</p>':'')+'</div>';
   }
   function evolutionHistory(g,race){

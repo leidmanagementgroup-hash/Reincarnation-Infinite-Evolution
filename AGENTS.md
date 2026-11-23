@@ -62,6 +62,7 @@ Cartella principale (non esistono sottocartelle sorgente):
 - `AGENTS.md`, `CLAUDE.md`, `GAME_DESIGN.md`, `PROGRESS.md`, `ROADMAP.md`, `CHANGELOG.md` — memoria condivisa fra gli agenti.
 - `MEGA_CITY_OVERHAUL.md` — piano ufficiale dell’Aggiornamento 5, con requisiti, fasi e criteri di verifica.
 - `PIANO_GRAFICO.md` — direzione artistica e tecnica con ambiti e verifiche della prova grafica.
+- `RPG_EVOLUTION.md` — operazione «RPG Evolution» (gameplay e qualità): rapporto iniziale, matrice, rischi, incrementi e benchmark.
 
 ## 4. Regole di sviluppo
 

@@ -59,5 +59,7 @@
     const p=s.adaptive?.memory[key(s,m)];
     if(p)p.guard=0;
   }
-  window.Adaptive={create,restore,encounter,seeHit,damageFactor,response,guard,clearGuard};
+  // Secondi di guardia rimasti, per mostrarla a schermo (RPG Evolution, incremento 4); sola lettura.
+  function guardLeft(s,m){const p=s.adaptive?.memory[key(s,m)];return p?Math.max(0,p.guard-s.time):0;}
+  window.Adaptive={create,restore,encounter,seeHit,damageFactor,response,guard,clearGuard,guardLeft};
 })();

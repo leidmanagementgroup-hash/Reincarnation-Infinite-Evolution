@@ -35,7 +35,20 @@
       else ActorArt.icon(g,c.dataset.kind,0,0,w);
     });
   }
-  function toast(txt) {if (!txt) return;const el=$('#toast');el.textContent=txt;el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('visible'),2600);}
+  // Coda dei messaggi (RPG Evolution, incremento 3): prima un messaggio cancellava il precedente nello stesso istante
+  // (livello, talento, evoluzione e oggetti del boss si coprivano). Ora si mostrano in fila, al massimo tre in attesa,
+  // senza doppioni; quelli di progressione hanno la precedenza quando la fila è piena.
+  const toastQueue=[],toastKey=/^(Evoluzione|Nuova tecnica|Tecnica evoluta|Talento|Mutazione|Livello|Innato e talento)/;
+  let toastShown='';
+  function toast(txt) {
+    if(!txt)return;txt=String(txt);
+    if(txt===toastShown||toastQueue.includes(txt))return;
+    if(!$('#toast').classList.contains('visible')){showToast(txt);return;}
+    toastQueue.push(txt);
+    while(toastQueue.length>3){const drop=toastQueue.findIndex(x=>!toastKey.test(x));toastQueue.splice(drop<0?0:drop,1);}
+  }
+  function showToast(txt){const el=$('#toast');toastShown=txt;if(txt.startsWith('Consiglio · '))hintShown(txt);el.textContent=txt;el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(nextToast,toastQueue.length?2000:2600);}
+  function nextToast(){const next=toastQueue.shift();if(next){showToast(next);return;}$('#toast').classList.remove('visible');toastShown='';}
   function updateAudioIcon(){
     const on=Score.enabled && Score.started;
     $$('[data-do=audio]').forEach(b=>{const i=b.querySelector('i');if(i){i.dataset.symbol=on?'sound':'mute';paintSymbols(b);}b.setAttribute('aria-label',on?'Disattiva audio':'Attiva audio');b.title=on?'Disattiva audio':'Attiva audio';});
@@ -43,6 +56,7 @@
   function title(){screen='title';closePanel();$('#titleScreen').hidden=false;$('#playScreen').hidden=true;prevLoc='';refreshTitle();paintSymbols();$('#playBtn').focus({preventScroll:true});}
   function refreshTitle(){const has=Game.hasSave(),b=$('#playBtn');b.dataset.do=has?'continue':'new';b.querySelector('span').textContent=has?'Continua il viaggio':'Nuova incarnazione';$('#otherPlay').hidden=!has;}
   function start(newLife) {
+    toastQueue.length=0;
     const ok=newLife?Game.newGame():Game.load();
     if(ok===false){toast(newLife?'La nuova vita non è ancora disponibile.':'Caricamento non riuscito. Puoi importare una copia dalle opzioni.');return;}
     screen='play';$('#titleScreen').hidden=true;$('#playScreen').hidden=false;prevLoc='';uiClock=0;cam.x=NaN;
@@ -167,7 +181,7 @@
     const b=e.target.closest('button');if(!b || b.disabled)return;
     if(b.hasAttribute('data-do'))dispatch(b.dataset.do,b);
     else if(b.dataset.cmd){Score.wake();command(b.dataset.cmd,b.dataset.value);}
-    else if(b.dataset.action && screen==='play' && !panel){Score.wake();Game.action(b.dataset.action);}
+    else if(b.dataset.action && screen==='play' && !panel){Score.wake();act(b.dataset.action);}
   });
   $('#saveFile').addEventListener('change',async e=>{
     const f=e.target.files[0];if(!f)return;if(f.size>Game.saveMaxBytes){toast('Il file supera la dimensione di un salvataggio.');return;}
@@ -192,11 +206,52 @@
     if(e.target.matches('#catalogSearch,#catalogRarity'))window.GamePanels.filterCatalog();
     if(e.target.matches('[data-inventory-filter]'))LifePanels.filter($('#panelBody'),Game.s);
   });
+  // Memoria d'ingresso (RPG Evolution, incremento 2): un comando premuto negli ultimi 0,2 s di ricarica parte appena la
+  // ricarica finisce, invece di andare perso. Solo per la ricarica: mana insufficiente e altri rifiuti non vengono ripetuti.
+  // Ricariche, danni e tempi restano quelli del motore; le prove che chiamano Game.action direttamente non ne sono toccate.
+  // Consigli «prima volta» (RPG Evolution, incremento 5): ognuno compare una sola volta, solo con la Guida attiva
+  // (stessa opzione dei segnali di direzione); quelli già visti restano in `lumora-hints`, fuori dal salvataggio.
+  const HINTS={
+    interact:'Consiglio · premi E (o tocca il riquadro) per interagire con ciò che hai davanti.',
+    needs:'Consiglio · fame, sete e stanchezza riducono attacco, difesa e velocità: Vita quotidiana con N.',
+    mana:'Consiglio · il mana torna col tempo; nell’attesa usa l’attacco (J) e la schivata (Spazio).',
+    rebirth:'Consiglio · attiva le Statue della Rinascita che incontri: rinasci presso l’ultima attivata.',
+    evolve:'Consiglio · l’albero delle evoluzioni (V) mostra quanto ti manca alla nuova forma.',
+    echoes:'Consiglio · hai abbastanza echi per legare un tratto: aprili nelle Abilità (K).'
+  };
+  let hintsSeen;try{hintsSeen=new Set(JSON.parse(localStorage.getItem('lumora-hints')||'[]'));}catch{hintsSeen=new Set();}
+  // Chiamata da showToast: il consiglio conta come visto solo quando è davvero comparso.
+  function hintShown(txt){
+    const id=Object.keys(HINTS).find(k=>HINTS[k]===txt);if(!id||hintsSeen.has(id))return;
+    hintsSeen.add(id);try{localStorage.setItem('lumora-hints',JSON.stringify([...hintsSeen]));}catch{}
+  }
+  function hint(id){
+    if(!guidance||hintsSeen.has(id)||!HINTS[id])return;
+    toast(HINTS[id]);
+  }
+  let buffered=null;
+  const BUFFER=.2,bufferable=new Set(['attack','dash','skill1','skill2','skill3','innate']);
+  function cooldownLeft(name){
+    const p=Game.s?.player;if(!p)return 0;
+    const id=/^skill[1-3]$/.test(name)?p.slots[Number(name.slice(-1))-1]:name;
+    return id?Math.max(0,p.cooldowns?.[id]||0):0;
+  }
+  function act(name){
+    if(Game.action(name)){buffered=null;return true;}
+    const left=bufferable.has(name)?cooldownLeft(name):0;
+    if(left>0&&left<=BUFFER)buffered={name,until:clock+left+.05};
+    return false;
+  }
+  function releaseBuffered(){
+    if(!buffered)return;
+    if(panel||clock>buffered.until){buffered=null;return;}
+    if(cooldownLeft(buffered.name)<=0){const name=buffered.name;buffered=null;Game.action(name);}
+  }
   document.addEventListener('keydown',e=>{
     if(e.altKey||e.ctrlKey||e.metaKey)return;
     if(panel){
       if(e.code==='Escape'){e.preventDefault();closePanel();return;}
-      if(e.code==='Tab'){const items=$$('#dialog button:not(:disabled),#dialog select,#dialog input').filter(el=>el.offsetParent!==null),i=items.indexOf(document.activeElement);if(items.length && ((e.shiftKey && i<=0)||(!e.shiftKey && i===items.length-1))){e.preventDefault();items[e.shiftKey?items.length-1:0].focus();}}
+      if(e.code==='Tab'){const items=$$('#dialog button:not(:disabled),#dialog select,#dialog input,#dialog summary').filter(el=>el.offsetParent!==null),i=items.indexOf(document.activeElement);if(items.length && ((e.shiftKey && i<=0)||(!e.shiftKey && i===items.length-1))){e.preventDefault();items[e.shiftKey?items.length-1:0].focus();}}
       return;
     }
     if(screen==='title'){
@@ -211,7 +266,7 @@
     }
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space','Tab'].includes(e.code))e.preventDefault();
     keyState.add(e.code);if(e.repeat)return;
-    if(bindings[e.code]){e.preventDefault();Score.wake();Game.action(bindings[e.code]);}
+    if(bindings[e.code]){e.preventDefault();Score.wake();act(bindings[e.code]);}
     else if(panels[e.code])openPanel(panels[e.code]);
     else if(['Escape','KeyP','Tab'].includes(e.code)){e.preventDefault();openPanel('pause');}
   });
@@ -221,7 +276,7 @@
     if(e.target===field && screen==='play'&&!panel){
       e.preventDefault();field.focus();Score.wake();
       if(placement){if(e.button===0)place(e.clientX,e.clientY);return;}
-      if(e.button===0){keyState.add('Mouse');Game.action('attack');}
+      if(e.button===0){keyState.add('Mouse');act('attack');}
     }
   });
   field.addEventListener('pointermove',e=>{if(placement){placement.clientX=e.clientX;placement.clientY=e.clientY;}});
@@ -264,6 +319,19 @@
     $('#formName').textContent=v.formName;$('#level').textContent='LV. '+p.level;
     for(const [key,max] of [['hp',v.hpMax],['mp',v.mpMax]]){const el=$('.bar.'+key);el.firstElementChild.style.width=100*Math.max(0,Math.min(1,p[key]/max))+'%';el.lastElementChild.textContent=Math.ceil(p[key])+' / '+max;}
     $('.xp i').style.width=Math.min(100,100*p.xp/v.xpNext)+'%';
+    // Esperienza leggibile da tastiera e lettori di schermo; bisogni nell'HUD quando penalizzano (soglia 32 di daily-life.js).
+    const xpLabel='Esperienza '+Math.floor(p.xp)+' su '+v.xpNext;if($('.xp').title!==xpLabel){$('.xp').title=xpLabel;$('.xp').setAttribute('aria-label',xpLabel);}
+    const d=Game.s.daily,needs=[];
+    if(d){
+      if(d.hunger<32)needs.push(['Fame',d.hunger<=10]);if(d.thirst<32)needs.push(['Sete',d.thirst<=10]);if(d.energy<32)needs.push(['Stanchezza',d.energy<=10]);
+      if(Math.abs(d.temperature)>28)needs.push([d.temperature>0?'Caldo':'Freddo',Math.abs(d.temperature)>46]);
+    }
+    const needSig=needs.map(n=>n.join(':')).join('|');
+    if(needSig!==$('#needs').dataset.sig){$('#needs').dataset.sig=needSig;$('#needs').replaceChildren(...needs.map(([label,crit])=>{const e=document.createElement('span');e.textContent=label;e.title=label+(crit?' grave':'')+' · riduce attacco, difesa o velocità · Vita quotidiana (N)';if(crit)e.className='crit';return e;}));}
+    if(needs.length)hint('needs');
+    if(v.interact)hint('interact');
+    if(p.level>=2&&p.evolutionStage===0)hint('evolve');
+    if(Object.values(p.echoes||{}).some(n=>n>=Game.rules.assimilationEchoes)&&p.traits.length<Game.rules.traitCap)hint('echoes');
     const sig=p.race+'|'+appearance(p);if(sig!==avatarSig){const c=$('#avatar canvas'),g=c.getContext('2d');g.clearRect(0,0,56,56);ActorArt.portrait(g,p.race,0,0,56,{evolution:appearance(p)});avatarSig=sig;}
     $('#location').textContent=v.location;$('#clock').textContent=v.clock+' · '+v.calendar.dayOfSeason+' '+v.calendar.season+' · '+v.weather;
     $('#questChapter').textContent=v.campaignTitle&&v.campaignTitle!==v.objective.title?v.campaignTitle:'Missione principale';
@@ -279,7 +347,7 @@
     if(p.evolutionStage>observedStage)evolutionNotice=Game.s.time+5;
     observedStage=p.evolutionStage;
     $('#evoAlert').hidden=Game.s.time>evolutionNotice;
-    $('#evoAlert').textContent='Nuova forma · V';
+    $('#evoAlert').textContent='Nuova forma · '+v.formName+' · V';
     const bh=$('#bossHud');bh.hidden=!v.boss;
     if(v.boss){
       bh.querySelector('strong').textContent=v.boss.name;
@@ -287,7 +355,8 @@
       bh.querySelector('span').textContent='FASE '+(['','I','II','III'][v.boss.phase]||v.boss.phase)+' / '+(v.boss.maxPhase===3?'III':'II');
       bh.dataset.phase=String(v.boss.phase);
     }
-    const innate=v.growth?.innate,ms=p.slots.join('/')+':'+p.potions+':'+(innate?.name||'')+':'+p.race;
+    // La firma comprende i nomi attivi: una tecnica evoluta alla maestria 4 aggiorna subito etichetta e descrizione del tasto.
+    const innate=v.growth?.innate,ms=p.slots.join('/')+':'+p.potions+':'+(innate?.name||'')+':'+p.race+':'+p.slots.map(id=>Game.activeSkill(p,id)?.name||'').join('/');
     const skillFor=i=>i>=2&&i<=4?Game.activeSkill(p,p.slots[i-2]):hot[i][0]==='innate'?innate:null;
     if(ms!==barSig){const wrap=$('#hotbar');wrap.replaceChildren();hot.forEach(([id,key,icon,lab],i)=>{
       const def=skillFor(i),b=document.createElement('button');b.dataset.action=id;
@@ -347,7 +416,7 @@
     const margin=24,top=Math.min(95,c.h*.31),bottom=c.h-43;
     const sx=Math.max(margin,Math.min(c.w-margin,x)),sy=Math.max(top,Math.min(bottom,y));
     const inside=sx===x&&sy===y;
-    ctx.save();ctx.translate(Math.round(sx),Math.round(inside?sy-29+Math.sin(clock*3)*2:sy));
+    ctx.save();ctx.translate(Math.round(sx),Math.round(inside?sy-29+(renderEffects&&!reducedMotion?.matches?Math.sin(clock*3)*2:0):sy));
     if(inside){
       ctx.rotate(Math.PI*.25);ctx.fillStyle='#172b29';ctx.fillRect(-5,-5,10,10);
       ctx.strokeStyle='#ffe59a';ctx.lineWidth=1.3;ctx.strokeRect(-3.5,-3.5,7,7);
@@ -364,7 +433,7 @@
     if(placement?.region!==World.region&&placement)cancelPlacement();
     if(!panel){let x=Number(keyState.has('KeyD')||keyState.has('ArrowRight'))-Number(keyState.has('KeyA')||keyState.has('ArrowLeft')),y=Number(keyState.has('KeyS')||keyState.has('ArrowDown'))-Number(keyState.has('KeyW')||keyState.has('ArrowUp'));for(const d of taped.values()){x+=dirs[d][0];y+=dirs[d][1];}
       const activeElapsed=running?elapsed:dt;running=true;
-      Game.step(dt,{x,y,attack:keyState.has('KeyJ')||keyState.has('Mouse')},activeElapsed);clock+=dt;
+      Game.step(dt,{x,y,attack:keyState.has('KeyJ')||keyState.has('Mouse')},activeElapsed);clock+=dt;releaseBuffered();
     }else if(panel==='practice'){
       PracticePanel.update($('#panelBody'),Game.practice(dt,{hold:practiceHold}));
     }
@@ -381,7 +450,7 @@
     uiClock-=dt;if(uiClock<=0){syncHud();uiClock=.14;}
   }
   Game.onEvent=(type,data)=>{
-    if(type==='toast')toast(data);
+    if(type==='toast'){toast(data);if(/^Mana insufficiente/.test(data))hint('mana');else if(/Rinasci presso|Riapri gli occhi|Nerea ti risveglia/.test(data))hint('rebirth');}
     else if(type==='sound')Score.play(data);
     else if(type==='panel'&&screen==='play'){
       if(data?.id==='statue'&&data.detail===trackedStatue?.id)trackedStatue=null;
