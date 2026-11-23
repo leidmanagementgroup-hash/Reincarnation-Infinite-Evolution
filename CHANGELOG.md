@@ -3,7 +3,7 @@
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
 ## [2026-11-23] Operazione Living World 2.0, incremento 6: revisione incrociata, scenario finale e rapporto — Claude
-Branch `claude/living-world-2` (`careers.js`, `world-requests.js`, `world-memory.js`, `world-renown.js`, `trade-economy.js`, `panels.js`, prove, documentazione). Commit dell'incremento 5: `6209a1a`.
+Branch `claude/living-world-2` (`careers.js`, `world-requests.js`, `world-memory.js`, `world-renown.js`, `trade-economy.js`, `panels.js`, prove, documentazione). Commit dell'incremento 5: `6209a1a`; di questo incremento: `091a2dd`.
 ### Corretto
 - rev-LW6-E1 (alta): l'Armeria del Passo non accetta più la lama equipaggiata, che rendeva il salvataggio non più caricabile (`careers.js`; `Economy.tradeAllowed` esportata in sola lettura da `trade-economy.js`).
 - rev-LW6-E2/E3: «Erbe per la cambusa» chiede ora 3 erbe portate al Registro dei Carichi (non basta rivendere all'Emporio); compenso di lana e cambusa sotto il costo d'acquisto delle stesse merci (`world-requests.js`).
