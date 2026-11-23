@@ -20,7 +20,11 @@
     'shortage-help':{weight:2,text:'hai portato erbe di rugiada all’emporio durante la carenza'},
     'promise-kept':{weight:3,text:'hai mantenuto la parola: le erbe promesse sono arrivate in tempo'},
     'promise-broken':{weight:-5,text:'avevi promesso erbe di rugiada e non sono mai arrivate'},
-    'saw-help':{weight:1,text:'ti ha visto portare erbe a Tessa durante la carenza'}
+    'saw-help':{weight:1,text:'ti ha visto portare erbe a Tessa durante la carenza'},
+    // Richieste del mondo (incremento 3)
+    'request-kept':{weight:2,text:'hai portato ciò che serviva alla bottega, come promesso'},
+    'request-failed':{weight:-3,text:'hai lasciato scadere una richiesta della bottega'},
+    'saw-request':{weight:1,text:'ti ha visto aiutare la bottega di Ivo'}
   };
   const own=(o,k)=>!!o&&Object.hasOwn(o,k);
   const object=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
@@ -165,6 +169,16 @@
   }
   function useReserve(s){state(s).reserveDay=today(s);}
 
+  /* Registra un episodio da un altro sistema (Richieste del mondo). Con `witnesses` anche gli NPC presenti entro il raggio
+     d'ascolto ricordano di averlo visto. Restituisce i nomi dei testimoni (array, vuoto se nessuno) o false se l'episodio
+     c'era già oggi. */
+  function note(s,npc,kind,options={}){
+    if(!own(people,npc)||!own(kinds,kind))return false;
+    const day=today(s);
+    if(!remember(s,npc,kind,'self',day))return false;
+    if(!options.witnesses)return [];
+    return witnesses(s,placeOf(s,npc)||World.points[npc],npc).filter(id=>remember(s,id,'saw-request','witness',day)).map(id=>people[id].name);
+  }
   // Impulso a bassa frequenza: solo scadenze delle promesse.
   function tick(s){
     const m=state(s),p=m.promise;
@@ -177,6 +191,6 @@
     return [people[p.npc].name+' ha atteso invano le erbe promesse: se ne ricorderà.'];
   }
 
-  window.WorldMemory={create,restore,opinion,level,view,merchantView,command,reserve,useReserve,tick,people,kinds,
+  window.WorldMemory={create,restore,opinion,level,view,merchantView,command,reserve,useReserve,tick,note,people,kinds,
     rules:{HEARING,HALF_LIFE,PER_KIND,TRUST,DISTRUST,PROMISE_NEED,GIVE_MAX}};
 })();

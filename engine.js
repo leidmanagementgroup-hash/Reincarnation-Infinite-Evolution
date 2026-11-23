@@ -164,7 +164,7 @@
   function record(event,amount=1,info={},practice=amount){
     const context={region:s.region,...info};
     const growthEvent={fish:'harvest',forge:'craft',sow:'field',reap:'field',care:'livestock',ranch:'livestock',cook:'craft',sew:'craft'}[event]||event;
-    announce([...Growth.record(s.player.growth,growthEvent,practice,context),...Life.record(s,event,amount,context),...Daily.log(s,event,amount,context)]);
+    announce([...Growth.record(s.player.growth,growthEvent,practice,context),...Life.record(s,event,amount,context),...Daily.log(s,event,amount,context),...Requests.log(s,event,amount,context)]);
     announce(Reputation.record(s,event,context));
     const notice=Guild.record(s,event,amount,context);
     if(notice)emit('toast',notice);
@@ -238,6 +238,7 @@
     s.cityWorks=UrbanServices.create();
     s.memory=WorldMemory.create();
     s.careers=Careers.create();
+    s.requests=Requests.create();
     p.hp=stats().hpMax;p.mp=stats().mpMax;
     resetTransient();save();return true;
   }
@@ -843,6 +844,11 @@
         return applyLife(result);
       }
       case 'economy':return applyLife(Economy.command(s,value));
+      case 'requests':{
+        const result=Requests.command(s,value);
+        if(result?.ok&&value?.op==='claim')announce(Reputation.record(s,'quest-claim'));
+        return applyLife(result);
+      }
       case 'weave':return weave(p,value);
       case 'gear':return applyLife(Gear.command(s,value));
       case 'conflict':return applyLife(Conflicts.command(s,value));
@@ -1167,7 +1173,7 @@
       Economy.tick(s);
       const legendaryNews=Legendary.tick(s);
       if(legendaryNews.length){announce(legendaryNews);keep();}
-      const memoryNews=WorldMemory.tick(s);
+      const memoryNews=[...WorldMemory.tick(s),...Requests.tick(s)];
       if(memoryNews.length){announce(memoryNews);keep();}
       if(Daily.tick(s,{moving:p.moving,combat:combat>0})){
         p.hp-=st.hpMax*.014;
@@ -1523,6 +1529,7 @@
     if(!d.urban||!d.cityWorks)return null;
     d.memory=WorldMemory.restore(d.memory,d);
     d.careers=Careers.restore(d.careers,d);
+    d.requests=Requests.restore(d.requests,d);
     d.version=version;
     return d;
   }

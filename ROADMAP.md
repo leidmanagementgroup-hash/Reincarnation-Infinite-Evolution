@@ -63,7 +63,7 @@
 - [x] Incremento 0: audit, matrice, difetti verificati, architettura, benchmark di riferimento.
 - [x] Incremento 1: memoria e conseguenze (Tessa, testimoni, promessa, opportunità, persistenza).
 - [x] Incremento 2: economia e professioni (LW-ECO-01/02/03/04, ciclo forgia → mercato, fabbro e mercante).
-- [ ] Incremento 3: tre eventi contestuali senza doppie ricompense.
+- [x] Incremento 3: tre eventi contestuali senza doppie ricompense.
 - [ ] Incremento 4: identità di Slime, Goblin e Viverna di brina senza nuove regole.
 - [ ] Incremento 5: conseguenze nel tempo e regole regionali dei cinque continenti.
 - [ ] Incremento 6: revisione, prove complete, sessione lunga, benchmark, rapporto finale.

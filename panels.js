@@ -18,6 +18,19 @@
       cmd('Ritira · '+Game.rules.potionPrice+' Scintille','tieReserve','',!r.open||r.shopOpen||r.used||p.gold<Game.rules.potionPrice),icon('potion'));
     return out;
   }
+  // Richieste del mondo (Living World 2.0): nel diario tutte, nel dialogo di una fonte solo la sua. Testo passato da row/h.
+  function requestRows(only){
+    const s=Game.s;if(!window.Requests||!s)return '';
+    const list=Requests.view(s).filter(r=>!only||r.id===only).filter(r=>only||r.state!=='closed'||r.done);
+    if(!list.length)return '';
+    const states={open:'Disponibile oggi',active:'In corso',ready:'Pronta da riscuotere',rest:'Completata di recente',closed:'Non disponibile'};
+    return h('Richieste del mondo')+list.map(r=>{
+      const timing=r.left!==null?' · '+(r.left>0?'scade fra '+r.left+(r.left===1?' giorno':' giorni'):'scade oggi'):' · durata '+r.days+(r.days===1?' giorno':' giorni');
+      const text=[states[r.state],r.from,r.need,r.state==='active'||r.state==='ready'?r.goal:'',r.reward+' Scintille'+timing,r.why,(r.state==='open'||r.state==='ready')&&!r.atSource?r.sourceHint:''].filter(Boolean).join(' · ');
+      const control=r.state==='open'?cmd('Accetta','requests',{op:'accept',id:r.id},!r.atSource):r.state==='ready'?cmd('Riscuoti','requests',{op:'claim',id:r.id},!r.atSource,'primary'):'';
+      return row(r.name,text,control);
+    }).join('');
+  }
   function npcMemory(id){
     const s=Game.s,who=window.WorldMemory&&s?WorldMemory.view(s).find(x=>x.id===id):null;
     if(!who||!who.episodes.length)return '';
@@ -90,7 +103,7 @@
       case 'journal':
         html=objectives(v,p)+campaignRoad(v)+h('Incarico secondario')+row('La commissione del borgo',v.sideQuest)+
           '<div class="stats">'+stat('Creature vinte',p.kills)+stat('Reputazione',p.rep)+stat('Borsello',Economy.wallet(p.gold).label)+'</div>'+
-          (window.Lantern?h('Voci del bosco')+'<p>'+esc(Lantern.hint(s))+'</p>':'')+LifePanels.quests(s)+worldNotes(v.life)+
+          (window.Lantern?h('Voci del bosco')+'<p>'+esc(Lantern.hint(s))+'</p>':'')+LifePanels.quests(s)+requestRows()+worldNotes(v.life)+
           actions(btn('Apri la mappa','map'),btn('Incarichi della gilda','guild'),btn('Reputazione e titoli','reputation'),
             ...(Legendary.view(s).discovered?[btn('Registro del santuario','legendary')]:[]));break;
       case 'activities':
@@ -250,7 +263,7 @@
         html=npc('smith','Ivo · fabbro di Vela','Se macini il minerale fino a farne polvere, la linfa trattiene il suo calore per tutta la notte.')+row('Distilla due pozioni',rules.craftHerb+' erbe di rugiada e '+rules.craftOre+' minerale lucente.',cmd('Distilla','craft','',p.inventory.herb<rules.craftHerb||p.inventory.ore<rules.craftOre),icon('potion'))+
           '<div class="stats">'+stat('Erbe',p.inventory.herb||0)+stat('Minerali',p.inventory.ore||0)+'</div>'+h('Commissione del fabbro')+'<p>'+esc(v.sideQuest)+'</p>'+
           (s.sideQuest===0?actions(cmd('Accetta incarico','sideAccept','',false,'primary')):s.sideQuest===1?actions(cmd('Consegna '+rules.sideHerb+' erbe','sideReward','',p.inventory.herb<rules.sideHerb,'primary')):'')+
-          npcMemory('smith')+actions(btn('Forgia al banco di Ivo','workshop','','smithing'),btn('Ripara o incanta','gear'));break;
+          requestRows('wool-cloaks')+npcMemory('smith')+actions(btn('Forgia al banco di Ivo','workshop','','smithing'),btn('Ripara o incanta','gear'));break;
       case 'victory':
         kicker.textContent='Capitolo I · compiuto';html=npc('boss','Orveth, il Cervo Cavo','Le corna si accendono un’ultima volta. Dal cavo nel suo petto cade un seme. Quando lo tocchi, sotto il borgo tornano a pulsare le radici.')+
           '<p class="lead">Dal seme partono radici nuove. Seguile verso il passo a est, che ora conduce alla Cava delle Braci.</p><div class="stats">'+stat('Livello',p.level)+stat('Creature vinte',p.kills)+stat('Reputazione',p.rep)+'</div>'+actions(btn('Continua il viaggio','resume','primary'),btn('Apri la mappa','map'));break;

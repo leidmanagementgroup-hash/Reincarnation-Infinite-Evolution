@@ -163,7 +163,7 @@
   function command(cmd,raw){
     let value=raw;
     if(cmd==='slot'){const [slot,id]=raw.split('|');value={slot:Number(slot),id};}
-    if(['build','society','guild','workshop','daily','practice','economy','weave','gear','conflict','legendary','urban','city-service'].includes(cmd)){try{value=JSON.parse(raw);}catch{return;}}
+    if(['build','society','guild','workshop','daily','practice','economy','weave','gear','conflict','legendary','urban','city-service','requests'].includes(cmd)){try{value=JSON.parse(raw);}catch{return;}}
     const old=panel;
     const done=cmd==='drink'?Game.action('potion'):Game.command(cmd,value);
     if(done!==false && old==='confirmDemolish'){openPanel('properties');return;}
