@@ -122,13 +122,20 @@
     if(!sites(s).some(o=>o.id===id&&distance(o.point,s.player)<=o.range))return fail('Avvicinati al personaggio.');
     return {ok:true,panel:{id:'society',detail:id}};
   }
+  /* Maturità per il corteggiamento: forma matura (secondo stadio) oppure età adulta della stirpe. Regola invariata; la funzione
+     serve anche a spiegare perché l'opzione non è ancora disponibile (Living World 2.0, incremento 4). */
+  const adultDays=6570;
+  function mature(s){
+    const age=Growth.biology(Game.view({detailed:false}).race).ageDays;
+    const ready=s.player.evolutionStage>=2||age>=adultDays;
+    return {ready,reason:ready?'':'La tua stirpe non è ancora adulta ('+(age>=365?Math.floor(age/365)+' anni':age+' giorni')+' alla nascita): il corteggiamento richiede la forma matura, cioè il secondo stadio dell’evoluzione.'};
+  }
   function price(s,a){const town=s.society.towns[s.society.people[a.id].region];return town.accord?3:4;}
   function actions(s,id){
     const a=entry(s,id),p=s.society.people[id];
     if(!a||!p)return [];
     if(!sites(s).some(o=>o.id===id&&distance(o.point,s.player)<=o.range))return [];
-    const town=s.society.towns[p.region],kinds=new Set(p.memories.map(x=>x.kind)),age=Growth.biology(Game.view({detailed:false}).race).ageDays;
-    const mature=s.player.evolutionStage>=2||age>=6570;
+    const town=s.society.towns[p.region],kinds=new Set(p.memories.map(x=>x.kind)),adult=mature(s);
     const closed=s.calendar&&!Calendar.view(s.calendar,s.time,s.region).shopOpen?'Il mercato apre dalle 07:00 alle 20:00.':'';
     const choice=(op,label,reason='')=>({op,label,allowed:!reason,reason});
     const options=[
@@ -138,8 +145,8 @@
       choice('sell','Vendi 1 minerale · 5 Scintille',closed||(s.player.inventory.ore<1?'Serve 1 minerale.':''))
     ];
     if(p.bond==='unknown')options.push(choice('friend','Proponi amicizia',!kinds.has('chat')||kinds.size<2?'Conoscetevi e condividete un dono o uno scambio.':''));
-    if(p.bond==='friend'&&mature&&!s.society.partner&&p.interest)options.push(choice('court','Proponi un corteggiamento',
-      kinds.size<3||s.time-p.changedAt<60?'Condividete esperienze diverse e lasciate passare del tempo insieme.':''));
+    if(p.bond==='friend'&&!s.society.partner&&p.interest)options.push(choice('court','Proponi un corteggiamento',
+      !adult.ready?adult.reason:kinds.size<3||s.time-p.changedAt<60?'Condividete esperienze diverse e lasciate passare del tempo insieme.':''));
     if(p.bond==='partner'&&!s.society.partner)options.push(choice('marry','Proponi il matrimonio',
       !Build.home(s)?'Costruisci prima una casa.':s.time-p.changedAt<100?'Lasciate passare ancora del tempo.':''));
     if(p.bond==='married'){
@@ -223,6 +230,6 @@
     r.enrolled=true;return true;
   }
   function train(s,id){const r=s.society.people[id]||s.society.children.find(o=>o.id===id);if(r?.enrolled)r.career++;}
-  window.Society={create,restore,sites,use,command,view,tick,actors,entry,register,train};
+  window.Society={create,restore,sites,use,command,view,tick,actors,entry,register,train,mature};
 })();
 

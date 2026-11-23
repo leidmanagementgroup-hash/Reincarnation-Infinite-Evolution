@@ -18,6 +18,19 @@
       cmd('Ritira · '+Game.rules.potionPrice+' Scintille','tieReserve','',!r.open||r.shopOpen||r.used||p.gold<Game.rules.potionPrice),icon('potion'));
     return out;
   }
+  // Identità della stirpe (Living World 2.0): valori letti dalle regole del gioco, opportunità e difficoltà collegate.
+  function lineageSection(){
+    const s=Game.s,l=window.Lineage&&s?Lineage.view(s):null;
+    if(!l)return '';
+    // Rarità, probabilità e dono sono già nell'intestazione: qui solo ciò che aggiunge numeri e collegamenti.
+    let out=h('Identità della stirpe')+(l.numericGift?row('Dono in numeri',l.gift):'')+
+      row('Attacco naturale',l.attack.text+'. '+l.attack.boss)+
+      row('Bisogni della stirpe',l.needs.map(n=>n.text).join(' · ')+'. '+l.insulation)+
+      row('Corpo e indole',[l.bio.body,l.bio.strength,l.bio.weakness].filter(Boolean).join(' · '))+
+      row('Verso l’evoluzione',l.branch)+(l.courtship?row('Legami',l.courtship):'');
+    if(l.prototype.length)out+=h('Che cosa ti offre la tua stirpe')+l.prototype.map(o=>row(o.kind+' · '+o.title,o.text+(o.status?' · '+o.status:''))).join('');
+    return out;
+  }
   // Richieste del mondo (Living World 2.0): nel diario tutte, nel dialogo di una fonte solo la sua. Testo passato da row/h.
   function requestRows(only){
     const s=Game.s;if(!window.Requests||!s)return '';
@@ -96,7 +109,7 @@
           '<p class="caption"><kbd>WASD</kbd> Muoviti &nbsp; <kbd>E</kbd> Parla &nbsp; <kbd>R</kbd> Usa l’innata</p>'+actions(btn('Entra nella valle','resume','primary'),btn('Predisposizioni','character'));break;
       case 'character':
         html=feature(v.race,v.formName,UI.appearance(p))+'<div class="stats">'+stat('Livello',p.level)+stat('HP',Math.ceil(p.hp)+' / '+v.hpMax)+stat('MP',Math.ceil(p.mp)+' / '+v.mpMax)+stat('Attacco',v.attack)+stat('Difesa',v.defense)+stat('Velocità',Math.round(v.speed))+'</div>'+
-          row('Esperienza',Math.floor(p.xp)+' / '+v.xpNext+' PE per il livello successivo.')+row('Dono di specie',v.race.trait)+
+          row('Esperienza',Math.floor(p.xp)+' / '+v.xpNext+' PE per il livello successivo.')+row('Dono di specie',v.race.trait)+lineageSection()+
           growthProfile(v.growth)+innatePanel(v.growth?.innate,false)+row('Reputazione a Vela',p.rep+' punti · '+(p.rep>=3?'Alleato del borgo':'Viandante'))+h('Tratti assimilati')+
           (p.traits.length?p.traits.map(id=>row(Game.traits[id]?.name||id,Game.traits[id]?.description)).join(''):'<p>Le creature sconfitte lasciano echi. Nel pannello Abilità puoi usarli per assimilare un tratto.</p>');
         html+=h('Tecniche acquisite')+'<p>'+esc(Object.keys(p.skills).map(id=>Game.skills[id]?.name).filter(Boolean).join(' · '))+'</p>'+actions(btn('Gestisci abilità','skills'),btn('Equipaggiamento','gear'),btn('Reputazione e titoli','reputation'));break;
@@ -255,12 +268,12 @@
       case 'merchant':
         html=npc('merchant','Tessa · mercante','Il ponte regge ancora. Se vai oltre la radura, porta con te un po’ di linfa.')+
           row('Emporio · 07:00–20:00',Economy.wallet(p.gold).label+(v.calendar.shopOpen?'':' · Chiuso'))+
-          row('Pozione di linfa','Una dose di linfa curativa.',cmd('Acquista · '+rules.potionPrice+' Scintille','buyPotion','',p.gold<rules.potionPrice||!v.calendar.shopOpen),icon('potion'))+
+          row('Pozione di linfa','Una dose di linfa curativa.'+(p.race==='slime'?' Per uno Slime cura il 67% della vitalità.':''),cmd('Acquista · '+rules.potionPrice+' Scintille','buyPotion','',p.gold<rules.potionPrice||!v.calendar.shopOpen),icon('potion'))+
           row('Talismano di Vela','Attacco +3 · Difesa +1',cmd(p.inventory.charm?'Acquistato':'Acquista · '+rules.charmPrice+' Scintille','buyCharm','',p.gold<rules.charmPrice||p.inventory.charm>0||!v.calendar.shopOpen),icon('ward'))+
           tessaMemory(p)+
           actions(btn('Mercato regionale e banca','economy'));break;
       case 'smith':
-        html=npc('smith','Ivo · fabbro di Vela','Se macini il minerale fino a farne polvere, la linfa trattiene il suo calore per tutta la notte.')+row('Distilla due pozioni',rules.craftHerb+' erbe di rugiada e '+rules.craftOre+' minerale lucente.',cmd('Distilla','craft','',p.inventory.herb<rules.craftHerb||p.inventory.ore<rules.craftOre),icon('potion'))+
+        html=npc('smith','Ivo · fabbro di Vela','Se macini il minerale fino a farne polvere, la linfa trattiene il suo calore per tutta la notte.')+row('Distilla due pozioni',rules.craftHerb+' erbe di rugiada e '+rules.craftOre+' minerale lucente.'+(p.race==='slime'?' Per uno Slime ogni pozione cura il 67% della vitalità.':''),cmd('Distilla','craft','',p.inventory.herb<rules.craftHerb||p.inventory.ore<rules.craftOre),icon('potion'))+
           '<div class="stats">'+stat('Erbe',p.inventory.herb||0)+stat('Minerali',p.inventory.ore||0)+'</div>'+h('Commissione del fabbro')+'<p>'+esc(v.sideQuest)+'</p>'+
           (s.sideQuest===0?actions(cmd('Accetta incarico','sideAccept','',false,'primary')):s.sideQuest===1?actions(cmd('Consegna '+rules.sideHerb+' erbe','sideReward','',p.inventory.herb<rules.sideHerb,'primary')):'')+
           requestRows('wool-cloaks')+npcMemory('smith')+actions(btn('Forgia al banco di Ivo','workshop','','smithing'),btn('Ripara o incanta','gear'));break;

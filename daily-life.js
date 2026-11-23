@@ -189,5 +189,5 @@
   function worldSites(s){
     return Object.entries(sites).filter(([,site])=>site.region===s.region).map(([id,site])=>({...site,id,kind:'daily',range:24,text:site.name+' · Riposo'}));
   }
-  window.Daily={create,restore,tick,modifiers,recover,restPlace,log,command,view,sites:worldSites};
+  window.Daily={create,restore,tick,modifiers,recover,restPlace,log,command,view,sites:worldSites,racial}; // racial: profili dei bisogni per stirpe (sola lettura, Living World 2.0)
 })();

@@ -11239,13 +11239,20 @@ window.Lantern = (() => {
     if(!sites(s).some(o=>o.id===id&&distance(o.point,s.player)<=o.range))return fail('Avvicinati al personaggio.');
     return {ok:true,panel:{id:'society',detail:id}};
   }
+  /* Maturità per il corteggiamento: forma matura (secondo stadio) oppure età adulta della stirpe. Regola invariata; la funzione
+     serve anche a spiegare perché l'opzione non è ancora disponibile (Living World 2.0, incremento 4). */
+  const adultDays=6570;
+  function mature(s){
+    const age=Growth.biology(Game.view({detailed:false}).race).ageDays;
+    const ready=s.player.evolutionStage>=2||age>=adultDays;
+    return {ready,reason:ready?'':'La tua stirpe non è ancora adulta ('+(age>=365?Math.floor(age/365)+' anni':age+' giorni')+' alla nascita): il corteggiamento richiede la forma matura, cioè il secondo stadio dell’evoluzione.'};
+  }
   function price(s,a){const town=s.society.towns[s.society.people[a.id].region];return town.accord?3:4;}
   function actions(s,id){
     const a=entry(s,id),p=s.society.people[id];
     if(!a||!p)return [];
     if(!sites(s).some(o=>o.id===id&&distance(o.point,s.player)<=o.range))return [];
-    const town=s.society.towns[p.region],kinds=new Set(p.memories.map(x=>x.kind)),age=Growth.biology(Game.view({detailed:false}).race).ageDays;
-    const mature=s.player.evolutionStage>=2||age>=6570;
+    const town=s.society.towns[p.region],kinds=new Set(p.memories.map(x=>x.kind)),adult=mature(s);
     const closed=s.calendar&&!Calendar.view(s.calendar,s.time,s.region).shopOpen?'Il mercato apre dalle 07:00 alle 20:00.':'';
     const choice=(op,label,reason='')=>({op,label,allowed:!reason,reason});
     const options=[
@@ -11255,8 +11262,8 @@ window.Lantern = (() => {
       choice('sell','Vendi 1 minerale · 5 Scintille',closed||(s.player.inventory.ore<1?'Serve 1 minerale.':''))
     ];
     if(p.bond==='unknown')options.push(choice('friend','Proponi amicizia',!kinds.has('chat')||kinds.size<2?'Conoscetevi e condividete un dono o uno scambio.':''));
-    if(p.bond==='friend'&&mature&&!s.society.partner&&p.interest)options.push(choice('court','Proponi un corteggiamento',
-      kinds.size<3||s.time-p.changedAt<60?'Condividete esperienze diverse e lasciate passare del tempo insieme.':''));
+    if(p.bond==='friend'&&!s.society.partner&&p.interest)options.push(choice('court','Proponi un corteggiamento',
+      !adult.ready?adult.reason:kinds.size<3||s.time-p.changedAt<60?'Condividete esperienze diverse e lasciate passare del tempo insieme.':''));
     if(p.bond==='partner'&&!s.society.partner)options.push(choice('marry','Proponi il matrimonio',
       !Build.home(s)?'Costruisci prima una casa.':s.time-p.changedAt<100?'Lasciate passare ancora del tempo.':''));
     if(p.bond==='married'){
@@ -11340,7 +11347,7 @@ window.Lantern = (() => {
     r.enrolled=true;return true;
   }
   function train(s,id){const r=s.society.people[id]||s.society.children.find(o=>o.id===id);if(r?.enrolled)r.career++;}
-  window.Society={create,restore,sites,use,command,view,tick,actors,entry,register,train};
+  window.Society={create,restore,sites,use,command,view,tick,actors,entry,register,train,mature};
 })();
 
 
@@ -12431,7 +12438,7 @@ window.Lantern = (() => {
   function worldSites(s){
     return Object.entries(sites).filter(([,site])=>site.region===s.region).map(([id,site])=>({...site,id,kind:'daily',range:24,text:site.name+' · Riposo'}));
   }
-  window.Daily={create,restore,tick,modifiers,recover,restPlace,log,command,view,sites:worldSites};
+  window.Daily={create,restore,tick,modifiers,recover,restPlace,log,command,view,sites:worldSites,racial}; // racial: profili dei bisogni per stirpe (sola lettura, Living World 2.0)
 })();
 
 
@@ -15237,6 +15244,102 @@ window.Lantern = (() => {
 
 (() => {
   'use strict';
+  /* Identità della stirpe (Living World 2.0, incremento 4). Nessuna regola nuova: rende visibili i vantaggi e i limiti che
+     il gioco applica già e li collega alle attività esistenti. I valori si leggono dalle stesse funzioni usate dal motore
+     (profili dei bisogni di Daily, attacco naturale di Growth.strike, maturità di Society, dono generico `passive` della
+     stirpe); i doni speciali delle nove stirpi originali sono scritti nel motore come costanti e qui sono descritti con i loro
+     numeri: tests/verifica-stirpi.cjs controlla che descrizione e comportamento coincidano.
+     Prototipo con opportunità e difficoltà dedicate: Slime di rugiada, Goblin dei rovi, Viverna di brina. */
+  const gifts={ // engine.js: pozione, uccisione, schivata, mana, danni (righe citate nei commenti della prova)
+    slime:'Una pozione ti cura il 67% della vitalità massima (le altre stirpi il 48%).',
+    goblin:'Ogni creatura vinta ti lascia 1 Scintilla in più.',
+    wolf:'La schivata si ricarica in 0,95 s invece di 1,5 s.',
+    elf:'Rigeneri 2,5 mana al secondo invece di 1,65.',
+    spirit:'Durante la schivata resti intangibile per 0,55 s invece di 0,34 s.',
+    vampire:'Ogni creatura vinta ti restituisce 5 punti vita.',
+    demon:'In mischia infliggi ×1,2 ai nemici sotto metà vita.',
+    drake:'I colpi magici ti fanno 3 danni in meno; al primo stadio il morso diventa un soffio a distanza.',
+    secret:'Ogni creatura vinta ti restituisce 4 punti mana.'
+  };
+  const statNames={hp:'vitalità massima',mp:'mana massimo',atk:'attacco',def:'difesa',speed:'velocità'};
+  const needNames={hunger:'Fame',thirst:'Sete',energy:'Stanchezza',cold:'Freddo',heat:'Caldo'};
+  const fmt=n=>String(Math.round(n*100)/100).replace('.',',');
+  const has=(s,id,n=1n)=>Inventory.quantity(s,id)>=n;
+
+  function giftText(race){
+    if(gifts[race.id])return gifts[race.id];
+    const [key,value]=race.passive||[];
+    return key?'+'+value+' '+(statNames[key]||key)+'.':'Nessun dono numerico oltre a quanto descritto.';
+  }
+  function needsProfile(race){
+    const r=Daily.racial(race);
+    return Object.entries(needNames).map(([key,label])=>{
+      const v=r[key],delta=Math.round((v-1)*100);
+      return {key,label,factor:v,text:label+' ×'+fmt(v)+(Math.abs(delta)<3?' (come la media)':delta<0?' ('+Math.abs(delta)+'% in meno)':' ('+delta+'% in più)')};
+    });
+  }
+  function attackProfile(s){
+    const race=Game.races.find(r=>r.id===s.player.race);
+    const a=Growth.strike(s.player.growth,race,s.player),ranged=a.style==='spit';
+    return {name:a.name,reach:a.reach,damage:a.damage,ranged,
+      text:a.name+' · portata '+a.reach+' px · forza ×'+fmt(a.damage)+(ranged?' · colpo a distanza':' · colpo ravvicinato'),
+      boss:ranged?'Colpisci da lontano: la guardia adattiva dei boss, che riduce del 16% i colpi ravvicinati, non riduce i tuoi.':
+        'Colpisci da vicino: quando un boss si mette in guardia i tuoi colpi ravvicinati perdono il 16%; allontanati o cambia ritmo.'};
+  }
+  // Predisposizione: pesa sul ramo d'assalto (Forza, Destrezza, Magia) o su quello di sostegno; contano anche le abitudini.
+  function branchHint(s,race,bio){
+    const side=['Forza','Destrezza','Magia'].includes(bio.aptitude)?0:1;
+    const forms=race.forms||[],name=forms[side]?.name||forms[side]?.[0]||(side?'ramo di sostegno':'ramo d’assalto');
+    return 'La predisposizione ('+bio.aptitude+') pesa verso '+name+'; contano anche scontri, magie, mestieri e tempo nel territorio affine ('+bio.affinity+').';
+  }
+
+  // Opportunità e difficoltà dedicate, con lo stato attuale del personaggio e le attività collegate.
+  function prototype(s,race){
+    const p=s.player,d=Daily.racial(race.id),list=[];
+    const offer=()=>{try{return Daily.view(s).quests.find(q=>q.category==='Evento');}catch{return null;}};
+    const request=id=>window.Requests?.view(s).find(r=>r.id===id);
+    if(race.id==='slime'){
+      const tessa=window.WorldMemory?.merchantView(s);
+      list.push({kind:'Opportunità',title:'Pozioni più efficaci',text:'Una pozione ti cura il 67% della vitalità invece del 48%. Ivo distilla due pozioni con 2 erbe e 1 minerale; Tessa le vende a '+Game.rules.potionPrice+' Scintille'+(tessa?.reserve.open?' e ne tiene una da parte per te a emporio chiuso':' e, quando si fiderà di te, ne terrà una da parte')+'.',status:'Pozioni con te: '+p.potions});
+      list.push({kind:'Opportunità',title:'Viaggi con poche provviste',text:'Fame ×'+fmt(d.hunger)+' ed energia ×'+fmt(d.energy)+': ti stanchi e ti affami più lentamente delle altre stirpi.',status:'Fame '+Math.round(s.daily?.hunger??100)+' · energia '+Math.round(s.daily?.energy??100)});
+      list.push({kind:'Difficoltà',title:'Sete e sbalzi di temperatura',text:'Sete ×'+fmt(d.thirst)+', freddo ×'+fmt(d.cold)+', caldo ×'+fmt(d.heat)+': riempi la borraccia alla fonte della locanda (fino a 3) e porta una mantella di lana per il freddo.',
+        status:'Borracce '+Inventory.quantity(s,'water')+' · mantella '+(has(s,'woolcloak')?'sì':'no')});
+    }else if(race.id==='goblin'){
+      const o=offer(),guild=s.guild?.active;
+      list.push({kind:'Opportunità',title:'Mani svelte nella caccia',text:'Ogni creatura vinta ti lascia 1 Scintilla in più: rende di più nelle cacce, come «Impronte vicino a Vela» (offerta del giorno quando i lupi si fanno vicini) e gli incarichi di caccia della gilda.',
+        status:'Creature vinte '+p.kills+' · Scintille in più ricevute '+p.kills+(o?.id==='patrol'?' · oggi c’è «Impronte vicino a Vela»':'')+(guild?.type==='hunt'?' · caccia della gilda in corso':'')});
+      list.push({kind:'Opportunità',title:'Destrezza e mestieri',text:'La predisposizione alla Destrezza rende più probabili i talenti legati alla destrezza e spinge verso il ramo d’assalto; forgia, cucito e lavori di bottega allenano la Destrezza.',
+        status:'Fabbro livello '+Life.level(s,'smith')});
+      list.push({kind:'Difficoltà',title:'Nessun vantaggio sui bisogni',text:'Fame, sete, stanchezza e clima pesano come per la media delle stirpi, e la spazzata è un colpo ravvicinato: contro un boss in guardia perde il 16%.',status:''});
+    }else if(race.id==='wyvern'){
+      const o=offer(),wool=request('wool-cloaks');
+      list.push({kind:'Opportunità',title:'Soffio a distanza contro i boss',text:'Il Soffio di nevischio colpisce da 65 px come un proiettile: la guardia adattiva dei boss non lo riduce.',status:''});
+      list.push({kind:'Opportunità',title:'A tuo agio nel caldo',text:'Caldo ×'+fmt(d.heat)+' e affinità con la Cava delle Braci: miniera e forgia senza patire il calore. Al borgo, l’offerta «Minerale per il banco» chiede proprio minerale.',
+        status:o?.id==='stone'?'Oggi c’è «Minerale per il banco»':'Offerta del giorno: '+(o?.name||'nessuna')});
+      list.push({kind:'Difficoltà',title:'Il freddo ti colpisce di più',text:'Freddo ×'+fmt(d.cold)+': sul passo di Nordharyn (−28°) cuci una mantella di lana al banco di Ivo (2 lana), che riduce il freddo del 30%. Ivo stesso, quando arriva il freddo, cerca lana per le mantelle.',
+        status:'Mantella '+(has(s,'woolcloak')?'sì':'no')+' · lana '+Inventory.quantity(s,'wool')+(wool?' · richiesta di Ivo: '+({open:'disponibile',active:'in corso',ready:'pronta',rest:'completata di recente',closed:'non ora'}[wool.state]):'')});
+    }
+    return list;
+  }
+
+  function view(s){
+    if(!s?.player)return null;
+    const race=Game.races.find(r=>r.id===s.player.race);
+    if(!race)return null;
+    const bio=Growth.biology(race.id),mature=window.Society?.mature?Society.mature(s):null;
+    return {id:race.id,name:race.name,rarity:race.rarity,chance:fmt(race.weight)+'%',
+      gift:giftText(race),numericGift:Object.hasOwn(gifts,race.id),attack:attackProfile(s),needs:needsProfile(race.id),
+      insulation:'Con una mantella di lana nello zaino il freddo pesa il 30% in meno.',
+      bio,branch:branchHint(s,race,bio),
+      courtship:mature?(mature.ready?'Puoi proporre un corteggiamento a un abitante amico.':mature.reason):'',
+      prototype:prototype(s,race)};
+  }
+  window.Lineage={view,gifts};
+})();
+
+
+(() => {
+  'use strict';
   const info={
     'civic-fountain':{name:'Fonte delle Lenti',description:'La pietra trattiene appena la luce. Il quartiere ha lasciato una canalina per il ripristino.',action:'Ripristina la fonte'},
     'inn-breakfast':{name:'Tavola del Focolare di Vetro',description:'Una razione di pane e acqua pronta per i viandanti del mattino.',action:'Ritira la razione'},
@@ -16015,7 +16118,7 @@ window.Lantern = (() => {
       hp:stats[0],mp:stats[1],atk:stats[2],def:stats[3],speed:stats[4]});
   }
   lineage('slime','Slime di rugiada','Comune',30,[88,37,9,3,80],'Corpo poroso. La linfa delle pozioni ti cura più a fondo.','Custodisce un seme di luce dentro una goccia trasparente.',['Bolla di rugiada','bolt'],[['Slime delle maree','Cresta di marea','fan'],['Slime di quarzo','Pelle cristallina','ward']]);
-  lineage('goblin','Goblin dei rovi','Comune',25,[82,32,11,3,86],'Mani svelte. Ogni creatura vinta lascia una Scintilla aggiuntivo.','Gli abitanti delle siepi intrecciano spine persino nei lacci degli stivali.',['Falcetto ricurvo','cleave'],[['Hobgoblin','Falce a mezzaluna','cleave'],['Goblin Sciamano','Nodo di spine','snare']]);
+  lineage('goblin','Goblin dei rovi','Comune',25,[82,32,11,3,86],'Mani svelte. Ogni creatura vinta lascia una Scintilla aggiuntiva.','Gli abitanti delle siepi intrecciano spine persino nei lacci degli stivali.',['Falcetto ricurvo','cleave'],[['Hobgoblin','Falce a mezzaluna','cleave'],['Goblin Sciamano','Nodo di spine','snare']]);
   lineage('wolf','Lupo runico','Rara',16,[84,33,12,2,95],'Passo di vento. La tua schivata si ricarica più in fretta.','Una runa appare sul suo manto ogni volta che riconosce una nuova stella.',['Artiglio di bora','cleave'],[['Lupo della tramontana','Zanne di tramontana','fan'],['Lupo polare','Luna del branco','familiar']]);
   lineage('elf','Elfo del salice','Rara',14,[76,47,10,3,88],'Radici interiori. Rigeneri più mana nel tempo.','Le sue foglie argentate vibrano quando una promessa viene mantenuta.',['Sigillo di salice','snare'],[['Arciere del plenilunio','Pioggia lunare','fan'],['Custode di linfa','Risveglio del salice','bloom']]);
   lineage('spirit','Spirito di lume','Epica',6,[68,58,11,2,93],'Velo incorporeo. Ogni schivata protegge più a lungo.','Una luce dispersa ritrova un corpo seguendo le campane del borgo.',['Lanterna errante','familiar'],[['Fuoco delle comete','Coda di cometa','burst'],['Lanterna ancestrale','Stella compagna','familiar']]);
@@ -19021,6 +19124,19 @@ window.Lantern = (() => {
       cmd('Ritira · '+Game.rules.potionPrice+' Scintille','tieReserve','',!r.open||r.shopOpen||r.used||p.gold<Game.rules.potionPrice),icon('potion'));
     return out;
   }
+  // Identità della stirpe (Living World 2.0): valori letti dalle regole del gioco, opportunità e difficoltà collegate.
+  function lineageSection(){
+    const s=Game.s,l=window.Lineage&&s?Lineage.view(s):null;
+    if(!l)return '';
+    // Rarità, probabilità e dono sono già nell'intestazione: qui solo ciò che aggiunge numeri e collegamenti.
+    let out=h('Identità della stirpe')+(l.numericGift?row('Dono in numeri',l.gift):'')+
+      row('Attacco naturale',l.attack.text+'. '+l.attack.boss)+
+      row('Bisogni della stirpe',l.needs.map(n=>n.text).join(' · ')+'. '+l.insulation)+
+      row('Corpo e indole',[l.bio.body,l.bio.strength,l.bio.weakness].filter(Boolean).join(' · '))+
+      row('Verso l’evoluzione',l.branch)+(l.courtship?row('Legami',l.courtship):'');
+    if(l.prototype.length)out+=h('Che cosa ti offre la tua stirpe')+l.prototype.map(o=>row(o.kind+' · '+o.title,o.text+(o.status?' · '+o.status:''))).join('');
+    return out;
+  }
   // Richieste del mondo (Living World 2.0): nel diario tutte, nel dialogo di una fonte solo la sua. Testo passato da row/h.
   function requestRows(only){
     const s=Game.s;if(!window.Requests||!s)return '';
@@ -19099,7 +19215,7 @@ window.Lantern = (() => {
           '<p class="caption"><kbd>WASD</kbd> Muoviti &nbsp; <kbd>E</kbd> Parla &nbsp; <kbd>R</kbd> Usa l’innata</p>'+actions(btn('Entra nella valle','resume','primary'),btn('Predisposizioni','character'));break;
       case 'character':
         html=feature(v.race,v.formName,UI.appearance(p))+'<div class="stats">'+stat('Livello',p.level)+stat('HP',Math.ceil(p.hp)+' / '+v.hpMax)+stat('MP',Math.ceil(p.mp)+' / '+v.mpMax)+stat('Attacco',v.attack)+stat('Difesa',v.defense)+stat('Velocità',Math.round(v.speed))+'</div>'+
-          row('Esperienza',Math.floor(p.xp)+' / '+v.xpNext+' PE per il livello successivo.')+row('Dono di specie',v.race.trait)+
+          row('Esperienza',Math.floor(p.xp)+' / '+v.xpNext+' PE per il livello successivo.')+row('Dono di specie',v.race.trait)+lineageSection()+
           growthProfile(v.growth)+innatePanel(v.growth?.innate,false)+row('Reputazione a Vela',p.rep+' punti · '+(p.rep>=3?'Alleato del borgo':'Viandante'))+h('Tratti assimilati')+
           (p.traits.length?p.traits.map(id=>row(Game.traits[id]?.name||id,Game.traits[id]?.description)).join(''):'<p>Le creature sconfitte lasciano echi. Nel pannello Abilità puoi usarli per assimilare un tratto.</p>');
         html+=h('Tecniche acquisite')+'<p>'+esc(Object.keys(p.skills).map(id=>Game.skills[id]?.name).filter(Boolean).join(' · '))+'</p>'+actions(btn('Gestisci abilità','skills'),btn('Equipaggiamento','gear'),btn('Reputazione e titoli','reputation'));break;
@@ -19258,12 +19374,12 @@ window.Lantern = (() => {
       case 'merchant':
         html=npc('merchant','Tessa · mercante','Il ponte regge ancora. Se vai oltre la radura, porta con te un po’ di linfa.')+
           row('Emporio · 07:00–20:00',Economy.wallet(p.gold).label+(v.calendar.shopOpen?'':' · Chiuso'))+
-          row('Pozione di linfa','Una dose di linfa curativa.',cmd('Acquista · '+rules.potionPrice+' Scintille','buyPotion','',p.gold<rules.potionPrice||!v.calendar.shopOpen),icon('potion'))+
+          row('Pozione di linfa','Una dose di linfa curativa.'+(p.race==='slime'?' Per uno Slime cura il 67% della vitalità.':''),cmd('Acquista · '+rules.potionPrice+' Scintille','buyPotion','',p.gold<rules.potionPrice||!v.calendar.shopOpen),icon('potion'))+
           row('Talismano di Vela','Attacco +3 · Difesa +1',cmd(p.inventory.charm?'Acquistato':'Acquista · '+rules.charmPrice+' Scintille','buyCharm','',p.gold<rules.charmPrice||p.inventory.charm>0||!v.calendar.shopOpen),icon('ward'))+
           tessaMemory(p)+
           actions(btn('Mercato regionale e banca','economy'));break;
       case 'smith':
-        html=npc('smith','Ivo · fabbro di Vela','Se macini il minerale fino a farne polvere, la linfa trattiene il suo calore per tutta la notte.')+row('Distilla due pozioni',rules.craftHerb+' erbe di rugiada e '+rules.craftOre+' minerale lucente.',cmd('Distilla','craft','',p.inventory.herb<rules.craftHerb||p.inventory.ore<rules.craftOre),icon('potion'))+
+        html=npc('smith','Ivo · fabbro di Vela','Se macini il minerale fino a farne polvere, la linfa trattiene il suo calore per tutta la notte.')+row('Distilla due pozioni',rules.craftHerb+' erbe di rugiada e '+rules.craftOre+' minerale lucente.'+(p.race==='slime'?' Per uno Slime ogni pozione cura il 67% della vitalità.':''),cmd('Distilla','craft','',p.inventory.herb<rules.craftHerb||p.inventory.ore<rules.craftOre),icon('potion'))+
           '<div class="stats">'+stat('Erbe',p.inventory.herb||0)+stat('Minerali',p.inventory.ore||0)+'</div>'+h('Commissione del fabbro')+'<p>'+esc(v.sideQuest)+'</p>'+
           (s.sideQuest===0?actions(cmd('Accetta incarico','sideAccept','',false,'primary')):s.sideQuest===1?actions(cmd('Consegna '+rules.sideHerb+' erbe','sideReward','',p.inventory.herb<rules.sideHerb,'primary')):'')+
           requestRows('wool-cloaks')+npcMemory('smith')+actions(btn('Forgia al banco di Ivo','workshop','','smithing'),btn('Ripara o incanta','gear'));break;

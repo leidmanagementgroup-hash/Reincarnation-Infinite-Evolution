@@ -69,18 +69,19 @@ Titolo della campagna principale: **"Dal Borgo al Varco"**.
 | 33 | `world-memory.js` | `WorldMemory` | Memoria del mondo: episodi ricordati dagli NPC (diretti o da testimoni presenti), opinione derivata, promesse, opportunità (Living World 2.0) |
 | 34 | `careers.js` | `Careers` | Mestieri con un futuro: ordini dell’Armeria del Passo per il fabbro, taccuino dei prezzi e contratti del Registro dei Carichi per il mercante (Living World 2.0) |
 | 35 | `world-requests.js` | `Requests` | Richieste del mondo: eventi contestuali con condizioni reali, fonte, durata, ricompensa, conseguenze e pausa (Living World 2.0) |
-| 36 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
-| 37 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
-| 38 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
-| 39 | `combat-fx.js` | `CombatFX` | Effetti di combattimento per elemento (fisico, fuoco, acqua, ghiaccio, fulmine, oscurità, luce): impatti, proiettili, anelli, colpo forte, schivata, aure e trasformazioni dei boss, evoluzione, numeri; solo disegno (§4.3) |
-| 40 | `audio.js` | `Score` | Musica e suoni |
-| 41 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
-| 42 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
-| 43 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
-| 44 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
-| 45 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
-| 46 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
-| 47 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
+| 36 | `lineage.js` | `Lineage` | Identità della stirpe: vantaggi e limiti letti dalle regole, opportunità e difficoltà collegate (Living World 2.0, nessuno stato salvato) |
+| 37 | `urban-services.js` | `UrbanServices` | Ripristino della fonte, colazione, letture ed esercitazione |
+| 38 | `urban-life.js` | `UrbanLife` | Residenti, routine (soste distribuite per giorno), memorie, commissioni e scorte urbane |
+| 39 | `engine.js` | `Game` | Tabelle stirpi/tecniche, simulazione, incontri, missioni, progressione, persistenza |
+| 40 | `combat-fx.js` | `CombatFX` | Effetti di combattimento per elemento (fisico, fuoco, acqua, ghiaccio, fulmine, oscurità, luce): impatti, proiettili, anelli, colpo forte, schivata, aure e trasformazioni dei boss, evoluzione, numeri; solo disegno (§4.3) |
+| 41 | `audio.js` | `Score` | Musica e suoni |
+| 42 | `practice-panel.js` | `PracticePanel` | Vista dei mestieri/minigiochi |
+| 43 | `life-panels.js` | `LifePanels` | Inventario, mestieri, vita quotidiana |
+| 44 | `economy-panel.js` | `EconomyPanel` | Mercato e banca |
+| 45 | `gear-panel.js` | `GearPanel` | Schermata equipaggiamento |
+| 46 | `npc-conflict-panel.js` | `ConflictPanel` | Pannello conflitti/soccorsi |
+| 47 | `panels.js` | `GamePanels` | Diario, mappe, interazioni con abitanti, grimorio |
+| 48 | `interface.js` | `UI` | Input, loop, camera, HUD, pannelli |
 
 Nota: `World`, `ActorArt` ed `EvolutionContent` sono **estesi da più moduli** successivi (ciascuno incapsula e riassegna il globale precedente): l'ordine in `build.py` è vincolante.
 
@@ -154,6 +155,8 @@ L'emporio usa il mercato `calis` già registrato in `Economy` con gli stessi pre
 
 ### 4.1 Incarnazione e stirpi
 Nuova partita: estrae una delle **44 stirpi** (rarità da Comune a Leggendaria), genera **predisposizioni individuali** e assegna una delle **sei abilità innate**. Ogni stirpe ha profilo biologico, tolleranze (freddo, caldo, fame, sete), abilità iniziale e due rami evolutivi a più stadi.
+
+**Identità della stirpe (`lineage.js`, Living World 2.0).** Il pannello del personaggio mostra i vantaggi e i limiti che le regole già applicano (dono in numeri delle stirpi originali, attacco naturale e guardia dei boss, fattori dei bisogni, ramo verso cui pesa la predisposizione, maturità per il corteggiamento) e, per Slime, Goblin e Viverna di brina, opportunità e difficoltà collegate ad attività esistenti. Nessuna regola nuova; il sorteggio e le biologie restano invariati.
 
 ### 4.2 Evoluzione
 Le trasformazioni sono **automatiche e osservate** (albero con V). Secondo stadio: progressione della campagna oppure pratica di mestiere sufficiente. Esistono assimilazione, tratti, ascensione, fusioni di tecniche (cambiano forma alla maestria 4). Le soglie reali sono in `growth.js` → `evolution()` (livello 2/5, essenze 3/6, condizione per stadio); in `engine.js` → `rules` restano `fuseLevel` e gli altri parametri effettivamente usati, mentre `evolutionLevel`, `evolutionEssence`, `ascensionLevel` e `ascensionEssence` non sono letti. Il pannello V mostra l'avanzamento per ogni via della condizione e l'attesa della fine di uno scontro con un boss (RPG Evolution, incremento 3).
