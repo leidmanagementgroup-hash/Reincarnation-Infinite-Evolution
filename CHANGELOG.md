@@ -2,6 +2,17 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-23] Operazione RPG Evolution, incremento 3: evoluzione e abilità più chiare — Claude
+Branch `claude/rpg-evolution` (`interface.js`, `engine.js`, `growth.js`, `panels.js`, prove).
+### Modificato
+- **Coda dei messaggi** (`interface.js`): prima un messaggio cancellava il precedente nello stesso istante (livello, talento, evoluzione, oggetti del boss si coprivano); ora si vedono in fila, al massimo tre in attesa, senza doppioni, con precedenza ai messaggi di progressione. **Evoluzione annunciata per intero** (`engine.js`): «Evoluzione · forma · Nuova tecnica · nome · tasto N» (o «assegnala con K»); l'avviso in basso dice «Nuova forma · nome · V». **Avanzamento verso lo stadio** (pannello V, `panels.js`; contatori di sola lettura in `growth.js`): sotto la condizione, «Basta una di queste vie» con scontri x/3, pratiche x/5 e le due vie insieme x/3 (dal livello 3); al secondo stadio Kharun sconfitto, mestiere migliore al grado g/4, pratiche x/32. **Evoluzione in attesa**: con i requisiti completi e un boss ingaggiato il pannello dice «Pronta: avverrà alla fine dello scontro» (prima il blocco era silenzioso). **Soglie dell'innata** (pannello K): utilizzi efficaci, ramo a 5 utilizzi, prossima maestria ogni 4, risonanza dai 15 con i talenti in armonia. **Barra rapida**: si aggiorna quando una tecnica evolve alla maestria 4 (prima restava il nome vecchio). Requisiti, soglie, rarità e bilanciamento invariati.
+### Aggiunto
+- `tests/prova-browser-progressione.cjs` (7 prove): coda dei messaggi, pannello V con le vie, evoluzione in attesa durante un boss, evoluzione per la via reale con messaggio e avviso, soglie dell'innata, barra rapida, nessun errore.
+### Documentazione
+- `GAME_DESIGN.md` §4.2: i parametri `evolutionLevel`, `evolutionEssence`, `ascensionLevel`, `ascensionEssence` di `rules` non sono usati; le soglie reali sono in `growth.js` → `evolution()`.
+### Verifica
+- build `b780f181…`. Node: `verifica-integrazione` OK, `verifica-esperienza` 10/10, `verifica-avvisi` 4/4, economia 158 e 147, `economia-flussi-2` codice 0, percorsi 0 bloccati su 41 040, residenti 0, `verifica-perf-002` 181 scene equivalenti; `confronto-mondo` contro la base `f2febd1` identico. Edge: `prova-browser` 10/10, `velaris-est` 12/12, economia, mondo 15/15, Cava 6/6, Santuario 7/7, interni 12/12, creature 7/7, combattimento 9/9, famiglie 6/6, progressione 7/7. Scatti PRIMA/DOPO dei pannelli V (primo e secondo stadio) e K. `sonda-sessione` 6 minuti in Edge visibile: fotogramma mediana 0,2–0,5 ms, p95 fino a 4,7 ms, nessun fotogramma oltre 33 ms, memoria 9–20 MB, salvataggio 0,2–0,4 ms, primo ingresso in Vaelthoria 65,8 ms (come prima).
+
 ## [2026-11-23] Operazione RPG Evolution, incremento 2: combattimento più reattivo e leggibile — Claude
 Branch `claude/rpg-evolution` (`engine.js`, `combat-fx.js`, `interface.js`, prove).
 ### Modificato

@@ -273,7 +273,9 @@
     if(equippedSlot>=0&&!p.slots.includes(form.skill))p.slots[equippedSlot]=form.skill;
     p.hp=stats().hpMax;p.mp=stats().mpMax;
     ring(p.x,p.y,60,'#eec482',null);spark(p.x,p.y,'#ffd5e8',32,null);fx('evolve',{x:p.x,y:p.y,race:p.race});
-    emit('sound','evolve');announce(['Evoluzione · '+form.name,...(notes||[])]);
+    // La tecnica della nuova forma viene nominata con il suo tasto (prima era appresa e assegnata in silenzio).
+    const slotNow=p.slots.indexOf(form.skill),learned='Nuova tecnica · '+skills[form.skill].name+(slotNow>=0?' · tasto '+(slotNow+1):' · assegnala con K');
+    emit('sound','evolve');announce(['Evoluzione · '+form.name,learned,...(notes||[])]);
     return true;
   }
   function npcPoint(id){
@@ -372,7 +374,8 @@
     const p=s.player,r=raceBook[p.race],m=s.monsters.find(m=>m.hp>0&&m.engaged&&codex[m.type].boss);
     const location=UrbanWorld.location(s)||(World.landmarks?.length?World.landmarks.reduce((a,b)=>distance(a,p)<distance(b,p)?a:b).name:'Borgo di Vela');
     const calendar=Calendar.view(s.calendar,s.time,s.region);
-    const next=detailed?evolution():null, campaignStage=s.campaign.stage;
+    // `waiting`: requisiti completi ma un boss è ingaggiato, quindi l'evoluzione avverrà a fine scontro (tryEvolution).
+    const plan=detailed?evolution():null,next=plan&&{...plan,waiting:plan.ready&&s.monsters.some(m=>m.hp>0&&m.engaged&&codex[m.type].boss)},campaignStage=s.campaign.stage;
     return {...stats(),race:r,formName:formFor(p)?.name||r.name,objective:objective(),
       region:s.region,regionName:regionInfo(s.region)?.name||'Valle di Lùmora',campaignTitle:chapterNames[campaignStage],campaignStage,
       evolution:next, growth:detailed?Growth.view(p.growth,r,calendar.ageDays*480):{innate:Growth.innate(p.growth)},

@@ -35,7 +35,20 @@
       else ActorArt.icon(g,c.dataset.kind,0,0,w);
     });
   }
-  function toast(txt) {if (!txt) return;const el=$('#toast');el.textContent=txt;el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('visible'),2600);}
+  // Coda dei messaggi (RPG Evolution, incremento 3): prima un messaggio cancellava il precedente nello stesso istante
+  // (livello, talento, evoluzione e oggetti del boss si coprivano). Ora si mostrano in fila, al massimo tre in attesa,
+  // senza doppioni; quelli di progressione hanno la precedenza quando la fila è piena.
+  const toastQueue=[],toastKey=/^(Evoluzione|Nuova tecnica|Tecnica evoluta|Talento|Mutazione|Livello|Innato e talento)/;
+  let toastShown='';
+  function toast(txt) {
+    if(!txt)return;txt=String(txt);
+    if(txt===toastShown||toastQueue.includes(txt))return;
+    if(!$('#toast').classList.contains('visible')){showToast(txt);return;}
+    toastQueue.push(txt);
+    while(toastQueue.length>3){const drop=toastQueue.findIndex(x=>!toastKey.test(x));toastQueue.splice(drop<0?0:drop,1);}
+  }
+  function showToast(txt){const el=$('#toast');toastShown=txt;el.textContent=txt;el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(nextToast,toastQueue.length?2000:2600);}
+  function nextToast(){const next=toastQueue.shift();if(next){showToast(next);return;}$('#toast').classList.remove('visible');toastShown='';}
   function updateAudioIcon(){
     const on=Score.enabled && Score.started;
     $$('[data-do=audio]').forEach(b=>{const i=b.querySelector('i');if(i){i.dataset.symbol=on?'sound':'mute';paintSymbols(b);}b.setAttribute('aria-label',on?'Disattiva audio':'Attiva audio');b.title=on?'Disattiva audio':'Attiva audio';});
@@ -300,7 +313,7 @@
     if(p.evolutionStage>observedStage)evolutionNotice=Game.s.time+5;
     observedStage=p.evolutionStage;
     $('#evoAlert').hidden=Game.s.time>evolutionNotice;
-    $('#evoAlert').textContent='Nuova forma · V';
+    $('#evoAlert').textContent='Nuova forma · '+v.formName+' · V';
     const bh=$('#bossHud');bh.hidden=!v.boss;
     if(v.boss){
       bh.querySelector('strong').textContent=v.boss.name;
@@ -308,7 +321,8 @@
       bh.querySelector('span').textContent='FASE '+(['','I','II','III'][v.boss.phase]||v.boss.phase)+' / '+(v.boss.maxPhase===3?'III':'II');
       bh.dataset.phase=String(v.boss.phase);
     }
-    const innate=v.growth?.innate,ms=p.slots.join('/')+':'+p.potions+':'+(innate?.name||'')+':'+p.race;
+    // La firma comprende i nomi attivi: una tecnica evoluta alla maestria 4 aggiorna subito etichetta e descrizione del tasto.
+    const innate=v.growth?.innate,ms=p.slots.join('/')+':'+p.potions+':'+(innate?.name||'')+':'+p.race+':'+p.slots.map(id=>Game.activeSkill(p,id)?.name||'').join('/');
     const skillFor=i=>i>=2&&i<=4?Game.activeSkill(p,p.slots[i-2]):hot[i][0]==='innate'?innate:null;
     if(ms!==barSig){const wrap=$('#hotbar');wrap.replaceChildren();hot.forEach(([id,key,icon,lab],i)=>{
       const def=skillFor(i),b=document.createElement('button');b.dataset.action=id;

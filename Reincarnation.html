@@ -9642,7 +9642,8 @@ window.Lantern = (() => {
     return {stage,level,essence,condition,ready:stage<2&&levelReady&&essenceReady&&conditionReady,
       levelReady,essenceReady,conditionReady,branch,reason,memory,mutation:findMutation(g),
       influences:ranking.slice(0,3).map(h=>({name:h.label,description:h.detail})),
-      progress:{fights,work,profession:profession?vocation:null}};
+      // Contatori per le soglie mostrate nel pannello V (sola lettura: le regole sopra non cambiano).
+      progress:{fights,work,profession:profession?vocation:null,peak:Math.max(0,...(life?.professions||[]).map(row=>row.level||0)),story,mix:fights+work*.65,levelThree:p.level>2}};
   }
   function transform(g,plan){
     const next=plan.stage+1;
@@ -14937,7 +14938,9 @@ window.Lantern = (() => {
     if(equippedSlot>=0&&!p.slots.includes(form.skill))p.slots[equippedSlot]=form.skill;
     p.hp=stats().hpMax;p.mp=stats().mpMax;
     ring(p.x,p.y,60,'#eec482',null);spark(p.x,p.y,'#ffd5e8',32,null);fx('evolve',{x:p.x,y:p.y,race:p.race});
-    emit('sound','evolve');announce(['Evoluzione · '+form.name,...(notes||[])]);
+    // La tecnica della nuova forma viene nominata con il suo tasto (prima era appresa e assegnata in silenzio).
+    const slotNow=p.slots.indexOf(form.skill),learned='Nuova tecnica · '+skills[form.skill].name+(slotNow>=0?' · tasto '+(slotNow+1):' · assegnala con K');
+    emit('sound','evolve');announce(['Evoluzione · '+form.name,learned,...(notes||[])]);
     return true;
   }
   function npcPoint(id){
@@ -15036,7 +15039,8 @@ window.Lantern = (() => {
     const p=s.player,r=raceBook[p.race],m=s.monsters.find(m=>m.hp>0&&m.engaged&&codex[m.type].boss);
     const location=UrbanWorld.location(s)||(World.landmarks?.length?World.landmarks.reduce((a,b)=>distance(a,p)<distance(b,p)?a:b).name:'Borgo di Vela');
     const calendar=Calendar.view(s.calendar,s.time,s.region);
-    const next=detailed?evolution():null, campaignStage=s.campaign.stage;
+    // `waiting`: requisiti completi ma un boss è ingaggiato, quindi l'evoluzione avverrà a fine scontro (tryEvolution).
+    const plan=detailed?evolution():null,next=plan&&{...plan,waiting:plan.ready&&s.monsters.some(m=>m.hp>0&&m.engaged&&codex[m.type].boss)},campaignStage=s.campaign.stage;
     return {...stats(),race:r,formName:formFor(p)?.name||r.name,objective:objective(),
       region:s.region,regionName:regionInfo(s.region)?.name||'Valle di Lùmora',campaignTitle:chapterNames[campaignStage],campaignStage,
       evolution:next, growth:detailed?Growth.view(p.growth,r,calendar.ageDays*480):{innate:Growth.innate(p.growth)},
@@ -17924,12 +17928,21 @@ window.Lantern = (() => {
     if(!mutation)return '';
     return row(mutation.name||'Mutazione',mutation.description||mutation.reason||'Una traccia rara maturata durante il viaggio.','<span class="gateStatus open">Mutazione</span>');
   }
+  // Soglie dell'innata (stesse di growth.js): ramo a 5 utilizzi efficaci, maestria ogni 4, risonanza dai 15 con i talenti in armonia.
+  function innateSteps(a){
+    const uses=Number(a.uses)||0,parts=[uses+' utilizzi efficaci'];
+    parts.push(a.branch?'ramo manifestato':'ramo a 5 utilizzi ('+Math.min(uses,5)+' / 5), orientato da come la usi');
+    if((a.level||1)<5)parts.push('maestria '+((a.level||1)+1)+' a '+4*(a.level||1)+' utilizzi');
+    else parts.push('maestria massima');
+    parts.push(a.resonance?'in risonanza':a.branch?'risonanza dai 15 utilizzi ('+Math.min(uses,15)+' / 15) quando i talenti sono in armonia':'risonanza dopo il ramo');
+    return parts.join(' · ')+'.';
+  }
   function innatePanel(innate,details){
     if(!innate)return '';
     const summary=[innate.description,innate.rarity,'Livello '+innate.level].filter(Boolean).join(' · ')+
       (details?' · '+innate.cost+' mana · '+Number(innate.cooldown).toLocaleString('it')+' s di ricarica'+(innate.power?' · Intensità ×'+Number(innate.power).toLocaleString('it',{maximumFractionDigits:2}):''):'');
     return h('Abilità innata')+row(innate.name,summary,'<kbd>R</kbd>',icon(innate.icon||'core'))+
-      (details?'<p class="caption">'+esc(innate.uses)+' utilizzi. La pratica orienta il ramo dell’innata.</p>':
+      (details?'<p class="caption">'+esc(innateSteps(innate))+'</p>':
         '')+(details?(innate.branches||[]).map(b=>row(b.name,[b.description,b.hint].filter(Boolean).join(' '),'<span class="gateStatus '+(b.id===innate.branch?'open':'')+'">'+(b.id===innate.branch?'Manifestata':'Possibile')+'</span>')).join(''):'');
   }
   function stationList(life,p){
@@ -18137,6 +18150,22 @@ window.Lantern = (() => {
       return row(g.label||to,open?'Verso '+to+' · avvicinati e premi E.':'Verso '+to+' · avanza nella missione principale.','<span class="gateStatus '+(open?'open':'')+'">'+(open?'Aperto':'Chiuso')+'</span>');
     }).join('');
   }
+  // Avanzamento per ciascuna via della condizione (RPG Evolution, incremento 3): basta una via; le soglie sono quelle di growth.js.
+  function conditionPaths(evo){
+    const g=evo.progress;if(!g||evo.conditionReady)return '';
+    const way=(done,txt)=>'<li class="'+(done?'met':'')+'"><span aria-hidden="true">'+(done?'✓':'·')+'</span>'+esc(txt)+'</li>';
+    const n=x=>Math.floor(x);
+    const ways=evo.stage===0?[
+      way(g.fights>=3,'Scontri vinti '+Math.min(g.fights,3)+' / 3'),
+      way(g.work>=5,'Pratiche di mestiere '+Math.min(n(g.work),5)+' / 5'),
+      way(g.mix>=3&&g.levelThree,'Le due vie insieme '+Math.min(n(g.mix*10)/10,3).toLocaleString('it')+' / 3'+(g.levelThree?'':' (dal livello 3)'))
+    ]:[
+      way(g.story,'Kharun sconfitto'),
+      way(g.peak>=4,'Un mestiere al grado 4 · migliore grado '+(g.peak||0)),
+      way(g.work>=32,'Pratiche di mestiere '+Math.min(n(g.work),32)+' / 32')
+    ];
+    return '<p class="caption">Basta una di queste vie:</p><ul class="evoPaths">'+ways.join('')+'</ul>';
+  }
   function evolutionChecklist(evo,p){
     if(!evo)return '';
     if(evo.stage>=2)return '<p class="caption">Hai raggiunto la forma finale di questa stirpe.</p>';
@@ -18145,7 +18174,7 @@ window.Lantern = (() => {
       requirement(evo.levelReady??p.level>=evo.level,'Livello '+evo.level+' · attuale '+p.level)+
       requirement(evo.essenceReady??p.inventory.essence>=evo.essence,'Essenze '+p.inventory.essence+' / '+evo.essence)+
       (evo.condition?requirement(evo.conditionReady,evo.condition):'')+
-      '</ul>'+(evo.influences?.length?'<p class="caption">Influenze recenti · '+evo.influences.map(x=>esc(x.name)).join(' · ')+'</p>':'')+
+      '</ul>'+conditionPaths(evo)+(evo.waiting?'<p class="caption evoWaiting">✦ Pronta: avverrà alla fine dello scontro con il boss.</p>':'')+(evo.influences?.length?'<p class="caption">Influenze recenti · '+evo.influences.map(x=>esc(x.name)).join(' · ')+'</p>':'')+
       (evo.progress?'<p class="caption">Scontri vinti '+esc(evo.progress.fights)+' · Pratiche '+Math.floor(evo.progress.work)+(evo.progress.profession?' · '+esc(evo.progress.profession):'')+'</p>':'')+'</div>';
   }
   function evolutionHistory(g,race){
@@ -18233,7 +18262,20 @@ window.Lantern = (() => {
       else ActorArt.icon(g,c.dataset.kind,0,0,w);
     });
   }
-  function toast(txt) {if (!txt) return;const el=$('#toast');el.textContent=txt;el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('visible'),2600);}
+  // Coda dei messaggi (RPG Evolution, incremento 3): prima un messaggio cancellava il precedente nello stesso istante
+  // (livello, talento, evoluzione e oggetti del boss si coprivano). Ora si mostrano in fila, al massimo tre in attesa,
+  // senza doppioni; quelli di progressione hanno la precedenza quando la fila è piena.
+  const toastQueue=[],toastKey=/^(Evoluzione|Nuova tecnica|Tecnica evoluta|Talento|Mutazione|Livello|Innato e talento)/;
+  let toastShown='';
+  function toast(txt) {
+    if(!txt)return;txt=String(txt);
+    if(txt===toastShown||toastQueue.includes(txt))return;
+    if(!$('#toast').classList.contains('visible')){showToast(txt);return;}
+    toastQueue.push(txt);
+    while(toastQueue.length>3){const drop=toastQueue.findIndex(x=>!toastKey.test(x));toastQueue.splice(drop<0?0:drop,1);}
+  }
+  function showToast(txt){const el=$('#toast');toastShown=txt;el.textContent=txt;el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(nextToast,toastQueue.length?2000:2600);}
+  function nextToast(){const next=toastQueue.shift();if(next){showToast(next);return;}$('#toast').classList.remove('visible');toastShown='';}
   function updateAudioIcon(){
     const on=Score.enabled && Score.started;
     $$('[data-do=audio]').forEach(b=>{const i=b.querySelector('i');if(i){i.dataset.symbol=on?'sound':'mute';paintSymbols(b);}b.setAttribute('aria-label',on?'Disattiva audio':'Attiva audio');b.title=on?'Disattiva audio':'Attiva audio';});
@@ -18498,7 +18540,7 @@ window.Lantern = (() => {
     if(p.evolutionStage>observedStage)evolutionNotice=Game.s.time+5;
     observedStage=p.evolutionStage;
     $('#evoAlert').hidden=Game.s.time>evolutionNotice;
-    $('#evoAlert').textContent='Nuova forma · V';
+    $('#evoAlert').textContent='Nuova forma · '+v.formName+' · V';
     const bh=$('#bossHud');bh.hidden=!v.boss;
     if(v.boss){
       bh.querySelector('strong').textContent=v.boss.name;
@@ -18506,7 +18548,8 @@ window.Lantern = (() => {
       bh.querySelector('span').textContent='FASE '+(['','I','II','III'][v.boss.phase]||v.boss.phase)+' / '+(v.boss.maxPhase===3?'III':'II');
       bh.dataset.phase=String(v.boss.phase);
     }
-    const innate=v.growth?.innate,ms=p.slots.join('/')+':'+p.potions+':'+(innate?.name||'')+':'+p.race;
+    // La firma comprende i nomi attivi: una tecnica evoluta alla maestria 4 aggiorna subito etichetta e descrizione del tasto.
+    const innate=v.growth?.innate,ms=p.slots.join('/')+':'+p.potions+':'+(innate?.name||'')+':'+p.race+':'+p.slots.map(id=>Game.activeSkill(p,id)?.name||'').join('/');
     const skillFor=i=>i>=2&&i<=4?Game.activeSkill(p,p.slots[i-2]):hot[i][0]==='innate'?innate:null;
     if(ms!==barSig){const wrap=$('#hotbar');wrap.replaceChildren();hot.forEach(([id,key,icon,lab],i)=>{
       const def=skillFor(i),b=document.createElement('button');b.dataset.action=id;
