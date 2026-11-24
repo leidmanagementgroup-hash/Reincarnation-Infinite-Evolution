@@ -185,13 +185,21 @@
   function tick(s){
     const now=Math.floor(s.time/65),soc=s.society;
     if(now<=soc.pulse)return;
-    const steps=Math.min(12,now-soc.pulse);soc.pulse=now;
-    for(const [i,id] of regions.entries()){
+    // PERF-005 fase 2: il recupero copre un giorno intero di sonno (1 800 s ≈ 28 blocchi da 65 s), così una notte dormita
+    // dà gli stessi borghi di una notte vissuta; prima il tetto era 12 blocchi.
+    const steps=Math.min(30,now-soc.pulse);soc.pulse=now;
+    for(const id of regions){
       const town=soc.towns[id];
       town.stock=Math.min(28,town.stock+steps);
       const growth=now+town.trade*2;
       town.level=growth>=17?3:growth>=6?2:1;
+    }
+    // L'accordo si calcola dopo aver aggiornato tutti i livelli: non dipende più dall'ordine dei borghi.
+    for(const id of regions){
+      const town=soc.towns[id];
       town.accord=town.level>=2&&regions.some(other=>other!==id&&group(id)===group(other)&&soc.towns[other].level>=2);
+    }
+    for(const [i,id] of regions.entries()){
       const migrant=soc.people[id+'-1'];
       if(window.Conflicts&&!Conflicts.canInteract(s,id+'-1'))continue;
       migrant.training=Math.min(1e8,migrant.training+steps);

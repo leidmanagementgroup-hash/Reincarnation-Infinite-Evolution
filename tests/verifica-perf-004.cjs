@@ -145,7 +145,9 @@ function scenario(population, mutate = null) {
   run(a, b, 300, 50, 'mattino', stats);
   for (const key of ['urban', 'economy', 'reputation', 'calendar'])
     assert.equal(JSON.stringify(b.Game.s[key]), JSON.stringify(a.Game.s[key]), 'Stato salvato diverso: ' + key);
-  assert.equal(b.Game.exportSave().length, a.Game.exportSave().length, 'Salvataggio di dimensione diversa');
+  // I conflitti degli NPC sono esclusi: PERF-005 fase 2 li ha resi continui di proposito (impulsi su una griglia assoluta).
+  const saved = x => { const d = JSON.parse(x.Game.exportSave()); delete d.conflicts; delete d.savedAt; return JSON.stringify(d).length; };
+  assert.equal(saved(b), saved(a), 'Salvataggio di dimensione diversa (esclusi i conflitti)');
   notes.legsEnd = legsOf(b);
   notes.hash = crypto.createHash('sha256').update(JSON.stringify(snapshot(b).scene)).digest('hex').slice(0, 16);
   return { stats, notes };

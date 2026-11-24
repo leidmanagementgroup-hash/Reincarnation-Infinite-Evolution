@@ -17,9 +17,9 @@
 |---|---|---|---|---|
 | Residenti di Velaris | `urban-life.js` | per fotogramma (`tick`, lavoro di fondo) e al disegno | piani anticipati se la città è già stata visitata (PERF-003); nessuno stato per persona | `s.urban`: ricordi ≤8 per chi ha interagito, scorte della città |
 | Lavoratori dei quartieri (Filoni, Calis) | `urban-districts.js` | al disegno | no (decorativi, dal minuto) | nessuno |
-| Abitanti dei borghi | `society.js` | impulso a blocchi di 65 s di `s.time`, ≤12 blocchi | sì, globale e aggregato | `s.society` (18 persone, 9 borghi) |
+| Abitanti dei borghi | `society.js` | impulso a blocchi di 65 s di `s.time`, ≤12 blocchi (≤30 dopo la fase 2) | sì, globale e aggregato | `s.society` (18 persone, 9 borghi) |
 | NPC di Vela | `world-life.js` (`npcPoint`) | dal minuto | — | nessuno |
-| Conflitti e morte degli NPC | `npc-conflicts.js` | per fotogramma (vicino) e `remotePulse` (lontano) | sì, un impulso astratto per chiamata | `s.conflicts` |
+| Conflitti e morte degli NPC | `npc-conflicts.js` | per fotogramma (vicino) e `remotePulse` (lontano) | sì, un impulso astratto per chiamata (dopo la fase 2: impulsi su una griglia di 1,05 s, tutti risolti nei salti) | `s.conflicts` |
 | Mostri | `engine.js` `updateMonster` | per fotogramma, solo regione corrente, fermi oltre 250 px | **no**: istantanee congelate in `s.regions[id]` | sì, ~27 campi per mostro |
 | Economia, carovane | `trade-economy.js`, `market-flows.js` | per giorno di calendario, anche alla prima lettura | sì, aggregata; recupero ≤120 giorni | `s.economy` |
 | Costruzioni | `construction.js` | blocchi da 125 s, recupero senza tetto | sì | `s.build` |
@@ -41,6 +41,8 @@ locanda di Vela; poi quattro ore vissute a Velaris contro un salto del calendari
 | Borghi (Society) | **no, per un impulso**: l'«accordo» di un borgo legge il livello degli altri borghi nello stesso giro, quindi dopo un solo impulso (il sonno) è in ritardo di 65 s |
 | Conflitti degli NPC | **no**: vivendo la notte una guardia viene ferita e guadagna esperienza; dormendo il mondo lontano fa un solo impulso e non succede nulla |
 | Posizioni dei residenti di Velaris (95 e 500) | **sì**: identiche fra tempo vissuto e salto; il livello vicino è già «puro nel tempo» |
+
+**Dopo la fase 2** (2026-11-24): borghi **uguali**; conflitti delle regioni lontane **uguali** con il mondo già avviato (prova 3 di `verifica-continuita`), con 5 differenze a frost-pass nella sonda, che parte da un mondo appena creato: un abitante cambia borgo durante la notte (limite RISK-012, §6 fase 2); il conflitto nella regione del giocatore resta diverso per scelta (scontro vissuto contro forma astratta, regola prudente sul soccorso). La sonda li riporta su due righe separate.
 
 Nessun sistema del mondo usa `Math.random` (sono tutti deterministici): un recupero del tempo esatto per intervalli è possibile.
 
@@ -171,10 +173,16 @@ l'integrazione di Codex su `engine.js` e `build.py`.
 - [ ] Il sonno chiama `WorldSim.resolve` invece dell'elenco a mano (stesso ordine, stesso risultato: prova di identità).
 - [ ] Commit, prove PERF-001…004, banco in Edge prima/dopo.
 
-### Fase 2 — Continuità dei sistemi esistenti
-- [ ] Borghi: calcolo dell'accordo dopo l'aggiornamento di tutti i livelli (ordine indipendente); sonda «uguale».
-- [ ] Conflitti lontani: risoluzione per intervalli con seme, così il sonno vive le stesse ore (cambia il gioco durante il
-  sonno: **approvazione dell'utente**); sonda «uguale».
+### Fase 2 — Continuità dei sistemi esistenti (fatta, 2026-11-24, approvata dall'utente)
+**File**: `society.js`, `npc-conflicts.js`; `tests/verifica-continuita.cjs` (nuova, 11 prove scritte prima del codice);
+`tests/verifica-perf-004.cjs` (il salvataggio si confronta senza i conflitti, cambiati di proposito); `tests/sonda-continuita.cjs`
+(regioni lontane e regione del giocatore su righe separate). `engine.js` non è toccato.
+- [x] **Borghi durante il sonno**: il recupero copre fino a 30 blocchi da 65 s (prima 12), cioè un giorno intero di sonno, e l'accordo fra borghi si calcola dopo aver aggiornato tutti i livelli (non dipende più dall'ordine dei borghi): una notte dormita dà gli stessi borghi di una notte vissuta.
+- [x] **Conflitti durante il sonno** (approvato dall'utente il 2026-11-24): gli impulsi dei conflitti stanno su una griglia assoluta (multipli di 1,05 s di `s.time`) e durante il sonno si risolvono tutti, ciascuno al proprio istante (durante l'impulso `s.time` vale l'istante dell'impulso, poi torna al valore reale); tetto di 2 400 impulsi (42 minuti di `s.time`, più di un giorno intero di sonno). Nelle regioni lontane una notte dormita produce gli stessi scontri, ferite, morti, esperienza e posizioni di una notte vissuta. Nella regione del giocatore lo scontro vicino si risolve in forma astratta (non c'è nessuno a guardarlo fotogramma per fotogramma) e vale una **regola prudente**: chi diventa critico durante il sonno non muore mentre il giocatore dorme e al risveglio ha di nuovo 105 s per il soccorso; chi era già critico prima di dormire muore se la scadenza passa. Al risveglio gli avvisi sono riassunti in poche righe (scontri, morti, critici, feriti) invece di uno per impulso. Un errore a metà del recupero non fa ripetere l'impulso già applicato; un salvataggio con un impulso nel futuro viene riportato al prossimo confine della griglia.
+- [x] Prove: `node tests/verifica-continuita.cjs` (11 prove, circa 3 minuti; `ONLY=3,9` per alcune). Mutazioni rilevate: impulsi
+  fuori griglia (3), tetto a 12 blocchi (2), ordine dell'accordo (7), istante dell'impulso non applicato (3), impulso registrato
+  dopo l'esecuzione (10), nessun risparmio nel sonno (9), nessun riassunto (8), nessun tetto al ripristino (11).
+- Limite noto (RISK-012): Nel sonno `engine.js` aggiorna `Society` prima di `Conflicts`: gli impulsi dei conflitti ripetuti vedono i borghi già alla fine del sonno. Misurato: con un mondo già avviato nessuna differenza (prova 3 di `verifica-continuita`: 9 regioni lontane, 85 turni, 27 persone identici); nella `sonda-continuita`, che parte da un mondo appena creato con il calendario saltato alle 21:00, un abitante di frost-pass cambia borgo a `s.time` 650,6: nella notte vissuta partecipa a uno scontro prima di partire, in quella dormita non viene mai scelto (5 differenze nei conflitti di frost-pass). Nessuna perdita di dati né duplicazione: cambia chi combatte. Si risolve con l'ordine globale nel tempo di `WorldSim` quando sarà collegato al motore (fase 1); `engine.js` non è stato toccato perché Codex vi ha modifiche locali non pubblicate.
 
 ### Fase 3 — L3 città aggregate e caricamento progressivo
 - [ ] Città non correnti come conteggi per quartiere e ora, produzione e consumo; promozione anticipata vicino ai varchi

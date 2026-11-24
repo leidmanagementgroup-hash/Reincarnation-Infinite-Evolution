@@ -11302,13 +11302,21 @@ window.Lantern = (() => {
   function tick(s){
     const now=Math.floor(s.time/65),soc=s.society;
     if(now<=soc.pulse)return;
-    const steps=Math.min(12,now-soc.pulse);soc.pulse=now;
-    for(const [i,id] of regions.entries()){
+    // PERF-005 fase 2: il recupero copre un giorno intero di sonno (1 800 s ≈ 28 blocchi da 65 s), così una notte dormita
+    // dà gli stessi borghi di una notte vissuta; prima il tetto era 12 blocchi.
+    const steps=Math.min(30,now-soc.pulse);soc.pulse=now;
+    for(const id of regions){
       const town=soc.towns[id];
       town.stock=Math.min(28,town.stock+steps);
       const growth=now+town.trade*2;
       town.level=growth>=17?3:growth>=6?2:1;
+    }
+    // L'accordo si calcola dopo aver aggiornato tutti i livelli: non dipende più dall'ordine dei borghi.
+    for(const id of regions){
+      const town=soc.towns[id];
       town.accord=town.level>=2&&regions.some(other=>other!==id&&group(id)===group(other)&&soc.towns[other].level>=2);
+    }
+    for(const [i,id] of regions.entries()){
       const migrant=soc.people[id+'-1'];
       if(window.Conflicts&&!Conflicts.canInteract(s,id+'-1'))continue;
       migrant.training=Math.min(1e8,migrant.training+steps);
@@ -14145,6 +14153,12 @@ window.Lantern = (() => {
   const cap=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
   const dx=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const conditionKey=k=>own(label,k);
+  /* PERF-005 fase 2: gli impulsi dei conflitti stanno su una griglia assoluta (multipli di 1,05 s di s.time) e durante un
+     salto di tempo (sonno, aggiornamento senza fotogrammi) si risolvono tutti, ciascuno al proprio istante: una notte vissuta e
+     una notte dormita producono gli stessi conflitti nelle regioni lontane. Durante un impulso s.time vale l'istante
+     dell'impulso (posizioni, orari e scadenze sono quelli di quel momento) e torna al valore reale subito dopo. */
+  const PULSE=1.05,MAX_PULSES=2400; // 2 400 impulsi = 42 minuti di s.time: più di un giorno intero di sonno (1 800 s)
+  const RESCUE=105; // secondi di soccorso per chi è in stato critico
   const stamp=s=>s.time;
   const livingStatus=(record)=>record?.status!=='critical'&&record?.status!=='dead';
   const validNames=()=>Object.keys(World.regions).filter(id=>id==='valley'||World.regions[id].settlement);
@@ -14248,8 +14262,10 @@ window.Lantern = (() => {
     }
     if(!raw.events.every(e=>obj(e)&&own(World.regions,e.region)&&known(s,e.id)&&valid(e.at,0,stamp(s)+1e-4)&&
       typeof e.title==='string'&&e.title.length<=170))return null;
+    // Un impulso oltre il prossimo confine della griglia (salvataggio alterato) congelerebbe i conflitti: si riporta al confine.
+    const limit=stamp(s)+PULSE,pulse=Number.isFinite(limit)&&raw.pulse>limit+1e-6?limit:raw.pulse;
     return {schema:1,people,regions:{...base.regions,...regions},events:raw.events.map(e=>issue(e.title,e.region,e.id,e.at)),
-      pulse:raw.pulse,ritualUsed:raw.ritualUsed,mourning};
+      pulse,ritualUsed:raw.ritualUsed,mourning};
   }
 
   function condition(s,id){
@@ -14299,7 +14315,7 @@ window.Lantern = (() => {
     p.last=stamp(s);
     p.cause=String(meta.cause||'Scontro con la fauna').slice(0,90);
     if(!p.hp){
-      p.status='critical';p.deadline=stamp(s)+105;p.nearDeath++;
+      p.status='critical';p.deadline=stamp(s)+RESCUE;p.nearDeath++;
       p.witnessed=p.point.region===s.region&&dx(p.point,s.player)<185;
       monitor(s,id,n.name+' è in stato critico. Portagli una pozione o due erbe.',p.point,out);
     }else if(p.hp<=p.maxHp*.42&&p.status==='healthy'){
@@ -14550,14 +14566,62 @@ window.Lantern = (() => {
   }
   function tick(s,delta,helpers={}){
     if(!s?.conflicts)return [];
-    const dt=cap(delta||0,0,.12),state=s.conflicts,notices=[];
-    const now=stamp(s);
+    const dt=cap(delta||0,0,.12),state=s.conflicts;
+    let notices=[];
+    const now=s.time;
     if(now>=state.pulse){
-      state.pulse=now+1.05;
+      // Senza fotogrammi (dt nullo: sonno) anche lo scontro vicino al giocatore si risolve in forma astratta.
+      const sleep=dt?null:sleepStart(s,state);
+      let k=Math.ceil(state.pulse/PULSE-1e-9),count=0;
+      try{
+        for(;k*PULSE<=now&&count<MAX_PULSES;k++,count++){
+          state.pulse=(k+1)*PULSE; // registrato prima: un errore a metà non fa ripetere un impulso già applicato
+          s.time=k*PULSE;
+          pulse(s,state,sleep,helpers,notices);
+        }
+      }finally{s.time=now;}
+      if(k*PULSE<=now)state.pulse=(Math.floor(now/PULSE)+1)*PULSE; // oltre il tetto: il resto dell'intervallo non si recupera
+      if(sleep)notices=wake(s,state,sleep,notices);
+    }
+    const current=state.regions[s.region];
+    if(dt&&current?.active&&dx(current.active.point,s.player)<=410)localTick(s,current,dt,helpers,notices);
+    return notices;
+  }
+  // Inizio di un sonno: chi è già in stato critico, lo stato di ognuno e i turni della regione del giocatore.
+  function sleepStart(s,state){
+    const status=new Map(Object.entries(state.people).map(([id,p])=>[id,p.status]));
+    return {region:s.region,status,round:state.regions[s.region]?.round||0};
+  }
+  // Regola prudente (PERF-005 fase 2): nella regione del giocatore chi diventa critico mentre dorme non muore durante il sonno
+  // e al risveglio ha di nuovo il tempo pieno per il soccorso; nelle regioni lontane vale l'equivalenza con il tempo vissuto.
+  const spared=(sleep,id,p)=>!!sleep&&p.point.region===sleep.region&&sleep.status.get(id)!=='critical';
+  // Fine del sonno: scadenze di soccorso dei risparmiati e un riassunto breve al posto di un avviso per ogni impulso.
+  function wake(s,state,sleep,raw){
+    const here=Object.entries(state.people).filter(([,p])=>p.point.region===sleep.region);
+    for(const [id,p] of here)if(p.status==='critical'&&spared(sleep,id,p))p.deadline=Math.max(p.deadline,s.time+RESCUE);
+    if(!raw.length)return raw;
+    const names=ids=>{
+      const list=ids.map(id=>identity(s,id)?.name||'L’abitante');
+      return list.length>3?list.slice(0,3).join(', ')+' e altri '+(list.length-3):list.join(', ');
+    };
+    const changed=(status)=>here.filter(([id,p])=>p.status===status&&sleep.status.get(id)!==status).map(([id])=>id);
+    const rounds=(state.regions[sleep.region]?.round||0)-sleep.round,fallen=changed('dead'),injured=changed('injured');
+    const critical=here.filter(([,p])=>p.status==='critical'&&p.deadline>s.time).map(([id])=>id),out=[];
+    if(rounds>0)out.push('Mentre riposavi: '+rounds+(rounds===1?' scontro':' scontri')+' ai margini della zona abitata.');
+    if(fallen.length)out.push('Morti durante il riposo: '+names(fallen)+(fallen.length===1?'. Resta un memoriale sul luogo.':'. Restano i memoriali.'));
+    if(critical.length)out.push('In stato critico: '+names(critical)+(critical.length===1?'. Portagli':'. Porta a ciascuno')+' una pozione o due erbe.');
+    if(injured.length)out.push('Feriti: '+names(injured)+'.');
+    return out.length?out:raw.slice(-1);
+  }
+  // Un impulso dei conflitti all'istante s.time: scadenze dello stato critico e delle ferite, nuovi scontri, scontri lontani.
+  // sleep: stato d'inizio del sonno (null durante il gioco); nel sonno anche lo scontro vicino si risolve in forma astratta.
+  function pulse(s,state,sleep,helpers,notices){
+    const now=stamp(s);
+    {
       for(const [id,p] of Object.entries(state.people)){
         if(p.status==='critical'){
           if(p.point.region===s.region&&dx(p.point,s.player)<185)p.witnessed=true;
-          if(p.deadline<=now){
+          if(p.deadline<=now&&!spared(sleep,id,p)){
             down(s,id,p,notices);
             if(p.witnessed)helpers.notify?.({id:'npc-neglect',npc:id,region:p.point.region});
           }
@@ -14569,12 +14633,9 @@ window.Lantern = (() => {
       for(const [region,node] of Object.entries(state.regions)){
         if(!node.active&&node.next<=now)newConflict(s,region,node,notices);
         const a=node.active;
-        if(a&&(region!==s.region||dx(a.point,s.player)>410))remotePulse(s,region,node,notices);
+        if(a&&(sleep||region!==s.region||dx(a.point,s.player)>410))remotePulse(s,region,node,notices);
       }
     }
-    const current=state.regions[s.region];
-    if(dt&&current?.active&&dx(current.active.point,s.player)<=410)localTick(s,current,dt,helpers,notices);
-    return notices;
   }
 
   function marker(ctx,x,y,left,p){

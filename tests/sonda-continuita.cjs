@@ -102,7 +102,11 @@ const report = { hours, nights: [], velaris: [] };
     'borghi (Society)': x => x.Game.s.society?.towns,
     'costruzioni (Build)': x => x.Game.s.build,
     'Velaris: scorte della città': x => x.Game.s.urban?.city,
-    'conflitti degli NPC': x => ({ people: x.Game.s.conflicts?.people, nodes: x.Game.s.conflicts?.nodes }),
+    'conflitti delle regioni lontane': x => { const c = x.Game.s.conflicts, here = x.Game.s.region;
+      return { people: Object.fromEntries(Object.entries(c?.people || {}).filter(([, p]) => p.point?.region !== here)),
+        regions: Object.fromEntries(Object.entries(c?.regions || {}).filter(([r]) => r !== here)) }; },
+    'conflitto nella regione del giocatore (atteso diverso: scontro vissuto contro forma astratta)': x => { const c = x.Game.s.conflicts, here = x.Game.s.region;
+      return { people: Object.fromEntries(Object.entries(c?.people || {}).filter(([, p]) => p.point?.region === here)), region: c?.regions?.[here] }; },
     'Living World (memoria, richieste, voci)': x => [x.Game.s.memory, x.Game.s.requests, x.Game.s.renown],
     'mostri congelati delle altre regioni': x => Object.fromEntries(Object.entries(x.Game.s.regions || {}).filter(([id]) => id !== x.Game.s.region)),
   };
