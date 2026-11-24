@@ -2,6 +2,11 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-24] PERF-005: economia viva in ombra — Claude
+Branch `claude/perf-005`. File nuovi: `living-economy.js` (non nella build), `tests/verifica-economia-viva.cjs`, `ECONOMIA_VIVA.md`; `AGENTS.md`, `PROGRESS.md`, `ROADMAP.md`. Nessun file del gioco modificato, `Reincarnation.html` invariato. Scritto da un subagente con il contratto comune e verificato dal coordinatore.
+### Aggiunto
+- `living-economy.js` (`LivingEconomy`, **in ombra**: non è nella build né collegato al motore) con `tests/verifica-economia-viva.cjs` 21/21 (rieseguite dal coordinatore): passo canonico settimanale uguale a ogni livello; 11 tipi di attività per luogo con conti, scorte, debiti e depositi; prezzi dalla copertura delle scorte; salari; banche per continente con depositi, prestiti, interessi e insolvenze; tesorerie per regno con imposte e salari pubblici; carovane anche intercontinentali (merci conservate in viaggio, perdite registrate); aperture e chiusure delle attività; guerre, stagioni e calamità da un generatore con seme; moneta universale identica a `Economy.wallet`. Conti esatti per 520 settimane (denaro BigInt e merci in millesimi), stesso risultato a passo settimanale, con `WorldSim.resolveAll` e con `WorldSim.tick` a budget minimo; salvataggio → ripristino → continuazione identica; 20 varianti danneggiate ripristinate senza errori; cinque mutazioni rilevate. Misure in Node: una settimana con 50 luoghi ≈ 5 ms, con 500 luoghi ≈ 43 ms in un blocco unico; salvataggio ≈ 38 KB con 50 luoghi, ≈ 356 KB con 500. Progetto, parametri provvisori e adattatore proposto con `MarketFlows` in `ECONOMIA_VIVA.md`.
+
 ## [2026-11-24] PERF-005: piano tecnico del collegamento di WorldSim al motore — Claude
 Branch `claude/perf-005`. File: `PIANO_INTEGRAZIONE_WORLDSIM.md` (nuovo), `world-lod.js` (solo commento), `AGENTS.md` (elenco dei documenti), `SIMULATION_LOD.md`, `PROGRESS.md`. Nessuna modifica a `engine.js` o `build.py`.
 ### Documentazione
