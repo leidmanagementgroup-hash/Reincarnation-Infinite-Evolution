@@ -2,6 +2,13 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-24] PERF-005: prove del mondo quando passa il tempo — Claude
+Branch `claude/perf-005`. File nuovo: `tests/verifica-tempo-mondo.cjs`; `PROGRESS.md` (verifiche, BUG-012, RISK-013). Nessun file del gioco modificato. Scritto da un subagente e verificato dal coordinatore.
+### Aggiunto
+- `tests/verifica-tempo-mondo.cjs` (motore reale in Node, nessuna modifica al gioco), 12/12 prove brevi e 2/2 lunghe rieseguite dal coordinatore: sonno (una notte +540 minuti; sette notti da 24 h esatte; sonno lungo di 23 h); inattività (6 h di fotogrammi senza deriva, 16 µs per fotogramma); deriva a 10 fps (+60 minuti di calendario in 2 h: la vedono bisogni, borghi, conflitti e impulso di world-life, non economia e scorte di Velaris); fotogramma bloccato (BUG-012); Cripta di Ardel e Santuario della Marea Muta; Velaris, Filoni, Calis e interni con cambi di continente; salva e ricarica a metà scenario (continuazione identica nella stessa pagina e in una nuova); voce di Living World uguale vivendo e dormendo; un giorno vissuto contro un giorno dormito (uguali economia, scorte, borghi, costruzioni, Living World, mostri congelati e conflitti lontani); ritorno dopo 90 e 365 giorni: 6,6–7 ms per giorno simulato, salvataggio da 38,1 a 52,1 KB e stabile dal giorno 30, registri entro il tetto, nessun NaN né quantità negativa, flussi economici in pari. Sei mutazioni rilevate. La pausa dell'interfaccia (`blur`/`visibilitychange`) ferma entrambi gli orologi (verificato leggendo il codice, non in Edge). RISK-012 non si è riprodotto in questi scenari.
+### Documentazione
+- Nuovi problemi noti: BUG-012 (salto del calendario dopo un fotogramma bloccato, correzione proposta da approvare) e RISK-013 (spopolamento per i morti nei conflitti senza rimpiazzo; decisione dell'utente).
+
 ## [2026-11-24] PERF-005: economia viva in ombra — Claude
 Branch `claude/perf-005`. File nuovi: `living-economy.js` (non nella build), `tests/verifica-economia-viva.cjs`, `ECONOMIA_VIVA.md`; `AGENTS.md`, `PROGRESS.md`, `ROADMAP.md`. Nessun file del gioco modificato, `Reincarnation.html` invariato. Scritto da un subagente con il contratto comune e verificato dal coordinatore.
 ### Aggiunto
