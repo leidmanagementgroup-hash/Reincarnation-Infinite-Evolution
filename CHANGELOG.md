@@ -2,6 +2,11 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-24] PERF-005, fase 1 in ombra: orchestratore della simulazione a livelli — Claude
+Branch `claude/perf-005` (commit locale non pubblicato). File nuovi: `world-sim.js` (non nella build, non collegato al motore), `tests/verifica-world-sim.cjs`; documentazione. Nessun file esistente del gioco modificato, `Reincarnation.html` invariato.
+### Aggiunto
+- `world-sim.js` (`WorldSim`, **in ombra**: non è nella build né collegato al motore) con `tests/verifica-world-sim.cjs` 15/15, sviluppato con test scritti prima (TDD): intervalli allineati a una griglia assoluta, tempo vissuto = tempo saltato, ordine globale nel tempo indipendente dal budget, budget per fotogramma, recupero compresso solo nella risoluzione completa (sonno, caricamento), nessuna storia retroattiva, ripristino che non rifiuta mai, sistema guasto isolato, salvataggio e caricamento senza perdita di intervalli, chiamate rientranti rifiutate, costo con 200 sistemi: 14 400 intervalli in 14 ms, aggiornamento a vuoto 0,2 µs. Tre mutazioni rilevate (intervalli non allineati, ordine non cronologico, compressione durante il gioco). Revisione indipendente: due difetti alti (compressione dipendente dal budget, sistema guasto che bloccava tutti), quattro medi (perdita di intervalli al caricamento, orologio non valido, recupero senza tetto, costo con molti sistemi) e alcuni minori, tutti corretti con una prova che prima falliva.
+
 ## [2026-11-24] PERF-005: progetto della simulazione a cinque livelli — Claude
 Branch `claude/perf-005` (da `main` `c11c5f5`; commit locale non pubblicato), solo progetto, prove e documentazione: nessun sorgente del gioco modificato, `Reincarnation.html` invariato.
 ### Aggiunto

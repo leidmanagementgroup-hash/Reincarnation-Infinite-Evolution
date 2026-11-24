@@ -160,10 +160,14 @@ stesso giorno; (5) morte di un NPC mentre la sua città è aggregata.
 
 ### Fase 1 — Orchestratore e orologio unico, senza cambiare il comportamento
 **File**: nuovo `world-sim.js` (`WorldSim`, dopo `world-renown.js` in `build.py`); `engine.js` (tre chiamate: impulso,
-sonno, cambio di regione); `tests/verifica-world-sim.cjs`. **Attende** l'integrazione di Codex su `engine.js`.
-- [ ] Prova: `WorldSim.tick(s)` registra per livello l'ultimo minuto risolto e non cambia nessuno stato esistente
-  (`sonda-continuita` e tutte le prove identiche a prima).
-- [ ] `WorldSim.register(id, {level, resolve(s, fromMinute, toMinute)})`; nessun sistema migrato ancora.
+sonno, cambio di regione; più `s.world` in creazione e ripristino); `tests/verifica-world-sim.cjs`. Il collegamento **attende**
+l'integrazione di Codex su `engine.js` e `build.py`.
+- [x] Nucleo in ombra (2026-11-24): `world-sim.js` (`WorldSim`, **in ombra**: non è nella build né collegato al motore) con `tests/verifica-world-sim.cjs` 15/15, sviluppato con test scritti prima (TDD): intervalli allineati a una griglia assoluta, tempo vissuto = tempo saltato, ordine globale nel tempo indipendente dal budget, budget per fotogramma, recupero compresso solo nella risoluzione completa (sonno, caricamento), nessuna storia retroattiva, ripristino che non rifiuta mai, sistema guasto isolato, salvataggio e caricamento senza perdita di intervalli, chiamate rientranti rifiutate, costo con 200 sistemi: 14 400 intervalli in 14 ms, aggiornamento a vuoto 0,2 µs. Tre mutazioni rilevate (intervalli non allineati, ordine non cronologico, compressione durante il gioco). Revisione indipendente: due difetti alti (compressione dipendente dal budget, sistema guasto che bloccava tutti), quattro medi (perdita di intervalli al caricamento, orologio non valido, recupero senza tetto, costo con molti sistemi) e alcuni minori, tutti corretti con una prova che prima falliva.
+- [x] Contratto dell'API: `WorldSim.register(id, {level 1–5, step (minuti), maxChunks (tetto obbligatorio), resolve(s, da, a, info)})`,
+  `create(now)`, `restore(raw, now)`, `tick(s, now, {budgetMs, clock})`, `resolveAll(s, now)`, `lag(s, now)`, `failures()`. Eccezione
+  dichiarata: l'intervallo compresso (`info.compressed`) equivale ai passi singoli solo per sistemi esatti in forma chiusa.
+- [ ] Collegamento: `s.world` in `newGame`/`parseSave` (campo facoltativo, ripristino senza rifiuto), `WorldSim.tick(s, minuto)` nel blocco
+  dell'impulso dopo `Life.tick`, `WorldSim.resolveAll` nel sonno e dopo il caricamento; nessun sistema migrato ancora.
 - [ ] Il sonno chiama `WorldSim.resolve` invece dell'elenco a mano (stesso ordine, stesso risultato: prova di identità).
 - [ ] Commit, prove PERF-001…004, banco in Edge prima/dopo.
 
