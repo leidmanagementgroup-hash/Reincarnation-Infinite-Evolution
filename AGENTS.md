@@ -64,6 +64,7 @@ Cartella principale (non esistono sottocartelle sorgente):
 - `PIANO_GRAFICO.md` — direzione artistica e tecnica con ambiti e verifiche della prova grafica.
 - `RPG_EVOLUTION.md` — operazione «RPG Evolution» (gameplay e qualità): rapporto iniziale, matrice, rischi, incrementi e benchmark.
 - `SIMULATION_LOD.md` — PERF-005, simulazione del mondo a cinque livelli: mappa delle dipendenze, continuità misurata, architettura, rischi, criteri e piano in fasi.
+- `RESIDENTI_AUTONOMI.md` — PERF-005, progetto del modulo in ombra `world-population.js` (residenti autonomi a coorti e record): modello, regole dei quanti, invarianti, parametri provvisori, misure e limiti.
 - `ECONOMIA_VIVA.md` — PERF-005, progetto del modulo in ombra `living-economy.js` (economia viva a passo settimanale per i cinque livelli): modello, conti esatti, parametri provvisori, compatibilità con `MarketFlows`, misure e limiti.
 - `PIANO_INTEGRAZIONE_WORLDSIM.md` — PERF-005, piano tecnico (non ancora applicato) per collegare `world-sim.js` a `engine.js` dopo l'integrazione di Confluenza: funzioni e righe, ordine dei moduli, ciclo di gioco, salvataggi, risoluzione di RISK-012, conflitti con Codex, rollback, commit e prove.
 - `LIVING_WORLD.md` — operazione «Living World 2.0» (mondo che ricorda e reagisce): matrice dei sistemi, difetti verificati, architettura delle interconnessioni, incrementi; audit integrale in `LIVING_WORLD_AUDIT.md`.
