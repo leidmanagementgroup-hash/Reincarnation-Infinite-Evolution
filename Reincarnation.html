@@ -19147,6 +19147,38 @@ window.Lantern = (() => {
           '<span class="economyStatus" data-open="'+Boolean(m.open)+'">'+(m.open?(m.near?'Sei qui':'Aperto'):'Chiuso')+'</span></li>';
       }).join('')+'</ul></details>';
   }
+  /* Tendenze, merci in viaggio e ricchezza del mercato aperto (ECO-003): sola lettura da `Economy.flowReport`. */
+  function trend(view,stockPct){
+    const net=view?view.output-view.demand:0,pressure=Math.abs(net)<.05?0:net>0?1:-1;
+    if(stockPct<35&&pressure<=0)return {sign:'▼',text:'scarsa e in calo',tone:'low'};
+    if(stockPct>135&&pressure>=0)return {sign:'▲',text:'abbondante',tone:'high'};
+    if(pressure>0)return {sign:'▲',text:'in ripresa',tone:'up'};
+    if(pressure<0)return {sign:'▼',text:'in consumo',tone:'down'};
+    return {sign:'■',text:'stabile',tone:'flat'};
+  }
+  function flows(s,market){
+    const rep=window.Economy?.flowReport?.(s);
+    if(!rep)return '';
+    const mine=rep.markets.find(m=>m.id===market.id);
+    if(!mine)return '';
+    const names=Object.fromEntries(market.rows.map(r=>[r.id,r.name]));
+    const nameOf=id=>names[id]||names[id==='potion'?'potions':id]||id;
+    const view=rep.outlook[market.id]||{},coming=rep.transit[market.id]||{};
+    const goods=mine.goods.map(g=>{
+      const target=Number(g.target)||1,have=Number(g.stock)||0,pct=Math.round(100*have/target),t=trend(view[g.id],pct);
+      return '<li data-tone="'+t.tone+'"><span aria-hidden="true">'+t.sign+'</span> <b>'+esc(nameOf(g.id))+'</b> · '+esc(have)+' / '+esc(target)+
+        ' · '+esc(t.text)+(coming[g.id]?' · <em>'+esc(coming[g.id])+' in arrivo</em>':'')+'</li>';
+    }).join('');
+    const ids=Object.fromEntries(rep.markets.map(m=>[m.id,m.id]));
+    const link=rep.routes.filter(r=>r[0]===market.id||r[1]===market.id).map(r=>{
+      const other=r[0]===market.id?r[1]:r[0],to=(window.Economy.view(s).markets||[]).find(m=>m.id===other);
+      return '<li>'+esc(to?to.name:ids[other]||other)+' · '+esc(r[2])+(r[2]===1?' giorno':' giorni')+' di viaggio · fino a '+esc(r[3])+' carichi</li>';
+    }).join('');
+    return '<details class="economyMore economyFlows"><summary>Tendenze e rotte del mercato</summary>'+
+      '<p class="caption">Ricchezza locale '+esc(mine.wealth)+' · giorno '+esc(rep.day)+'. Le tendenze confrontano produzione e consumo dei residenti con le scorte.</p>'+
+      '<ul class="economyTrend" aria-label="Tendenze delle merci">'+goods+'</ul>'+
+      (link?'<h4>Rotte commerciali</h4><ul class="economyRoutes">'+link+'</ul>':'')+'</details>';
+  }
   function render(s){
     const data=window.Economy?.view(s);
     if(!data)return '<p>Apri una partita per consultare i mercati.</p>';
@@ -19162,7 +19194,7 @@ window.Lantern = (() => {
         'Le botteghe ricevono beni dai mestieri locali all’alba e dalle commissioni consegnate a Velaris. Le scorte influenzano i prezzi.':
         'Le scorte appartengono a questo mercato. I prodotti di base vengono riforniti col passare dei giorni.')+'</p>'+
       '<section aria-label="Scorte e prezzi del mercato">'+(market.rows.length?market.rows.map(r=>row(r,market.available,carried)).join(''):'<p>Le scorte sono esaurite.</p>')+'</section>'+
-      careers(s,market)+bank(s,data)+'</div>';
+      flows(s,market)+careers(s,market)+bank(s,data)+'</div>';
   }
   /* Mestieri (Living World 2.0): ordini dell'armeria ai Filoni, contratti del Registro a Calis, taccuino dei prezzi visti. */
   function careerAction(label,op,possible){
@@ -19195,6 +19227,7 @@ window.Lantern = (() => {
     '.economyWallets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}',
     '.economyCoins{list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px;padding:0;margin:7px 0 0}',
     '.economyCoins li{min-width:0}',
+    '.economyFlows{margin:9px 0}.economyTrend,.economyRoutes{list-style:none;margin:5px 0;padding:0}.economyTrend li,.economyRoutes li{font-size:12px;border-top:1px solid var(--line);padding:4px 0}.economyTrend [data-tone=low],.economyTrend [data-tone=down]{color:#edc0a8}.economyTrend [data-tone=high],.economyTrend [data-tone=up]{color:#c6dfb5}.economyFlows h4{margin:8px 0 2px;font-size:12px;color:var(--gold)}',
     '.economyCareer{margin-top:10px}.economyNotes{margin:6px 0 0;padding-left:18px}',
     '.economyCoins li small{font-size:11px;margin:0}',
     '.economyCoins li b,.economyListing b,.economyStored b{color:var(--gold);overflow-wrap:anywhere}',

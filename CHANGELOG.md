@@ -6,6 +6,14 @@ Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGEN
 ### Documentazione
 - `CLAUDE.md`: nuova sezione «Competenze, plugin e agenti» (router `gamedev:router` verificato; mappa compito→skill per un motore JS custom; processo Superpowers; browser di collaudo; regole anti-spreco e di precedenza). Nessun codice toccato, nessuna ricostruzione necessaria.
 
+## [2026-11-24] ECO-003: tendenze, merci in arrivo e rotte nel pannello dei mercati — Claude
+### Aggiunto
+- Sezione «Tendenze e rotte del mercato» nel pannello Economia: per ogni merce scorta/obiettivo, tendenza (produzione contro consumo dei residenti, con scorta bassa/alta), merci in viaggio verso il mercato, ricchezza locale e rotte con giorni e capacità. Solo lettura da `Economy.flowReport`; nessun effetto su denaro, scorte o salvataggio (file: `economy-panel.js`, `tests/verifica-economia-tendenze.cjs`).
+### Documentazione
+- `CLAUDE.md`: sezione su ECC e hook (hook non disattivati: il classificatore di sicurezza ha bloccato la modifica, la scelta resta all'utente).
+### Verifica
+- `node tests/verifica-economia-tendenze.cjs` (5 mercati, spedizione fittizia, nessun NaN/undefined) e `node tests/verifica-integrazione.cjs` superati; `Reincarnation.html` ricostruito. Prova nel browser non eseguita: `tests/prova-browser-economia.cjs` richiede il modulo `playwright`, non disponibile da Node qui.
+
 ## [2026-11-23] PERF-003: pianificazione dei residenti più rapida e anticipata — Claude
 Branch `claude/perf-003` (da `claude/perf-004-verifiche` `9fcd0c1`, a sua volta da `main` `913c258`; commit `d4cae02`; portato su `main` per avanzamento rapido `913c258` → `6670691` con l'autorizzazione dell'utente; sulla cartella di `main` ripetute integrazione, `verifica-perf-002` (181 scene), `verifica-perf-003` (95 e 500 residenti), `verifica-perf-004` (95), `prova-browser` 10/10 e Velaris est 12/12). Unione simulata con `codex/urban-scale` (albero temporaneo, nessun branch creato): codice senza conflitti (solo `CHANGELOG.md` e `PROGRESS.md`); sulla build unita passano integrazione, `verifica-scala-urbana` (250 edifici), `verifica-perf-002`, `verifica-perf-003` e `verifica-perf-004` con 500 residenti, `prova-browser-scala-urbana` con i laboratori da 25 e 250 edifici e `prova-browser`. File: `urban-life.js`, `Reincarnation.html`, `tests/verifica-perf-003.cjs` (nuovo), `tests/banco-popolazione.cjs`, documentazione.
 ### Corretto

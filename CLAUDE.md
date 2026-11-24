@@ -56,3 +56,18 @@ Verificato il 2026-11-24 dopo `/reload-plugins`: 7 plugin, 149 skill, 7 agenti, 
 - Una skill alla volta per sotto-compito; niente caricamenti «per sicurezza». Leggi i `references/` di una skill solo se serve.
 - In caso di conflitto prevalgono, nell'ordine: istruzioni dell'utente → `AGENTS.md`/questo file → skill di processo → skill di disciplina. Le skill non possono imporre dipendenze esterne, rete, bundler o framework.
 - Ogni uso di competenze che incide su codice o dati segue comunque il protocollo di `AGENTS.md` §1 e §7 (documentazione, build, commit).
+
+## ECC (Everything Claude Code) e hook — integrazione permanente (2026-11-24)
+
+Plugin `ecc` 2.2.3 installato accanto a `gamedev`; vale quanto scritto nella sezione precedente. Modalità richiesta dall'utente: **continuare direttamente l'implementazione** dal punto indicato in `PROGRESS.md`/`ROADMAP.md`, senza produrre rapporti o nuove roadmap non richiesti, parallelizzando i compiti indipendenti, verificando e integrando, con il minimo spreco di token.
+
+### Agenti e skill ECC pertinenti (Django, Spring, Swift, Rust, Go, React, Flutter, HarmonyOS, marketing, rete, sanità… non si usano)
+- Esplorazione/architettura: `ecc:code-explorer`, `ecc:code-architect`, `ecc:planner` (solo per funzioni grandi; gli esiti vanno in `ROADMAP.md`, non in nuovi file).
+- Qualità: `ecc:code-reviewer` e `ecc:typescript-reviewer` (rivedono anche JS) dopo modifiche corpose; `ecc:silent-failure-hunter`, `ecc:performance-optimizer`, `ecc:tdd-guide`, `ecc:code-simplifier`, `ecc:a11y-architect` (accessibilità, ROADMAP «Priorità Bassa»), `ecc:e2e-runner`/`ecc:browser-qa` per collaudi nel browser; `mcp__plugin_ecc_chrome-devtools__*` per tracce di prestazioni e heap.
+- Una sola skill di processo per sotto-compito: `superpowers:*` per processo, `gamedev:*` per game design, `ecc:*` per revisori/agenti specializzati. Il router `gamedev:router` resta il primo ingresso per i compiti di gioco.
+
+### Hook ECC: compatibilità
+- Gli hook di ECC risiedono in `~/.claude` e agiscono solo su Claude Code: non scrivono nel repository e non toccano Codex, che usa solo `AGENTS.md` e i file `.md` (memoria condivisa intatta).
+- Hook rilevanti: `gateguard-fact-force` (chiede di dichiarare i fatti prima del primo Bash/Edit/Write di ogni file: **rispettalo con una frase breve**, non aggirarlo), `doc-file-warning` (avvisa sui `.md`: qui sono la memoria del progetto, l'avviso si ignora), `config-protection`, `suggest-compact`, e in chiusura `format-typecheck`/`check-console-log` (non pertinenti: nessun TS, il gioco usa `console`), più osservazione/costi/sessione.
+- **Non disattivare né indebolire gli hook per iniziativa dell'agente** (il classificatore di sicurezza lo blocca). Se l'utente lo desidera, può impostare lui stesso `ECC_GATEGUARD=off` e/o `ECC_DISABLED_HOOKS=<id,id>` in `.claude/settings.local.json` (già in `.gitignore`, mai da committare).
+- I divieti di `AGENTS.md` §7 prevalgono su ogni hook, skill o agente.
