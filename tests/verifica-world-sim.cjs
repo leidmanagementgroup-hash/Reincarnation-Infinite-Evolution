@@ -165,7 +165,7 @@ check('11. Un sistema che lancia un errore viene isolato: gli altri continuano e
   for (let now = 60; now <= 600; now += 60) W.tick(s, now, { budgetMs: Infinity });
   assert.equal(log.length, 10, 'il sistema sano non è avanzato: ' + log.length);
   assert.equal(calls, 1, 'il sistema guasto è stato richiamato ' + calls + ' volte');
-  const failures = W.failures();
+  const failures = W.failures(s);
   assert.equal(failures.length, 1); assert.equal(failures[0].id, 'rotto'); assert.match(failures[0].message, /guasto di prova/);
   return '10 ore del sistema sano, 1 sola chiamata al sistema guasto';
 });
@@ -216,6 +216,18 @@ check('15. Costo: 200 sistemi per 3 giorni e aggiornamento a vuoto', () => {
   assert(fullMs < 400, '14 400 intervalli in ' + fullMs.toFixed(0) + ' ms');
   assert(idleUs < 5, 'aggiornamento a vuoto ' + idleUs.toFixed(1) + ' µs');
   return `14 400 intervalli in ${fullMs.toFixed(0)} ms, aggiornamento a vuoto ${idleUs.toFixed(2)} µs`;
+});
+
+check('16. Un guasto resta confinato alla partita in cui avviene: le altre partite (nuova partita, altro salvataggio) continuano', () => {
+  const W = fresh(), a = { world: W.create(0), counters: {}, bad: true }, b = { world: W.create(0), counters: {}, bad: false };
+  let calls = 0;
+  W.register('dati', { level: 3, step: 60, resolve: s => { calls++; if (s.bad) throw new Error('dati non validi'); s.counters.dati = (s.counters.dati || 0) + 1; }, maxChunks: 100 });
+  for (let now = 60; now <= 600; now += 60) { W.tick(a, now, { budgetMs: Infinity }); W.tick(b, now, { budgetMs: Infinity }); }
+  assert.equal(b.counters.dati, 10, 'il sistema si è fermato anche nella partita sana: ' + b.counters.dati);
+  assert.equal(W.failures(a).length, 1, 'il guasto della partita A non è registrato');
+  assert.equal(W.failures(b).length, 0, 'la partita B eredita il guasto della partita A');
+  assert.equal(W.lag(b, 600), 0, 'ritardo nella partita sana');
+  return `partita sana: 10 ore; chiamate totali ${calls}`;
 });
 
 check('9. Mutazione: risolvere fino all’istante corrente invece che fino al confine di griglia → il tempo vissuto diverge da quello saltato', () => {

@@ -2,6 +2,11 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-24] PERF-005: livelli dei luoghi e transizioni fra i cinque livelli (in ombra) — Claude
+Branch `claude/perf-005`. File: `world-lod.js` (nuovo, non nella build), `tests/verifica-world-lod.cjs` (nuovo), `world-sim.js`, `tests/verifica-world-sim.cjs`; documentazione. Nessun file del gioco collegato, `Reincarnation.html` invariato.
+### Aggiunto
+- `world-lod.js` (`WorldLod`, **in ombra**: non è nella build né collegato al motore) con `tests/verifica-world-lod.cjs` 12/12 sui dati reali del mondo (34 luoghi, 17 stanze, 2 dungeon, 5 continenti a stella attorno a Vaelthoria): livello 1 luogo corrente, 2 luoghi collegati e stanze della stessa città, 3 stesso continente, 4 continenti confinanti, 5 continenti lontani (da Filoni compaiono tutti e cinque); transizioni esatte lungo un giro dei cinque continenti (26 viaggi, 192 promozioni e 192 declassamenti, prima le promozioni), tempo risolto prima di ogni promozione una volta sola e senza buchi (4 512 ore), isteresi delle entità vicine 480/560 px, caricamento progressivo a quote con ripiego sincrono contato, errori dei gestori isolati, costo 0,017 ms per viaggio (1,98 ms con 5 000 luoghi). I livelli sono derivati, non si salvano. `world-sim.js`: un sistema guasto resta isolato solo nella partita in cui è avvenuto il guasto (prima restava disattivato anche per una nuova partita o un altro salvataggio; prova 16, `verifica-world-sim` 16/16). Mutazioni rilevate: transizioni prima della risoluzione, nessuna stanza sorella, declassamenti prima delle promozioni, nessuna isteresi, guasti globali.
+
 ## [2026-11-24] PERF-005, fase 2: borghi e conflitti continui durante il sonno — Claude
 Branch `claude/perf-005` (commit `445df5f`, pubblicato su `origin/claude/perf-005` il 2026-11-24 con l'autorizzazione dell'utente, non unito a `main`). File: `society.js`, `npc-conflicts.js`, `tests/verifica-continuita.cjs` (nuovo), `tests/verifica-perf-004.cjs`, `tests/sonda-continuita.cjs`, `Reincarnation.html` ricostruito; documentazione. `engine.js` e `build.py` non toccati.
 ### Modificato
