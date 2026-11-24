@@ -14,10 +14,13 @@
        se l'orologio non è valido l'origine si fissa al primo aggiornamento.
      - Un sistema la cui resolve lancia un errore viene isolato nella partita in cui è avvenuto (gli altri sistemi continuano,
        e una nuova partita o un altro salvataggio ripartono puliti); l'errore resta in failures(s).
+     - Intervallo divisibile: resolve riceve info.due() (vero quando il budget del fotogramma è finito) e può restituire false per
+       fermarsi a metà; viene richiamata con lo stesso intervallo prima di ogni altro sistema, quindi ordine e risultato non cambiano.
+       partial(s) dice chi è a metà; settle(s) completa (obbligatorio prima di salvare, viaggiare o materializzare).
      Stato in `s.world` (schema 1): origine e ultimo minuto risolto per sistema; il ripristino non rifiuta mai.
      In ombra: il modulo non è ancora nella build né collegato al motore (attende l'integrazione di Confluenza). */
   const SCHEMA=1;
-  const systems=[],byId=new Map(),failed=new WeakMap(),due=new WeakMap();
+  const systems=[],byId=new Map(),failed=new WeakMap(),due=new WeakMap(),open=new WeakMap();
   let busy=false;
   const object=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
   const validNow=n=>Number.isFinite(n)&&n>=0;
@@ -72,15 +75,23 @@
     const compress=options.compress===true,clock=options.clock||now_,begin=clock();
     const broken=brokenOf(w),active=systems.filter(sys=>!broken.has(sys.id)),pending=active.map(sys=>chunk(w,sys,now,compress));
     let done=0;
+    const info={due:()=>clock()-begin>=budget};
     busy=true;
     try{
       for(;;){
         let i=-1;
         for(let k=0;k<active.length;k++)if(pending[k]&&(i<0||before(active[k],pending[k],active[i],pending[i])))i=k;
-        if(i<0)break;
-        const sys=active[i],c=pending[i];
-        try{sys.resolve(s,c.from,c.to,c.compressed?{compressed:true}:undefined);}
-        catch(e){broken.set(sys.id,{id:sys.id,message:String(e?.message||e),at:c.from});pending[i]=null;continue;}
+        if(i<0&&!open.get(w))break;
+        // Un intervallo lasciato a metà si riprende tale e quale (stesso «to», stessa compressione) prima di ogni altro.
+        const half=open.get(w),h=half?active.findIndex(sys=>sys.id===half.id):-1;
+        if(half&&h<0){open.delete(w);continue;}
+        if(half&&h>=0)i=h;
+        const sys=active[i],c=half&&h>=0?half.chunk:pending[i];
+        let more;
+        try{more=sys.resolve(s,c.from,c.to,c.compressed?{...info,compressed:true}:info);}
+        catch(e){open.delete(w);broken.set(sys.id,{id:sys.id,message:String(e?.message||e),at:c.from});pending[i]=null;continue;}
+        if(more===false){open.set(w,{id:sys.id,chunk:c});if(info.due())break;continue;}
+        open.delete(w);
         w.resolved[sys.id]=c.to;done++;
         pending[i]=chunk(w,sys,now,compress);
         if(clock()-begin>=budget)break;
@@ -91,6 +102,20 @@
     for(const sys of active)if(!broken.has(sys.id))at=Math.min(at,next(w.resolved[sys.id],sys.step));
     due.set(w,{count:systems.length,at});
     return done;
+  }
+  const partial=s=>open.get(s?.world)?.id??null;
+  // Completa l'intervallo lasciato a metà, senza avanzare oltre. Restituisce quanti intervalli ha chiuso (0 o 1).
+  function settle(s){
+    const half=open.get(s?.world);
+    if(!half)return 0;
+    const sys=byId.get(half.id),info={due:()=>false,...(half.chunk.compressed?{compressed:true}:{})};
+    if(busy)throw new Error('WorldSim: chiamata rientrante rifiutata');
+    busy=true;
+    try{for(let n=0;sys.resolve(s,half.chunk.from,half.chunk.to,info)===false;n++)if(n>1e6)throw new Error('intervallo senza fine');}
+    catch(e){open.delete(s.world);brokenOf(s.world).set(sys.id,{id:sys.id,message:String(e?.message||e),at:half.chunk.from});return 0;}
+    finally{busy=false;}
+    open.delete(s.world);s.world.resolved[sys.id]=half.chunk.to;due.delete(s.world);
+    return 1;
   }
   const resolveAll=(s,now)=>tick(s,now,{budgetMs:Infinity,compress:true});
   // Minuti ancora da risolvere (il massimo fra i sistemi attivi).
@@ -105,5 +130,5 @@
     return most;
   }
   const failures=s=>s?.world&&typeof s.world==='object'?[...brokenOf(s.world).values()].map(f=>({...f})):[];
-  window.WorldSim={register,create,restore,tick,resolveAll,lag,failures,levels:{near:1,area:2,city:3,region:4,world:5}};
+  window.WorldSim={register,create,restore,tick,resolveAll,settle,partial,lag,failures,levels:{near:1,area:2,city:3,region:4,world:5}};
 })();

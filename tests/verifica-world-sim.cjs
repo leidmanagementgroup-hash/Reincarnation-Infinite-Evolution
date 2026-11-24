@@ -230,6 +230,41 @@ check('16. Un guasto resta confinato alla partita in cui avviene: le altre parti
   return `partita sana: 10 ore; chiamate totali ${calls}`;
 });
 
+check('17. Intervallo divisibile: un sistema può fermarsi a metà quando il budget finisce e riprendere senza cambiare ordine né risultato', () => {
+  const run = budget => {
+    const W = fresh(), s = { world: W.create(0), order: [], part: 0 };
+    let t = 0; const clock = () => t;
+    W.register('a-parti', { level: 3, step: 60, maxChunks: 1e4, resolve: (st, from, to, info) => {
+      do { st.order.push('p' + from + ':' + st.part); st.part++; t += 1; } while (st.part < 10 && !info.due());
+      if (st.part < 10) return false;
+      st.part = 0; st.order.push('fine' + from);
+    } });
+    W.register('dopo', { level: 3, step: 60, maxChunks: 1e4, resolve: (st, from) => { st.order.push('dopo' + from); } });
+    let frames = 0, longest = 0, seenPartial = false;
+    while (W.lag(s, 180) > 0 && frames < 1000) { const b = t; W.tick(s, 180, { budgetMs: budget, clock }); longest = Math.max(longest, t - b); frames++; if (W.partial(s)) seenPartial = true; }
+    return { order: s.order, frames, longest, seenPartial, resolved: s.world.resolved };
+  };
+  const whole = run(Infinity), split = run(3);
+  same(whole.order, split.order, 'ordine o contenuto diversi');
+  same(whole.resolved, split.resolved, 'minuti risolti diversi');
+  assert.equal(whole.seenPartial, false); assert(split.seenPartial, 'nessuna interruzione osservata');
+  assert(split.longest <= 4, 'chiamata più lunga del budget: ' + split.longest);
+  return `${whole.frames} chiamata intera, ${split.frames} a quote, la più lunga ${split.longest}`;
+});
+
+check('18. Intervallo lasciato a metà: settle lo completa (prima di salvare o viaggiare) e un guasto a metà resta isolato', () => {
+  const W = fresh(), s = { world: W.create(0), n: 0 };
+  W.register('a-parti', { level: 3, step: 60, maxChunks: 1e4, resolve: (st, from, to, info) => { do st.n++; while (st.n % 10 && !info.due()); return st.n % 10 ? false : undefined; } });
+  let t = 0; W.tick(s, 60, { budgetMs: 2, clock: () => t++ });
+  assert.equal(W.partial(s), 'a-parti'); assert.equal(s.world.resolved['a-parti'], 0);
+  assert.equal(W.settle(s), 1); assert.equal(W.partial(s), null); assert.equal(s.n, 10); assert.equal(s.world.resolved['a-parti'], 60);
+  assert.equal(W.settle(s), 0, 'settle senza nulla in sospeso non deve fare niente');
+  const X = fresh(), z = { world: X.create(0), n: 0 };
+  X.register('rotto', { level: 3, step: 60, maxChunks: 9, resolve: st => { if (st.n++) throw new Error('a metà'); return false; } });
+  X.tick(z, 60, { budgetMs: 0 }); assert.equal(X.partial(z), 'rotto'); X.tick(z, 60, { budgetMs: 0 });
+  assert.equal(X.partial(z), null); assert.equal(X.failures(z).length, 1);
+});
+
 check('9. Mutazione: risolvere fino all’istante corrente invece che fino al confine di griglia → il tempo vissuto diverge da quello saltato', () => {
   const run = live => {
     const W = fresh(src => src.replace('/*ALLINEA*/', '/*ALLINEA*/now>from?now:')), s = { world: W.create(START), counters: {} };

@@ -14159,6 +14159,21 @@ window.Lantern = (() => {
      dell'impulso (posizioni, orari e scadenze sono quelli di quel momento) e torna al valore reale subito dopo. */
   const PULSE=1.05,MAX_PULSES=2400; // 2 400 impulsi = 42 minuti di s.time: più di un giorno intero di sonno (1 800 s)
   const RESCUE=105; // secondi di soccorso per chi è in stato critico
+  /* RISK-013: regole dei conflitti ordinari (provvisorie e configurabili). Tempi in secondi di s.time (1 800 = un giorno). */
+  const RULES={
+    rest:300,                       // riposo fra uno scontro e il successivo della stessa persona
+    shelter:.75,                    // un civile senza difensori si mette al riparo invece di affrontare la creatura
+    baseWin:.55,winStep:.012,       // probabilità di respingere la creatura per turno; peso del divario fra forza e minaccia
+    baseEscape:.76,escapeStep:.008, // probabilità di ritirarsi senza altri colpi
+    glance:.8,                      // un colpo in ritirata è di striscio
+    healMin:240,healSpan:2600,      // guarigione: poche ore per un graffio, oltre un giorno per una ferita grave
+    aidBase:.42,aidHelper:.07,aidMax:.86,aidDanger:.012,aidHeal:3600, // soccorso dei vicini e convalescenza di due giorni
+    graveShare:.5                   // colpo devastante: oltre metà dei PV massimi sotto zero, solo il giocatore può intervenire
+  };
+  const gear={Soldato:5,Fabbro:4,Avventuriero:4,'Cane da guardia':2,'Maestro itinerante':2,'Maestro di bottega':2};
+  const agility={wolf:.08,elf:.06,goblin:.05,fairy:.08,dwarf:-.04,orc:-.02,elder:-.08};
+  const fights=new Set(['Soldato','Cane da guardia','Avventuriero']);
+  const elderly=n=>n.race==='elder'||(n.provider?.age||0)>=60;
   const stamp=s=>s.time;
   const livingStatus=(record)=>record?.status!=='critical'&&record?.status!=='dead';
   const validNames=()=>Object.keys(World.regions).filter(id=>id==='valley'||World.regions[id].settlement);
@@ -14218,6 +14233,26 @@ window.Lantern = (() => {
       deadline:0,cause:'',last:0,kills:0,nearDeath:0,raised:false,witnessed:false};
   }
   const rec=(s,id)=>own(s.conflicts?.people,id)?s.conflicts.people[id]:null;
+  // Probabilità individuali contro una creatura: forza, età, esperienza, equipaggiamento del mestiere, specie e pericolosità.
+  function odds(n,p,type){
+    const power=n.attack+Math.floor(n.hp/8)+(gear[n.role]||0)+(n.evolution||0)+Math.min(8,Math.floor((p?.experience||0)/6))-(elderly(n)?4:0);
+    const threat=(harm[type]||19)+Math.round((window.Game?.codex?.[type]?.level||2)*1.5),gap=power-threat;
+    return {power,threat,win:cap(RULES.baseWin+gap*RULES.winStep,.25,.85),
+      escape:cap(RULES.baseEscape+gap*RULES.escapeStep+(agility[n.race]||0)-(elderly(n)?.04:0),.45,.97)};
+  }
+  const healTime=p=>RULES.healMin+Math.round(RULES.healSpan*(1-p.hp/p.maxHp)**1.5);
+  // Soccorso dei vicini allo scadere dello stato critico: dipende da quanti sono in salute nel luogo e dal pericolo. I compagni di
+  // gilda e chi ha subito un colpo devastante dipendono solo dal giocatore; esito deterministico (seme, persona, caduta).
+  function aided(s,id,p){
+    if(p.grave||s.guild?.team?.includes(id))return false;
+    const region=p.point.region,node=s.conflicts.regions[region];
+    if(!node)return false;
+    // Anche un vicino ferito può chiamare aiuto (peso 0,5); chi è critico, morto o in viaggio col giocatore no.
+    const helpers=roster(s,region).reduce((n,other)=>n+(other===id?0:canFight(s,other)?1:livingStatus(rec(s,other))?.5:0),0);
+    if(!helpers)return false;
+    const danger=harm[World.regions[region]?.points?.mobs?.[0]?.type]||19;
+    return roll(s.seed,id,'aid',p.nearDeath)<cap(RULES.aidBase+RULES.aidHelper*helpers-(danger-14)*RULES.aidDanger,.15,RULES.aidMax);
+  }
   function get(s,id,site,meta){
     if(!s.conflicts||!known(s,id))return null;
     const existing=rec(s,id);
@@ -14242,7 +14277,8 @@ window.Lantern = (() => {
         typeof p.cause!=='string'||p.cause.length>90||!valid(p.last,0,stamp(s)+1e-4))return null;
       if(p.raised&&(!raw.ritualUsed||++raised>1))return null;
       people[id]={status:p.status,hp:p.hp,maxHp:p.maxHp,experience:p.experience,kills:p.kills,nearDeath:p.nearDeath,
-        raised:p.raised,witnessed:p.witnessed,point:{region:p.point.region,x:p.point.x,y:p.point.y},deadline:p.deadline,cause:p.cause,last:p.last};
+        raised:p.raised,witnessed:p.witnessed,point:{region:p.point.region,x:p.point.x,y:p.point.y},deadline:p.deadline,cause:p.cause,last:p.last,
+        ...(p.grave===true&&p.status==='critical'?{grave:true}:{})};
     }
     for(const [region,node] of Object.entries(raw.regions)){
       if(!own(base.regions,region)||!obj(node)||!int(node.round,0,1e8)||!valid(node.next,0,bounds))return null;
@@ -14299,7 +14335,7 @@ window.Lantern = (() => {
   }
   function down(s,id,p,events){
     const n=identity(s,id);
-    p.status='dead';p.deadline=0;p.last=stamp(s);
+    p.status='dead';p.deadline=0;p.last=stamp(s);delete p.grave;
     const reg=p.point.region,state=s.conflicts;
     const prev=state.mourning[reg]||{deaths:0,until:0};
     state.mourning[reg]={deaths:Math.min(1e8,prev.deaths+1),until:stamp(s)+2*(window.Calendar?.secondsPerDay||1800)};
@@ -14310,23 +14346,25 @@ window.Lantern = (() => {
     if(!n||n.adult===false||!Number.isFinite(amount)||amount<=0)return {status:rec(s,id)?.status||'healthy',notices:[],hp:rec(s,id)?.hp||0};
     const p=get(s,id,site,n),out=[];
     if(!p||!livingStatus(p))return {status:p?.status||'healthy',notices:out,hp:p?.hp||0};
-    p.hp=Math.max(0,p.hp-cap(amount,1,180));
+    const blow=cap(amount,1,180),excess=blow-p.hp;
+    p.hp=Math.max(0,p.hp-blow);
     if(pointValid(site))p.point={region:site.region,x:site.x,y:site.y};
     p.last=stamp(s);
     p.cause=String(meta.cause||'Scontro con la fauna').slice(0,90);
     if(!p.hp){
       p.status='critical';p.deadline=stamp(s)+RESCUE;p.nearDeath++;
+      if(excess>=p.maxHp*RULES.graveShare)p.grave=true;else delete p.grave; // nel salvataggio solo quando serve
       p.witnessed=p.point.region===s.region&&dx(p.point,s.player)<185;
       monitor(s,id,n.name+' è in stato critico. Portagli una pozione o due erbe.',p.point,out);
     }else if(p.hp<=p.maxHp*.42&&p.status==='healthy'){
-      p.status='injured';p.deadline=stamp(s)+170;
+      p.status='injured';p.deadline=stamp(s)+healTime(p);
       monitor(s,id,n.name+' è ferito e si ritira dal combattimento.',p.point,out);
     }
     return {status:p.status,notices:out,hp:p.hp};
   }
   function recover(s,id,p,op,notices=[]){
     const n=identity(s,id);
-    p.hp=p.maxHp;p.status='healthy';p.deadline=0;p.cause='';p.last=stamp(s);p.witnessed=false;
+    p.hp=p.maxHp;p.status='healthy';p.deadline=0;p.cause='';p.last=stamp(s);p.witnessed=false;delete p.grave;
     monitor(s,id,(n?.name||'L’abitante')+(op==='ritual'?' è tornato in vita dopo il rito.':' ha ricevuto le cure e sta meglio.'),p.point,notices);
   }
 
@@ -14431,14 +14469,18 @@ window.Lantern = (() => {
       deadline:p?.status==='critical'?Math.max(0,Math.ceil(p.deadline-stamp(s))):null,raised:!!p?.raised};
   }
 
-  function candidates(s,region,node){
-    const roster=region==='valley'?['guard-valley','hound-valley','elder','merchant','smith']:['guard:'+region];
+  function roster(s,region){
+    const list=region==='valley'?['guard-valley','hound-valley','elder','merchant','smith']:['guard:'+region];
     if(region!=='valley')for(const [id,p] of Object.entries(s.society?.people||{})){
-      if(p.region===region&&!s.guild?.team?.includes(id))roster.push(id);
+      if(p.region===region&&!s.guild?.team?.includes(id))list.push(id);
     }
-    if(!node.round&&region==='valley'&&canFight(s,roster[0]))return [roster[0]];
-    if(node.round===1&&region==='valley'&&canFight(s,roster[1]))return [roster[1]];
-    return roster.filter(id=>canFight(s,id)&&!s.guild?.team?.includes(id));
+    return list;
+  }
+  function candidates(s,region,node){
+    const list=roster(s,region);
+    if(!node.round&&region==='valley'&&canFight(s,list[0]))return [list[0]];
+    if(node.round===1&&region==='valley'&&canFight(s,list[1]))return [list[1]];
+    return list.filter(id=>canFight(s,id)&&!s.guild?.team?.includes(id));
   }
   function wild(s,region,site){
     const remote=region!==s.region;
@@ -14455,9 +14497,14 @@ window.Lantern = (() => {
     const available=candidates(s,region,node);
     node.next=stamp(s)+90+Math.floor(roll(s.seed,region,node.round,'cool')*125);
     if(!available.length)return;
-    const id=available[Math.floor(roll(s.seed,region,node.round,'who')*available.length)];
+    // Chi ha combattuto da poco riposa; prima i difensori di mestiere, poi i civili (che di solito si mettono al riparo).
+    const rested=available.filter(who=>{const p=rec(s,who);return !p||!p.last||stamp(s)-p.last>=RULES.rest;});
+    const defenders=rested.filter(who=>fights.has(identity(s,who)?.role)),pool=defenders.length?defenders:rested;
+    if(!pool.length)return;
+    const id=pool[Math.floor(roll(s.seed,region,node.round,'who')*pool.length)];
     const n=identity(s,id),home=atHome(s,id,n);
     if(!n||!home||home.region!==region)return;
+    if(!defenders.length&&roll(s.seed,region,node.round,'shelter')<RULES.shelter){node.round++;return;}
     const target=wild(s,region,home);
     if(!target)return;
     const p=get(s,id,home,n);
@@ -14479,7 +14526,7 @@ window.Lantern = (() => {
       }
       p.last=stamp(s);
       if(p.hp<p.maxHp&&p.status==='healthy'){
-        p.status='injured';p.deadline=stamp(s)+126;
+        p.status='injured';p.deadline=stamp(s)+healTime(p);
       }
     }
     node.active=null;
@@ -14492,19 +14539,23 @@ window.Lantern = (() => {
     if(!p||!n||!livingStatus(p)){endure(s,region,node,false,out);return;}
     const sequence=Math.max(0,Math.floor((a.until-stamp(s))/9));
     const variance=roll(s.seed,region,node.round,sequence);
-    const strength=(harm[a.type]||19)+Math.round(variance*15);
+    const o=odds(n,p,a.type),strength=Math.max(6,(harm[a.type]||19)+Math.round(variance*15)-(gear[n.role]||0));
     if(p.status==='injured'){
-      if(variance>.84)out.push(...damageNpc(s,a.id,strength,{point:a.point,cause:'Ritirata da uno scontro lontano'}).notices);
+      // Ritirata: chi è agile, forte o esperto si sgancia; altrimenti un colpo di striscio, non uno a piena forza.
+      const full=/*RITIRATA*/false;
+      if(full?variance>.84:variance>o.escape)out.push(...damageNpc(s,a.id,full?strength:Math.max(4,Math.round(strength*RULES.glance)),{point:a.point,cause:'Ritirata da uno scontro lontano'}).notices);
       endure(s,region,node,false,out);return;
     }
-    if(variance<.55||a.enemyHp<=8){
+    if(variance<o.win||a.enemyHp<=8){
       p.experience=Math.min(1e8,p.experience+2);endure(s,region,node,true,out);return;
     }
     a.enemyHp=Math.max(1,a.enemyHp-n.attack-4);
     a.off=stamp(s)+12;
     const hit=damageNpc(s,a.id,strength,{point:a.point,cause:'Scontro lontano con la fauna'});
     out.push(...hit.notices);
-    if(!livingStatus(rec(s,a.id))||stamp(s)>=a.until)endure(s,region,node,false,out);
+    // Un civile colpito fugge subito; un difensore resiste finché può.
+    const flees=!fights.has(n.role)&&p.hp<p.maxHp;
+    if(!livingStatus(rec(s,a.id))||flees||stamp(s)>=a.until)endure(s,region,node,false,out);
   }
   function walkToward(a,goal,dt,walk,speed=51){
     const base=a.point,angle=Math.atan2(goal.y-base.y,goal.x-base.x);
@@ -14621,7 +14672,10 @@ window.Lantern = (() => {
       for(const [id,p] of Object.entries(state.people)){
         if(p.status==='critical'){
           if(p.point.region===s.region&&dx(p.point,s.player)<185)p.witnessed=true;
-          if(p.deadline<=now&&!spared(sleep,id,p)){
+          if(p.deadline<=now&&/*SOCCORSO*/aided(s,id,p)){
+            p.status='injured';p.hp=Math.max(1,Math.round(p.maxHp*.2));p.deadline=now+RULES.aidHeal;p.last=now;p.witnessed=false;delete p.grave;
+            monitor(s,id,(identity(s,id)?.name||'L’abitante')+' è stato soccorso dai vicini e ora è convalescente.',p.point,notices);
+          }else if(p.deadline<=now&&!spared(sleep,id,p)){
             down(s,id,p,notices);
             if(p.witnessed)helpers.notify?.({id:'npc-neglect',npc:id,region:p.point.region});
           }
@@ -14682,7 +14736,7 @@ window.Lantern = (() => {
     }
     return entries;
   }
-  window.Conflicts={create,restore,condition,canInteract,canFight,point,takesOver,fighting,damageNpc,sites,use,command,faction,view,tick,actors,mend,wounded};
+  window.Conflicts={rules:RULES,odds,create,restore,condition,canInteract,canFight,point,takesOver,fighting,damageNpc,sites,use,command,faction,view,tick,actors,mend,wounded};
 })();
 
 

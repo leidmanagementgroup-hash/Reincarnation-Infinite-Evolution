@@ -2,6 +2,18 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-24] RISK-013: conflitti meno letali e realistici; WorldSim divisibile; mandato permanente — Claude
+Branch `claude/perf-005`. File: `npc-conflicts.js`, `world-sim.js`, `tests/verifica-mortalita.cjs` (nuovo), `tests/verifica-continuita.cjs`, `tests/verifica-world-sim.cjs`, `CLAUDE.md`, `Reincarnation.html`, documenti.
+### Corretto
+- Causa misurata (3 semi, 8 giorni): tutti gli stati critici lontani (52 su 52) venivano da un secondo colpo a piena forza su chi, già ferito, si stava ritirando; critico significava morte al 100 % perché nessuno soccorreva; circa 11 scontri al giorno per regione con guarigione in due minuti; nessuna differenza fra soldato e civile.
+- Conflitti ordinari (RISK-013, regole provvisorie in `Conflicts.rules`, configurabili): vittoria e fuga dipendono da attacco, PV, equipaggiamento del mestiere, esperienza, evoluzione, età, agilità della stirpe e pericolosità della creatura (`Conflicts.odds`); combattono prima i difensori di mestiere, i civili di solito si mettono al riparo e fuggono appena colpiti; chi ha combattuto riposa; il colpo in ritirata è di striscio; le ferite guariscono in poche ore o in oltre un giorno secondo la gravità; allo scadere dello stato critico i vicini possono soccorrere (dipende da quanti sono in piedi e dal pericolo) e il salvato resta convalescente due giorni. Restano la morte permanente, i colpi devastanti (oltre metà dei PV massimi sotto zero) che solo il giocatore può curare e la regola dei compagni di gilda (decisione del 2026-11-21). La resa non è prevista: gli avversari degli scontri ordinari sono creature selvatiche; servirà con fazioni umane.
+### Aggiunto
+- `world-sim.js`: intervalli divisibili fra i fotogrammi (`info.due`, `partial`, `settle`), base di RISK-014.
+### Verifica
+- `tests/verifica-mortalita.cjs` 9/9 (soglie fissate prima di correggere; prima 27–30 morti su 32 in 30 giorni e 30 su 32 in un anno): 30 giorni 0, 2, 2, 2, 0 morti; 365 giorni 6, 7, 6, 5, 4 su 32, 62 in fin di vita, letalità 45 %; dormire e vivere 8 giorni 0/0, 2/2, 0/0; salvare e ricaricare identico; nessun immortale. Parametri tarati su semi diversi da quelli della prova. Il criterio della prova 9 (mutazione) è cambiato: «più di 4 morti» era arbitrario, ora la mutazione deve violare le stesse soglie delle prove 1 e 3 (14 morti su 14). La prova 9 di `verifica-continuita` rende pericolosi gli scontri con i parametri, perché gli stati critici ora sono rari; soglie invariate.
+### Documentazione
+- `CLAUDE.md`: copia esatta di quello di `main` (`0bcfa34`) più il mandato permanente dell'utente.
+
 ## [2026-11-24] PERF-005: banco da 95 a 100 000 residenti e correzione di BUG-012 — Claude
 Branch `claude/perf-005`, commit `a375a1a`. File: `interface.js`, `Reincarnation.html`, `tests/prova-browser-tempo.cjs` (nuovo), `tests/banco-mondo-livelli.cjs` (nuovo), `SIMULATION_LOD.md`, `PROGRESS.md`, `ROADMAP.md`.
 ### Corretto
