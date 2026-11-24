@@ -904,7 +904,7 @@
     const places={};
     for(const id of Object.keys(eco.places).sort()){
       const p=eco.places[id];
-      places[id]=[p.w,p.i,p.d,p.b.map(b=>[b.n,S(b.cash),S(b.debt),S(b.dep),b.loss,S(b.pr),b.e,trim(b.s)]),p.dis?[p.dis[0],p.dis[1]]:0,p.g,p.cl,p.cr,p.c,p.r];
+      places[id]=[p.w,p.i,p.d,p.b.map(b=>[b.n,S(b.cash),S(b.debt),S(b.dep),b.loss,S(b.pr),b.e,trim(b.s),S(b.wp)]),p.dis?[p.dis[0],p.dis[1]]:0,p.g,p.cl,p.cr,p.c,p.r];
     }
     const L=eco.ledger,mapS=o=>Object.fromEntries(Object.entries(o).map(([k,v])=>[k,S(v)])),rows=o=>Object.fromEntries(Object.entries(o).map(([k,v])=>[k,v.map(S)]));
     return JSON.stringify({schema:SCHEMA,seed:eco.seed,week:eco.week,seq:eco.seq,places,
@@ -940,9 +940,11 @@
       need(Array.isArray(p[2])&&p[2].length===NG&&p[2].every(v=>isInt(v,0,1e15)),'domanda '+id);
       need(Array.isArray(p[3])&&p[3].length===NT,'attività '+id);
       const b=p[3].map((x,t)=>{
-        need(Array.isArray(x)&&x.length===8&&isInt(x[0],0,1e7)&&isInt(x[4],0,1e7)&&isInt(x[6],0,1e10),`attività ${id}/${t}`);
+        need(Array.isArray(x)&&(x.length===8||x.length===9)&&isInt(x[0],0,1e7)&&isInt(x[4],0,1e7)&&isInt(x[6],0,1e10),`attività ${id}/${t}`);
         const pr=signedOf(x[5]);need(pr!==null,`utile ${id}/${t}`);
-        return {n:x[0],cash:big(x[1],'cassa'),debt:big(x[2],'debito'),dep:big(x[3],'deposito'),loss:x[4],pr,e:x[6],s:stockArray(x[7],'scorte'),wp:0n};
+        // Incassi e costi della settimana arrivati dopo il regolamento (es. partenze delle carovane): passano alla settimana seguente.
+        const wp=x.length===9?signedOf(x[8]):0n;need(wp!==null,`utile in sospeso ${id}/${t}`);
+        return {n:x[0],cash:big(x[1],'cassa'),debt:big(x[2],'debito'),dep:big(x[3],'deposito'),loss:x[4],pr,e:x[6],s:stockArray(x[7],'scorte'),wp};
       });
       const dis=p[4]===0?null:(need(Array.isArray(p[4])&&own(K.P.calamities,p[4][0])&&isInt(p[4][1],0,1e9),'calamità '+id),[p[4][0],p[4][1]]);
       need(Array.isArray(p[5])&&p[5].length===SIG.length&&p[5].every(v=>isInt(v,0,100000)),'segnali '+id);

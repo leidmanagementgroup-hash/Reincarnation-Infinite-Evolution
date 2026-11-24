@@ -2,6 +2,11 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-24] PERF-005: correzione del salvataggio dell'economia viva — Claude
+Branch `claude/perf-005`. File: `living-economy.js` (modulo in ombra), `tests/verifica-economia-viva.cjs`, `ECONOMIA_VIVA.md`.
+### Corretto
+- Salvataggio dell'economia viva: l'utile in sospeso di un'attività (`wp`, incassi e costi arrivati dopo il regolamento della settimana, per esempio dalle carovane in partenza) non entrava nel salvataggio, e la partita ripresa divergeva da quella in corso. Trovato dalla prova d'insieme; la prova 4 del modulo salvava in una sola settimana in cui per caso non c'era nulla in sospeso. Nuova prova 21 (50 settimane salvate e confrontate con la partita in corso, 6 con incassi in sospeso), vista fallire prima della correzione; il formato accetta anche il salvataggio precedente senza il campo. `verifica-economia-viva` 22/22. L'affermazione precedente «salvataggio → ripristino → continuazione identica» valeva solo per la prova di allora.
+
 ## [2026-11-24] PERF-005: prove del mondo quando passa il tempo — Claude
 Branch `claude/perf-005`. File nuovo: `tests/verifica-tempo-mondo.cjs`; `PROGRESS.md` (verifiche, BUG-012, RISK-013). Nessun file del gioco modificato. Scritto da un subagente e verificato dal coordinatore.
 ### Aggiunto

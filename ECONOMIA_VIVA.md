@@ -5,6 +5,8 @@
 File: `living-economy.js` (`window.LivingEconomy`), prove `tests/verifica-economia-viva.cjs` (21 prove, ~3,5 s). Il modulo
 **non** è nella build né collegato al motore. Nessun file esistente è stato modificato.
 
+> Correzione (2026-11-24): l'utile in sospeso `wp` non era salvato e la continuazione dopo un ripristino poteva divergere; ora è nel salvataggio (prova 21).
+
 ## 1. Modello
 - **Tempo**: passo canonico di una settimana (`WEEK = 10080` minuti). `eco.week` = prossima settimana da risolvere;
   `create(seed, places, now)` parte da `ceil(now / WEEK)`, come l'origine di `WorldSim`. Il passo non conosce il livello.

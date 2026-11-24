@@ -188,6 +188,26 @@ check('4. Salvataggio → ripristino (nuovo caricamento del modulo) → continua
   return `salvataggio di ${saved.length} byte (13 luoghi, 60 settimane)`;
 });
 
+check('21. Salvataggio in settimane diverse: nessuno stato del mondo resta fuori dal salvataggio', () => {
+  // Mondo con carovane: le partenze comprano da fattorie, miniere e pascoli già regolati nella settimana, e l'incasso resta in sospeso.
+  const { LE: L1 } = load(), world1 = caravanWorld(L1), live = L1.create(21, world1.places, 0);
+  let compared = 0, inFlight = 0;
+  run(L1, live, envOf(world1.pop), 20);
+  for (let w = 20; w < 70; w++) {
+    for (const pl of Object.values(live.places)) if (pl.b.some(b => b.wp !== 0n)) { inFlight++; break; }
+    const saved = L1.serialize(live), dumped = world1.pop.dump();
+    const { LE: L2 } = load(), world2 = caravanWorld(L2); world2.pop.load(dumped);
+    const copy = L2.restore(saved, world2.places, live.week * WEEK);
+    run(L2, copy, envOf(world2.pop), 1);
+    run(L1, live, envOf(world1.pop), 1);
+    assert.equal(snapshot(L2, copy, world2.pop), snapshot(L1, live, world1.pop), `settimana ${w}: dopo il ripristino la continuazione diverge dalla partita in corso`);
+    compared++;
+  }
+  // La prova deve incontrare incassi in sospeso, altrimenti non dimostra nulla.
+  assert(inFlight > 5, 'settimane con incassi in sospeso incontrate: ' + inFlight);
+  return `${compared} settimane salvate e confrontate con la partita in corso, ${inFlight} con incassi in sospeso`;
+});
+
 check('5. Prezzi: salgono con la scarsità e scendono con l’abbondanza', () => {
   const { LE } = load();
   const places = [{ id: 'arida', continent: 'a', kind: 'town', population: 1200, links: [] }, { id: 'fertile', continent: 'b', kind: 'town', population: 1200, links: [] }];
