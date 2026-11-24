@@ -60,7 +60,7 @@
   function bank(s,data){
     const vault=data.bank.items.items;
     const stock=window.Inventory.view(s,{location:'pack'}).items.filter(item=>item.depositable);
-    return head('Depositi e prelievi')+'<p>Il conto e gli oggetti depositati sono accessibili da tutti i cinque mercati.</p>'+
+    return head('Depositi e prelievi')+'<p>Il conto e gli oggetti depositati sono accessibili da tutti i mercati.</p>'+
       (data.bank.available?moneyForm(data)+itemForm(stock,'itemDeposit','Deposita oggetti')+itemForm(vault,'itemWithdraw','Ritira oggetti'):
         '<p class="caption">Per versare o prelevare, raggiungi un bancone durante l’orario di apertura.</p>')+
       (vault.length?'<ul class="economyStored" aria-label="Oggetti in deposito">'+vault.map(r=>
@@ -69,7 +69,7 @@
   }
   function marketIndex(entries){
     const continents=window.World?.continents||[];
-    return '<details class="economyWhere"><summary>Dove trovare i cinque mercati</summary><ul>'+
+    return '<details class="economyWhere"><summary>Dove trovare i '+(entries.length===5?'cinque ':'')+'mercati</summary><ul>'+
       entries.map(m=>{
         const continent=continents.find(c=>c.id===m.continent)?.name;
         const place=[m.regionName,continent].filter(Boolean).join(' · ');

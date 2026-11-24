@@ -6,6 +6,14 @@ Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGEN
 ### Documentazione
 - `CLAUDE.md`: nuova sezione «Competenze, plugin e agenti» (router `gamedev:router` verificato; mappa compito→skill per un motore JS custom; processo Superpowers; browser di collaudo; regole anti-spreco e di precedenza). Nessun codice toccato, nessuna ricostruzione necessaria.
 
+## [2026-11-24] ECO-002: mercati registrabili a runtime — Claude
+### Aggiunto
+- `Economy.register(spec,s?)` (`trade-economy.js`): aggiunge un mercato da una descrizione per `MarketFlows.settlementProfile` (`{id,name,region,continent,x,y,size,focus,seed}`); con `s` entra subito nella partita (scorte iniziali, flussi ricostruiti con `MarketFlows.restore`). Rifiuta id duplicati o non validi.
+### Modificato
+- `Economy.restore`: richiede solo i cinque mercati storici; un mercato registrato ma assente dal salvataggio nasce con scorte iniziali; i mercati salvati ma non ancora registrati restano in `s.economy.dormant` (campo facoltativo, retrocompatibile, schema invariato) e rientrano alla registrazione. Il pannello non dice più «cinque» se i mercati sono altri (`economy-panel.js`).
+### Verifica
+- `tests/verifica-mercati-dinamici.cjs` (nuovo: 6 mercati, salvataggio con mercato sconosciuto, vecchio salvataggio, 20 giorni con registro in pari, rifiuto di id pericolosi e di salvataggi senza un mercato storico) più `verifica-integrazione`, `economia-flussi`, `economia-flussi-2`, `economia-integrazione`, `verifica-economia-tendenze` superati. Browser non provato. Nessun generatore urbano chiama ancora `register`.
+
 ## [2026-11-24] Mestieri dei residenti collegati all'attività del mercato — Claude
 ### Aggiunto
 - La scheda di un residente di Velaris con mestiere di cucina, birra, orto, erbe, carpenteria o acqua mostra «Mestiere e mercato»: il gruppo di lavoratori di Velaris e come reagisce alle scorte (a pieno ritmo se scarse, rallenta se abbondanti). Solo lettura da `Economy.flowReport().work`; nessun effetto su salvataggi, prezzi o routine (file: `urban-life.js`, `panels.js`, `tests/verifica-mestieri-mercato.cjs`). Mestieri senza gruppo corrispondente a Velaris (tessitrice, cuoio, ecc.) restano senza collegamento.

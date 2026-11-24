@@ -30,6 +30,7 @@
   ].map(([id,name,region,x,y,goods],index)=>({id,name,region,x,y,goods,continent:'continent-'+(index+1),range:24}));
   for(const profile of profiles)Object.assign(profile.goods,{bread:[7,5],water:[8,3]});
   const marketBook=Object.fromEntries(profiles.map(profile=>[profile.id,profile]));
+  const coreIds=new Set(profiles.map(profile=>profile.id));      // i cinque mercati storici: sempre presenti nei salvataggi
   const own=(value,id)=>value!==null&&value!==undefined&&Object.hasOwn(value,id);
   const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
   const canonical=value=>typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value);
@@ -72,9 +73,11 @@
   }
   function restore(raw,seed,s){
     if(raw===undefined)return create(seed);
-    if(!object(raw)||raw.schema!==1||!canonical(raw.balance)||!object(raw.markets)||Object.keys(raw.markets).length!==profiles.length)return null;
+    if(!object(raw)||raw.schema!==1||!canonical(raw.balance)||!object(raw.markets)||[...coreIds].some(id=>!own(raw.markets,id)))return null;
     const markets={};
     for(const profile of profiles){
+      // ECO-002: un mercato registrato dopo il salvataggio (nuova città) nasce con le sue scorte iniziali
+      if(!own(raw.markets,profile.id)&&!coreIds.has(profile.id)){markets[profile.id]=initialMarket(profile,seed);continue;}
       const where=raw.markets[profile.id];
       if(!object(where)||!Number.isSafeInteger(where.day)||where.day<1||where.day>1e9||!object(where.stock))return null;
       const stock=Object.create(null);
@@ -89,7 +92,14 @@
     const day=s?clock(s).day:1;
     let flows=window.MarketFlows?(MarketFlows.restore(raw.flows,seed,day,profiles,markets)||startFlows(seed,day,markets)):undefined;
     if(flows&&MarketFlows.audit(flows,profiles,markets).length)MarketFlows.rebase(flows,profiles,markets);
-    return {schema:1,balance:raw.balance,markets,flows};
+    // mercati salvati ma non (ancora) registrati: restano da parte e si riattivano con `register`
+    const dormant={};
+    for(const source of [raw.markets,raw.dormant])if(object(source))for(const [id,value] of Object.entries(source)){
+      if(!own(marketBook,id)&&/^[a-z][a-z0-9-]{0,31}$/.test(id)&&object(value)&&Number.isSafeInteger(value.day)&&object(value.stock)&&Object.keys(dormant).length<200)dormant[id]=value;
+    }
+    const result={schema:1,balance:raw.balance,markets,flows};
+    if(Object.keys(dormant).length)result.dormant=dormant;
+    return result;
   }
   /* LW-ECO-03 (Living World 2.0): i manufatti che non fanno parte del profilo del mercato (lame, piatti, attrezzi venduti dal
      giocatore) trovano compratori fra gli abitanti, una unità al giorno per merce. Le merci del profilo seguono le loro regole. */
@@ -121,6 +131,36 @@
     MarketFlows.advance(flows,profiles,s.economy.markets,day);
     for(const profile of profiles)consumeCrafted(s.economy.markets[profile.id].stock,profile,elapsed);
     for(const profile of profiles)s.economy.markets[profile.id].day=Math.max(s.economy.markets[profile.id].day,day);
+  }
+  /* ECO-002: registra un nuovo mercato (città generata) a partire da una descrizione per `MarketFlows.settlementProfile`:
+     {id,name,region,continent,x,y,size,focus,seed,world?}. Va chiamato a ogni avvio con le stesse descrizioni, per esempio
+     dal generatore urbano, prima o dopo il caricamento. Con `s` il mercato entra subito nella partita aperta. */
+  function register(spec,s){
+    if(!window.MarketFlows||!object(spec)||typeof spec.id!=='string'||!/^[a-z][a-z0-9-]{0,31}$/.test(spec.id)||own(marketBook,spec.id))return null;
+    let profile;
+    try{profile=MarketFlows.settlementProfile(spec);}catch(error){return null;}
+    if(!profile||typeof spec.region!=='string')return null;
+    profile.region=spec.region;profile.continent=spec.continent||null;profile.x=Number(spec.x)||0;profile.y=Number(spec.y)||0;
+    profile.range=Number(spec.range)||24;
+    for(const [id,value] of Object.entries({bread:[7,5],water:[8,3]}))if(!own(profile.goods,id))profile.goods[id]=value;
+    profiles.push(profile);marketBook[profile.id]=profile;
+    if(s?.economy)adopt(s,profile);
+    return profile;
+  }
+  function adopt(s,profile){
+    const economy=s.economy;
+    if(!own(economy.markets,profile.id)){
+      const saved=economy.dormant&&own(economy.dormant,profile.id)?economy.dormant[profile.id]:null;
+      if(saved){
+        economy.markets[profile.id]={day:Math.max(1,saved.day|0),stock:Object.fromEntries(Object.entries(saved.stock).filter(([id,n])=>canonical(n)&&n!=='0'))};
+        delete economy.dormant[profile.id];if(!Object.keys(economy.dormant).length)delete economy.dormant;
+      }else economy.markets[profile.id]=initialMarket(profile,s.seed);
+    }
+    if(economy.flows&&window.MarketFlows){
+      const raw=JSON.parse(JSON.stringify(economy.flows));
+      economy.flows=MarketFlows.restore(raw,raw.seed,raw.day,profiles,economy.markets)||economy.flows;
+      if(MarketFlows.audit(economy.flows,profiles,economy.markets).length)MarketFlows.rebase(economy.flows,profiles,economy.markets);
+    }
   }
   function fresh(s,market,profile,day){
     if(!s.economy.flows)return restocked(market,profile,day);
@@ -390,6 +430,6 @@
     return moved;
   }
 
-  window.Economy={create,restore,wallet,view,command,tick,sites,use,actors,shortage,supplyVelarisMarket,flowReport,profiles,quote,deliver,procure,tradeAllowed};
+  window.Economy={register,create,restore,wallet,view,command,tick,sites,use,actors,shortage,supplyVelarisMarket,flowReport,profiles,quote,deliver,procure,tradeAllowed};
 })();
 
