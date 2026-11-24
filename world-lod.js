@@ -11,7 +11,9 @@
        5 globale      i luoghi dei continenti più lontani.
      I livelli sono una funzione pura di (luoghi, luogo corrente): non si salvano. Un viaggio produce esattamente le transizioni
      dei luoghi che cambiano livello, prima le promozioni e poi i declassamenti; se c'è almeno una promozione, prima si risolve il
-     tempo mancante (hooks.resolve, per esempio WorldSim.resolveAll), così ciò che viene promosso è già al minuto corrente.
+     tempo mancante (hooks.resolve), così ciò che viene promosso è già al minuto corrente. Durante il gioco hooks.resolve usa
+     WorldSim.tick(s, minuto, {budgetMs: Infinity}), che non comprime mai; WorldSim.resolveAll (che può comprimere un ritardo
+     enorme) resta riservata al sonno e al caricamento, come prevede il contratto di world-sim.js.
      Il livello decide il dettaglio e le precedenze, mai l'esito: i sistemi del mondo hanno passi canonici uguali a ogni livello. */
   const DUNGEONS=new Set(['ardel-crypt','nadir-vault']); // Cripta delle Soglie e Volta del Nadir
   const ENTER=480,LEAVE=560;                            // isteresi delle entità vicine, in pixel

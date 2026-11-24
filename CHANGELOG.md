@@ -2,6 +2,12 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-24] PERF-005: piano tecnico del collegamento di WorldSim al motore — Claude
+Branch `claude/perf-005`. File: `PIANO_INTEGRAZIONE_WORLDSIM.md` (nuovo), `world-lod.js` (solo commento), `AGENTS.md` (elenco dei documenti), `SIMULATION_LOD.md`, `PROGRESS.md`. Nessuna modifica a `engine.js` o `build.py`.
+### Documentazione
+- Piano preparato con un'analisi in sola lettura (fatti verificati nel codice distinti da ipotesi): funzioni da modificare in `engine.js` con le righe, ordine dei moduli in `MODULES`, gestione del ciclo e della deriva fra i due orologi, compatibilità dei salvataggi anche aprendo con una build vecchia (`world` ignorato e conservato), proposta minima per RISK-012 (Society avanza all'istante di ogni impulso dei conflitti tramite un aggancio `beforePulse`), sovrapposizioni con le modifiche non committate di Codex, rollback, passi C1–C6 con prove e criteri di accettazione.
+- `world-lod.js`: il commento indica che durante il gioco il tempo si risolve prima delle promozioni senza compressione (`WorldSim.tick` con budget illimitato); `resolveAll` resta per sonno e caricamento.
+
 ## [2026-11-24] PERF-005: livelli dei luoghi e transizioni fra i cinque livelli (in ombra) — Claude
 Branch `claude/perf-005`. File: `world-lod.js` (nuovo, non nella build), `tests/verifica-world-lod.cjs` (nuovo), `world-sim.js`, `tests/verifica-world-sim.cjs`; documentazione. Nessun file del gioco collegato, `Reincarnation.html` invariato.
 ### Aggiunto
