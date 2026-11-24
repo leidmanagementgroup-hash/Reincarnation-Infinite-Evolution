@@ -6,6 +6,12 @@ Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGEN
 ### Documentazione
 - `CLAUDE.md`: nuova sezione «Competenze, plugin e agenti» (router `gamedev:router` verificato; mappa compito→skill per un motore JS custom; processo Superpowers; browser di collaudo; regole anti-spreco e di precedenza). Nessun codice toccato, nessuna ricostruzione necessaria.
 
+## [2026-11-24] Mestieri dei residenti collegati all'attività del mercato — Claude
+### Aggiunto
+- La scheda di un residente di Velaris con mestiere di cucina, birra, orto, erbe, carpenteria o acqua mostra «Mestiere e mercato»: il gruppo di lavoratori di Velaris e come reagisce alle scorte (a pieno ritmo se scarse, rallenta se abbondanti). Solo lettura da `Economy.flowReport().work`; nessun effetto su salvataggi, prezzi o routine (file: `urban-life.js`, `panels.js`, `tests/verifica-mestieri-mercato.cjs`). Mestieri senza gruppo corrispondente a Velaris (tessitrice, cuoio, ecc.) restano senza collegamento.
+### Verifica
+- `verifica-mestieri-mercato` (172 collegati su 528 residenti), `verifica-integrazione`, `verifica-perf-002` (181 scene) superati; HTML ricostruito. Browser non provato.
+
 ## [2026-11-24] ECO-003: tendenze, merci in arrivo e rotte nel pannello dei mercati — Claude
 ### Aggiunto
 - Sezione «Tendenze e rotte del mercato» nel pannello Economia: per ogni merce scorta/obiettivo, tendenza (produzione contro consumo dei residenti, con scorta bassa/alta), merci in viaggio verso il mercato, ricchezza locale e rotte con giorni e capacità. Solo lettura da `Economy.flowReport`; nessun effetto su denaro, scorte o salvataggio (file: `economy-panel.js`, `tests/verifica-economia-tendenze.cjs`).
