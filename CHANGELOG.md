@@ -2,6 +2,15 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-24] PERF-005: banco da 95 a 100 000 residenti e correzione di BUG-012 — Claude
+Branch `claude/perf-005`. File: `interface.js`, `Reincarnation.html`, `tests/prova-browser-tempo.cjs` (nuovo), `tests/banco-mondo-livelli.cjs` (nuovo), `SIMULATION_LOD.md`, `PROGRESS.md`, `ROADMAP.md`.
+### Corretto
+- BUG-012: oltre 2 s fra due fotogrammi vale come una pausa e non fa saltare il calendario (prima 2 880 minuti dopo un'ora di sospensione, ora 1,6). **Cambia il gioco**, non solo i moduli in ombra.
+### Aggiunto
+- Banco dei moduli isolati; rischi RISK-014 (blocco settimanale), RISK-015 (crescita del salvataggio), RISK-016 (granularità dell'autonomia).
+### Verifica
+- banco dei moduli da 95 a 100 000 residenti, controllo delle perdite di memoria, BUG-012 corretto in `interface.js`. Serie completa sulla build ricostruita, tutta con uscita 0. Node: integrazione, esperienza 10, avvisi 8, memoria 11, mestieri 10, richieste 11, stirpi 9, voci 9, revisione LW 8, Calis, Filoni, world-sim 16, world-lod 12, continuità 11, popolazione 20, economia viva 22, mondo-livelli 7, tempo-mondo 12, economia (158 controlli, flussi-2, 147 controlli), PERF-002 (181 scene), PERF-003 5, PERF-004 6, salvataggi incrociati 2, percorsi 41 040 campioni senza blocchi. Edge: prova-browser 10, tempo 4, interfaccia 8, scenario 9, progressione 7, combattimento 9, famiglie 6, memoria 7, voci 5, stirpi 5, richieste 6, mestieri 6, economia, Velaris est 12, mondo 15, interni 12, sonno dal pannello N 2 (script di sessione). Non eseguite in Edge in questo giro: Calis, Filoni, cava, santuario, creature, gilda. Non verificati: una partita giocata a mano e i moduli in ombra in Edge.
+
 ## [2026-11-24] PERF-005: residenti autonomi in ombra e prova d'insieme — Claude
 Branch `claude/perf-005`. File nuovi: `world-population.js` (non nella build), `tests/verifica-popolazione.cjs`, `RESIDENTI_AUTONOMI.md`, `tests/verifica-mondo-livelli.cjs`; `AGENTS.md`, `PROGRESS.md`. Nessun file del gioco modificato, `Reincarnation.html` invariato.
 ### Aggiunto

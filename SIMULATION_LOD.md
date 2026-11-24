@@ -143,6 +143,35 @@ dungeon indipendenti dal giocatore (stato L4).
 - `tests/banco-popolazione.cjs` (Edge): costo per fotogramma per sistema, salti, rientro, caricamento.
 Ogni fase aggiunge le sue colonne (costo per giorno e per recupero di ogni livello, entità aggregate contro entità complete).
 
+### Moduli in ombra, isolati (`tests/banco-mondo-livelli.cjs`, Node 24, 2026-11-24)
+**Non sono le prestazioni del gioco**: nessun modulo è collegato al motore. Economia viva e residenti insieme, 12 settimane di
+campioni; luogo corrente a record, il resto a coorti; fino a 40 viaggi con materializzazione dei luoghi di livello 1–2. Ripristino
+identico e nessun sistema guasto a ogni dimensione; heap stabile dopo un anno (al massimo +1,1 MB; 78,6 MB con 100 000, misura
+cumulativa del processo).
+
+| Residenti | Luoghi | Creazione | Settimana (mediana / max) | Chiamata più lunga con budget 1 ms (mediana / max) | Un anno di recupero (CPU) | Viaggio (mediana / max) | Salvataggio prima dei viaggi (record) | Dopo i viaggi (record) | Scrittura / ripristino |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 95 | 1 | 1,6 ms | 0,9 / 4,7 ms | 0,5 / 0,7 ms | 28,5 ms (15) | — / — ms | 22,2 KB (98) | 22,2 KB (98) | 0,4 / 2,7 ms |
+| 500 | 1 | 0,6 ms | 2,3 / 4,4 ms | 1,7 / 2,1 ms | 89,8 ms (141) | — / — ms | 108,8 KB (529) | 108,8 KB (529) | 2,3 / 5,3 ms |
+| 1 000 | 2 | 0,9 ms | 3 / 5,8 ms | 2,4 / 2,8 ms | 121,2 ms (203) | 4,36 / 4,36 ms | 125,2 KB (559) | 179,9 KB (1039) | 4,2 / 8,5 ms |
+| 5 000 | 10 | 2,4 ms | 6,4 / 12,9 ms | 3,6 / 5,3 ms | 276,2 ms (422) | 4,09 / 17,16 ms | 178,3 KB (663) | 706,3 KB (5094) | 14,7 / 34,4 ms |
+| 10 000 | 20 | 4 ms | 9,9 / 19,8 ms | 5,6 / 7,7 ms | 452,6 ms (594) | 5,6 / 30,8 ms | 204 KB (640) | 1410,6 KB (10181) | 31,2 / 69,5 ms |
+| 50 000 | 100 | 15,5 ms | 37,6 / 59,1 ms | 21,3 / 22 ms | 1857,9 ms (2578) | 12,68 / 119,55 ms | 424,9 KB (645) | 4942,8 KB (34595) | 145,8 / 209,9 ms |
+| 100 000 | 200 | 31,3 ms | 76 / 96,7 ms | 41,2 / 43 ms | 3620,3 ms (4922) | 25,86 / 212,14 ms | 696,6 KB (633) | 8002 KB (55320) | 200,3 / 332,3 ms |
+
+Lettura: (1) fino a 10 000 residenti la chiamata più lunga resta sotto 16,7 ms (7,7 ms), da 50 000 no (22 ms; 43 ms con 100 000):
+la settimana di ciascun modulo è un blocco indivisibile (RISK-014); (2) un mondo prevalentemente aggregato salva 697 KB con 100 000
+residenti, ma i luoghi visitati restano a record: 55 320 record = 8,0 MB, oltre la quota tipica di `localStorage` (RISK-015);
+(3) materializzare in modo sincrono durante un viaggio costa fino a 212 ms con 100 000: serve il caricamento progressivo di
+`world-lod.js`. Orchestratore: 10 000 mondi creati e scartati, heap fermo a 4,22 MB (script di sessione).
+
+### Gioco reale
+Node, motore vero (`tests/banco-lod.cjs`, rieseguito il 2026-11-24), 95 / 500 / 1 000 / 5 000 / 10 000 residenti: piani di un giorno
+18,6 ms / 356 ms / 1,1 s / 14,6 s / 48,2 s; posizione dagli orari 0,007 / 0,025 / 0,044 / 0,235 / 0,506 ms per fotogramma;
+salvataggio 32,6 KB. 50 000 e 100 000 residenti **non esistono nel gioco** e non sono stati misurati nel motore. Edge
+(`tests/banco-popolazione.cjs`, due giri, `main` contro branch, 95 / 100 / 500 residenti): nessuna differenza oltre il rumore; resta
+su entrambe il primo fotogramma del caricamento a freddo con 500 residenti, 63–67 ms (PERF-003).
+
 ## 6. Piano di attuazione
 
 > Piano in fasi; ogni fase è un intervento separato con branch, prove e approvazione. Le fasi da 3 in poi avranno un piano

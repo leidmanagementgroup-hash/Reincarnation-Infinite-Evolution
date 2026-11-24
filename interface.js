@@ -432,7 +432,8 @@
     if(screen!=='play'||!Game.s||document.hidden)return;dimField();
     if(placement?.region!==World.region&&placement)cancelPlacement();
     if(!panel){let x=Number(keyState.has('KeyD')||keyState.has('ArrowRight'))-Number(keyState.has('KeyA')||keyState.has('ArrowLeft')),y=Number(keyState.has('KeyS')||keyState.has('ArrowDown'))-Number(keyState.has('KeyW')||keyState.has('ArrowUp'));for(const d of taped.values()){x+=dirs[d][0];y+=dirs[d][1];}
-      const activeElapsed=running?elapsed:dt;running=true;
+      // BUG-012: oltre 2 s fra due fotogrammi (computer sospeso senza blur/visibilitychange) vale come una pausa, non un salto del calendario.
+      const activeElapsed=running?Math.min(elapsed,2):dt;running=true;
       Game.step(dt,{x,y,attack:keyState.has('KeyJ')||keyState.has('Mouse')},activeElapsed);clock+=dt;releaseBuffered();
     }else if(panel==='practice'){
       PracticePanel.update($('#panelBody'),Game.practice(dt,{hold:practiceHold}));
