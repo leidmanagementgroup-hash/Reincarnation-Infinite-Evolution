@@ -2,6 +2,16 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-24] PERF-005: progetto della simulazione a cinque livelli — Claude
+Branch `claude/perf-005` (da `main` `c11c5f5`; commit locale non pubblicato), solo progetto, prove e documentazione: nessun sorgente del gioco modificato, `Reincarnation.html` invariato.
+### Aggiunto
+- `SIMULATION_LOD.md`: mappa di ciò che oggi simula il mondo, continuità misurata, architettura a cinque livelli (completo, semplificato, aggregato, strategico, globale), principi (orologio unico del calendario, stato derivato più registro delle variazioni, risoluzione per intervalli con seme, livello grossolano come verità), rischi, criteri di accettazione e piano in sei fasi.
+- `tests/sonda-continuita.cjs` e `tests/banco-lod.cjs` (prove non invasive).
+### Documentazione
+- `AGENTS.md` (nuovo documento nell'elenco), `PROGRESS.md`, `ROADMAP.md`; corretta la nota superata sulle verifiche aggiuntive di PERF-004 (già su `main`).
+### Verifica
+- `tests/sonda-continuita.cjs` (nuova, non fallisce, riporta): nove ore vissute (40 500 fotogrammi) contro le stesse ore dormite: uguali calendario, economia (mercati, flussi, carovane), costruzioni, scorte di Velaris, Living World e mostri congelati; **diversi** i borghi (l'accordo è in ritardo di un impulso dopo il sonno, perché ogni borgo legge il livello degli altri nello stesso giro) e i conflitti degli NPC (vivendo la notte una guardia viene ferita; dormendo il mondo lontano fa un solo impulso); posizioni dei residenti di Velaris identiche fra quattro ore vissute e un salto del calendario con 95 e 500 residenti. `tests/banco-lod.cjs` (nuovo): con 95/500/1 000/5 000/10 000 residenti nella stessa città, piani di un giorno 18,5 ms / 356 ms / 1,1 s / 14,2 s / 51,4 s (Node), circa 2 KB a residente; posizione dagli orari per tutti 0,007–0,57 ms per fotogramma; dettaglio pieno con 1 526–3 125 vicini 14–24 ms di media; salvataggio 32,6 KB a ogni dimensione.
+
 ## [2026-11-23] PERF-003: pianificazione dei residenti più rapida e anticipata — Claude
 Branch `claude/perf-003` (da `claude/perf-004-verifiche` `9fcd0c1`, a sua volta da `main` `913c258`; commit `d4cae02`; portato su `main` per avanzamento rapido `913c258` → `6670691` con l'autorizzazione dell'utente; sulla cartella di `main` ripetute integrazione, `verifica-perf-002` (181 scene), `verifica-perf-003` (95 e 500 residenti), `verifica-perf-004` (95), `prova-browser` 10/10 e Velaris est 12/12). Unione simulata con `codex/urban-scale` (albero temporaneo, nessun branch creato): codice senza conflitti (solo `CHANGELOG.md` e `PROGRESS.md`); sulla build unita passano integrazione, `verifica-scala-urbana` (250 edifici), `verifica-perf-002`, `verifica-perf-003` e `verifica-perf-004` con 500 residenti, `prova-browser-scala-urbana` con i laboratori da 25 e 250 edifici e `prova-browser`. File: `urban-life.js`, `Reincarnation.html`, `tests/verifica-perf-003.cjs` (nuovo), `tests/banco-popolazione.cjs`, documentazione.
 ### Corretto
