@@ -139,6 +139,8 @@ check('2. Conservazione esatta di denaro (famiglie comprese) e merci per 520 set
   assert(st.counts.war >= 1, 'nessuna guerra in 520 settimane');
   assert(st.counts.calamity >= 1, 'nessuna calamità in 520 settimane');
   assert(a.money.burned > 0n, 'nessuna distruzione di denaro registrata');
+  assert(a.money.minted > 0n, 'nessuna emissione: la conservazione con emissioni non è provata');
+  assert((st.counts.caravanLost || 0) + (st.counts.caravanRaided || 0) > 0, 'nessuna carovana colpita: la conservazione con perdite di carovane non è provata');
   assert(lost > 0n, 'nessuna merce perduta registrata');
   return `${checks} verifiche esatte; emesse ${a.money.minted}, distrutte ${a.money.burned} Scintille; merci perdute ${lost} millesimi; ` +
     `${st.counts.war} guerre, ${st.counts.calamity} calamità, ${st.counts.caravanLost || 0} carovane perdute, ${st.counts.closure || 0} chiusure, ${st.counts.opening || 0} aperture`;
@@ -204,7 +206,7 @@ check('21. Salvataggio in settimane diverse: nessuno stato del mondo resta fuori
     compared++;
   }
   // La prova deve incontrare incassi in sospeso, altrimenti non dimostra nulla.
-  assert(inFlight > 5, 'settimane con incassi in sospeso incontrate: ' + inFlight);
+  assert(inFlight >= 20, 'la prova non incontra abbastanza incassi in sospeso (non è una divergenza): ' + inFlight);
   return `${compared} settimane salvate e confrontate con la partita in corso, ${inFlight} con incassi in sospeso`;
 });
 
@@ -308,12 +310,15 @@ check('8. Banche: depositi, prestiti e interessi coerenti; insolvenza registrata
   const { LE: L2 } = load();
   L2.params.bank.capitalPerCapita = 0;
   const two = [{ id: 'ricca', continent: 'unico', kind: 'capital', population: 4000, links: ['vuota'] }, { id: 'vuota', continent: 'unico', kind: 'city', population: 3000, links: ['ricca'] }];
-  const p2 = population(L2, two, { vuota: { alive: 40, wealth: 0 } }), e2 = L2.create(2, two, 0);
-  run(L2, e2, envOf(p2), 260, () => { const a = L2.audit(e2); assert(a.ok, 'settimana ' + e2.week + ': ' + a.problems.slice(0, 3).join('; ')); });
+  const p2 = population(L2, two), e2 = L2.create(2, two, 0);
+  run(L2, e2, envOf(p2), 30);
+  // Metà delle miniere resta senza clienti con un debito da rimborsare, poi una guerra lunghissima svuota la banca.
+  { const bz = e2.places.vuota.b[L2.TYPES.indexOf('mine')], bank = e2.banks.unico, a = 3000n; bank.r -= a; bank.loans += a; bz.debt += a; e2.ledger.burn.prova = bz.cash; e2.ledger.burn.prova += a; bz.cash = 0n; p2.state.vuota.workers.miner = 0; const g = L2.GOODS.indexOf('ore'), row = e2.ledger.gLost.prova = L2.GOODS.map(() => 0n); for (const b of e2.places.vuota.b) { row[g] += BigInt(b.s[g]); b.s[g] = 0; } }
+  run(L2, e2, envOf(p2, { war: () => true }), 150, () => { const a = L2.audit(e2); assert(a.ok, 'settimana ' + e2.week + ': ' + a.problems.slice(0, 3).join('; ')); });
   const t2 = L2.stats(e2).totals, ev = L2.events(e2);
-  assert(ev.some(e => e.kind === 'bankrupt'), 'nessun fallimento registrato');
+  const c2 = L2.stats(e2).counts; assert(c2.bankrupt >= 1, 'nessun fallimento registrato');
   assert(t2.writtenOff > 0n, 'nessun prestito svalutato');
-  assert(ev.some(e => e.kind === 'insolvency'), 'nessuna insolvenza bancaria registrata');
+  assert(c2.insolvency >= 1 && ev.length > 0, 'nessuna insolvenza bancaria registrata');
   assert(t2.haircut > 0n, 'nessuna riduzione dei depositi registrata');
   return `prestiti ${t.loansIssued}, depositi ${t.deposited}, interessi ${t.loanInterestPaid}/${t.depositInterest}; insolvenza: svalutati ${t2.writtenOff}, depositi ridotti di ${t2.haircut}`;
 });
@@ -324,8 +329,10 @@ check('9. Attività: chiudono dopo perdite prolungate, aprono dove c’è domand
   const bakers = Math.floor(3000 * LE.params.workforce.baker / 1000), farmers = Math.floor(3000 * LE.params.workforce.farmer / 1000);
   // «calo»: le miniere producono per 3000 abitanti ma ne restano 60 a comprare; «fame»: la popolazione è raddoppiata, ci sono
   // fornai e contadini senza lavoro ma i forni sono quelli di prima.
-  const pop = population(LE, places, { calo: { alive: 60 }, fame: { alive: 6000, workers: { baker: bakers * 3, farmer: farmers * 2 } } });
+  const pop = population(LE, places);
   const eco = LE.create(6, places, 0);
+  run(LE, eco, envOf(pop), 2);
+  Object.assign(pop.state.calo, { alive: 60, adults: 36 }); Object.assign(pop.state.fame, { alive: 6000, adults: 3600 }); Object.assign(pop.state.fame.workers, { baker: bakers * 3, farmer: farmers * 2 }); pop.state.fame.wealth *= 2n;
   const mines0 = biz(LE, eco, 'calo', 'mine').open, ovens0 = biz(LE, eco, 'fame', 'bakery').open;
   run(LE, eco, envOf(pop), 80);
   const mines = biz(LE, eco, 'calo', 'mine').open, ovens = biz(LE, eco, 'fame', 'bakery').open;
@@ -350,7 +357,7 @@ check('10. Crisi e scarsità rilevabili nei segnali; segnali neutri per un luogo
   assert(LE.events(eco).some(e => e.kind === 'crisis' && e.place === 'assedio'), 'crisi non registrata fra gli eventi');
   for (const k of ['foodScarcity', 'priceIndex', 'wageIndex', 'unemployment', 'prosperity', 'crisis', 'war', 'disaster', 'season']) assert(Number.isInteger(s[k]), 'segnale non intero: ' + k);
   const n = LE.signals(eco, 'nessuno');
-  assert.equal(JSON.stringify(n), JSON.stringify({ foodScarcity: 0, priceIndex: 1000, wageIndex: 1000, unemployment: 0, prosperity: 1000, crisis: 0, war: 0, disaster: 0, season: 0 }));
+  assert.equal(JSON.stringify(n), JSON.stringify({ foodScarcity: 0, priceIndex: 1000, wageIndex: 1000, unemployment: 0, prosperity: 1000, crisis: 0, war: 0, disaster: 0, season: 0, labor: {} }));
   assert.equal(JSON.stringify(LE.signals(null, 'x')), JSON.stringify(n), 'segnali senza economia non neutri');
   return `assedio: scarsità ${s.foodScarcity}‰, prezzi ${s.priceIndex}; quiete: scarsità ${q.foodScarcity}‰`;
 });
@@ -386,6 +393,8 @@ check('11. Stagioni, guerre e calamità cambiano produzione, segnali e registro'
   assert(Object.values(a.goods).some(g => (g.lostBy.calamita || 0n) > 0n), 'merci distrutte dall’incendio non registrate');
   assert((a.money.burnedBy.calamita || 0n) > 0n, 'denaro distrutto dall’incendio non registrato');
   assert(a.ok, a.problems.join('; '));
+  const dry = produced({ disaster: (id, w) => (w === 4 ? 'drought' : null) }, 8), d5 = dry.rows.find(r => r.w === 5);
+  assert(d5.grain < b5.grain * 0.7, `la siccità non riduce il grano (${d5.grain} contro ${b5.grain})`);
   return `grano estate ${Math.round(avg(summer))} / inverno ${Math.round(avg(winter))}; guerra ${r5.grain} contro ${b5.grain}; incendio registrato`;
 });
 
@@ -422,9 +431,9 @@ check('12. Ripristino con dati mancanti o danneggiati: non lancia mai e restitui
   const e2 = LE.restore(good, changed, 30 * WEEK), a2 = LE.audit(e2);
   assert(a2.ok, 'luoghi cambiati: ' + a2.problems.slice(0, 2).join('; '));
   assert(LE.report(e2, 'nuova') && !LE.report(e2, 'c1p2'), 'luoghi non riallineati');
-  assert((a2.money.mintedBy['nuovo luogo'] || 0n) > 0n, 'denaro del luogo nuovo non registrato come emissione');
-  assert((a2.money.burnedBy['luogo scomparso'] || 0n) > 0n, 'denaro del luogo scomparso non registrato come distruzione');
-  assert(Object.values(a2.goods).some(g => (g.addedBy['nuovo luogo'] || 0n) > 0n), 'merci del luogo nuovo non registrate');
+  assert((a2.money.mintedBy.nuovo_luogo || 0n) > 0n, 'denaro del luogo nuovo non registrato come emissione');
+  assert((a2.money.burnedBy.luogo_scomparso || 0n) > 0n, 'denaro del luogo scomparso non registrato come distruzione');
+  assert(Object.values(a2.goods).some(g => (g.addedBy.nuovo_luogo || 0n) > 0n), 'merci del luogo nuovo non registrate');
   return `${n} varianti danneggiate ripristinate senza errori; luoghi cambiati riallineati`;
 });
 
@@ -462,21 +471,590 @@ check('14. Rapporto in italiano, registro con tetto, moneta universale identica 
   return `${r.lines.length} righe; ${ev.length} eventi conservati su ${total}; es. «${r.lines[1]}»`;
 });
 
-check('20. Intervallo compresso di WorldSim (oltre maxChunks): pausa dichiarata, nessuna storia inventata, conti esatti', () => {
+check('20. Anche un intervallo compresso da WorldSim si risolve settimana per settimana: nessuna pausa', () => {
   const { LE, scope } = load(null, ['world-sim.js']);
   const W = scope.WorldSim, places = world({ continents: 2, per: 3 }), pop = population(LE, places), env = envOf(pop);
   const s = { world: W.create(0), eco: LE.create(5, places, 0) };
   W.register('living-economy', LE.system(st => st.eco, () => env, { maxChunks: 10 }));
-  const spec = LE.system(() => null, () => env, { maxChunks: 10 });
-  assert.equal(spec.level, 3); assert.equal(spec.step, WEEK); assert.equal(spec.maxChunks, 10);
+  const spec = LE.system(() => null, () => env);
+  assert.equal(spec.level, 3); assert.equal(spec.step, WEEK); assert(spec.maxChunks >= 100000, 'con il valore normale WorldSim comprime: ' + spec.maxChunks);
   W.resolveAll(s, 30 * WEEK);
   assert.equal(s.eco.week, 30, 'settimana finale ' + s.eco.week);
-  assert.equal(LE.stats(s.eco).totals.pausedWeeks, 20, 'settimane in pausa: ' + LE.stats(s.eco).totals.pausedWeeks);
-  assert.equal(pop.log.calls, 10 * places.filter(p => p.population > 0).length, 'trasferimenti per settimane non simulate: ' + pop.log.calls);
-  const a = LE.audit(s.eco);
-  assert(a.ok, a.problems.join('; '));
+  assert.equal(LE.stats(s.eco).totals.pausedWeeks, 0, 'settimane in pausa');
+  assert.equal(pop.log.calls, 30 * places.filter(p => p.population > 0).length, 'trasferimenti: ' + pop.log.calls);
+  const ref = population(LE, places), eco = LE.create(5, places, 0); run(LE, eco, envOf(ref), 30);
+  assert.equal(snapshot(LE, s.eco, pop), snapshot(LE, eco, ref), 'diverso dal passo settimanale');
   assert.equal(LE.step(s.eco, 3, env), false, 'una settimana già passata viene rielaborata');
-  return '20 settimane in pausa dichiarata + 10 simulate';
+  return '30 settimane, 20 in un intervallo compresso';
+});
+
+/* ---------- seconda fase: ogni prova nasce da un difetto dimostrato dalla revisione (viste fallire sul modulo precedente) ---------- */
+const typeIndex = (LE, t) => LE.TYPES.indexOf(t);
+const quiet = LE => { LE.params.events.warStart = 0; LE.params.events.calamity = 0; LE.params.events.harvestSpread = 0; return LE; };
+const show = v => JSON.stringify(v, (k, x) => (typeof x === 'bigint' ? String(x) : x));
+// Interventi della prova sullo stato, sempre registrati (causa «prova»), così i conti restano in pari.
+const dropStock = (LE, eco, id, good) => { const g = LE.GOODS.indexOf(good), row = eco.ledger.gLost.prova || (eco.ledger.gLost.prova = LE.GOODS.map(() => 0n)); for (const b of eco.places[id].b) { row[g] += BigInt(b.s[g]); b.s[g] = 0; } };
+const giveStock = (LE, eco, id, type, good, q) => { const g = LE.GOODS.indexOf(good), row = eco.ledger.gAdd.prova || (eco.ledger.gAdd.prova = LE.GOODS.map(() => 0n)); row[g] += BigInt(q); eco.places[id].b[typeIndex(LE, type)].s[g] += q; };
+const giveMoney = (eco, a) => { const box = a >= 0n ? eco.ledger.mint : eco.ledger.burn, v = a >= 0n ? a : -a; box.prova = (box.prova || 0n) + v; };
+const settleLedger = (LE, eco) => { const a = LE.audit(eco).money; eco.ledger.open += a.accounts - a.expected; };
+const spy = (pop, hooks, seen) => { const env = envOf(pop, hooks); env.population.transfer = (id, f) => { seen(id, f); return pop.transfer(id, f); }; return env; };
+
+check('22. Luogo aggiunto o tolto, poi DUE salvataggi e caricamenti: il mondo non si ricrea e resta identico', () => {
+  const { LE } = load();
+  const places = world({ continents: 2, per: 3 }), pop = population(LE, places), eco = LE.create(5, places, 0);
+  run(LE, eco, envOf(pop), 30);
+  const added = places.concat([{ id: 'nuova', continent: 'continente-2', kind: 'town', population: 800, links: [] }]), removed = places.filter(p => p.id !== 'c1p2');
+  for (const list of [added, removed]) {
+    const first = LE.restore(LE.serialize(eco), list, 30 * WEEK), text = LE.serialize(first);
+    const second = LE.restore(text, list, 30 * WEEK);
+    assert.equal(LE.serialize(second), text, 'il secondo caricamento cambia il mondo');
+    assert(!LE.events(second).some(e => e.kind === 'repair'), 'riparazione dichiarata senza danni');
+    assert.equal(second.ledger.toHH, eco.ledger.toHH, 'storia del denaro azzerata');
+    run(LE, second, envOf(population(LE, list)), 3); assert(LE.audit(second).ok);
+  }
+  // Un salvataggio già scritto con le vecchie cause («nuovo luogo», con lo spazio) si legge ancora.
+  const old = JSON.parse(LE.serialize(LE.restore(LE.serialize(eco), added, 30 * WEEK)));
+  for (const box of [old.ledger.mint, old.ledger.burn, old.ledger.lost, old.ledger.added]) for (const k of Object.keys(box)) if (/_luogo|luogo_/.test(k)) { box[k.replace('_', ' ')] = box[k]; delete box[k]; }
+  const e = LE.restore(old, added, 30 * WEEK);
+  assert.equal(e.ledger.toHH, eco.ledger.toHH, 'un salvataggio con le vecchie cause viene buttato via');
+  assert(LE.audit(e).ok);
+});
+
+check('23. Un solo dato danneggiato non butta via il mondo: ogni foglia del salvataggio rovinata, una alla volta', () => {
+  const { LE } = load();
+  const w = caravanWorld(LE), eco = LE.create(21, w.places, 0);
+  run(LE, eco, envOf(w.pop, { war: (c, k) => k > 20 && k < 24 && c === 'nord', disaster: (id, k) => (k === 29 ? 'fire' : null) }), 30);
+  const good = JSON.parse(LE.serialize(eco)), leaves = [];
+  const walk = (node, at) => { if (node && typeof node === 'object') for (const k of Object.keys(node)) walk(node[k], at.concat(k)); else leaves.push(at); };
+  walk(good, []);
+  const values = [null, 'abc', '-5', -1, 1e300, 0.5, {}, []];
+  let n = 0, worst = 0n;
+  const total = LE.audit(eco).money.accounts, other = id => JSON.stringify(good.places[id]);
+  for (let k = 0; k < leaves.length; k++) {
+    const at = leaves[k];
+    if (at[0] === 'schema' || at[0] === 'events') continue;
+    const value = values[k % values.length], c = JSON.parse(JSON.stringify(good)), tag = at.join('.') + ' = ' + JSON.stringify(value);
+    let box = c; for (const key of at.slice(0, -1)) box = box[key];
+    box[at.at(-1)] = value;
+    let e; assert.doesNotThrow(() => { e = LE.restore(c, w.places, 30 * WEEK); }, 'lancia per ' + tag);
+    assert(LE.audit(e).ok, tag + ': ' + LE.audit(e).problems.slice(0, 2).join('; '));
+    if (at[0] !== 'week') assert.equal(e.week, eco.week, 'settimana persa per ' + tag);
+    if (at[0] !== 'seed') assert.equal(e.seed, eco.seed, 'seme perso per ' + tag);
+    assert(e.events.length >= good.events.length, 'mondo ricreato per ' + tag);
+    const here = at[0] === 'places' ? at[1] : null, out = JSON.parse(LE.serialize(e));
+    for (const id of Object.keys(good.places)) if (id !== here) assert.equal(JSON.stringify(out.places[id]), other(id), 'altro luogo toccato da ' + tag);
+    const d = LE.audit(e).money.accounts - total, abs = d < 0n ? -d : d; if (abs > worst) worst = abs;
+    n++;
+  }
+  assert(worst <= total / 5n, 'un solo dato rovinato sposta ' + worst + ' Scintille su ' + total);
+  // Danni strutturali recuperabili: le casse dei luoghi restano.
+  for (const f of [c => { delete c.banks; }, c => { c.banks = []; }, c => { c.treasuries = 7; }, c => { c.ledger = null; }, c => { c.caravans = 'x'; }, c => { c.counts = null; c.totals = null; }, c => { c.continents = {}; }, c => { c.events = 'no'; }, c => { c.tx = 4; }]) {
+    const c = JSON.parse(JSON.stringify(good)); f(c);
+    const e = LE.restore(c, w.places, 30 * WEEK), out = JSON.parse(LE.serialize(e));
+    assert(LE.audit(e).ok, String(f) + LE.audit(e).problems.slice(0, 2).join('; ')); assert.equal(e.week, eco.week, 'settimana persa: ' + f);
+    for (const id of Object.keys(good.places)) assert.equal(JSON.stringify(out.places[id][3].map(b => b[1])), JSON.stringify(good.places[id][3].map(b => b[1])), 'casse perse: ' + f);
+  }
+  return `${n} foglie rovinate una alla volta, mondo sempre conservato; scarto massimo ${worst} Scintille su ${total}`;
+});
+
+check('24. Nessun vantaggio alfabetico: luoghi identici con tesoreria scarsa finiscono alla pari; le carovane vanno dove rende di più', () => {
+  const totals = {};
+  for (let seed = 1; seed <= 6; seed++) {
+    const { LE } = load(); quiet(LE); LE.params.tax.treasuryPerCapita = 1;
+    const places = ['aloco', 'mloco', 'zloco'].map(id => ({ id, continent: 'c', kind: 'town', population: 800, links: [] }));
+    const none = Object.fromEntries(Object.values(LE.params.types).map(t => [t.job, 0]));
+    const pop = population(LE, places, Object.fromEntries(places.map(p => [p.id, { workers: none }]))), eco = LE.create(seed, places, 0);
+    run(LE, eco, envOf(pop), 60);
+    for (const p of places) totals[p.id] = (totals[p.id] || 0) + Number(pop.state[p.id].wealth) + 1;
+  }
+  const v = Object.values(totals), spread = (Math.max(...v) - Math.min(...v)) / Math.max(...v);
+  assert(spread < 0.005, 'famiglie diverse solo per il nome: ' + JSON.stringify(totals));
+  // Capacità per un solo carico e due destinazioni: vince quella che paga di più, non la prima in ordine alfabetico.
+  const { LE } = load(); quiet(LE);
+  const city = (id, links) => ({ id, continent: 'c', kind: 'city', population: 2000, links });
+  const places = [city('origine', ['apaga', 'zpaga']), city('apaga', []), city('zpaga', [])];
+  const pop = population(LE, places), eco = LE.create(3, places, 0), gi = LE.GOODS.indexOf('ore');
+  LE.params.caravans.perMerchant = 400;
+  run(LE, eco, envOf(pop), 1);
+  for (const id of ['apaga', 'zpaga']) dropStock(LE, eco, id, 'ore');
+  eco.places.apaga.i[gi] = 1800; eco.places.zpaga.i[gi] = 2500;
+  const th = eco.places.origine.b[typeIndex(LE, 'trade')]; th.n = Math.max(1, th.n); th.cash += 5000n; giveMoney(eco, 5000n);
+  giveStock(LE, eco, 'origine', 'mine', 'ore', 5e6);
+  run(LE, eco, envOf(pop), 1);
+  const ore = LE.caravans(eco).filter(c => c.from === 'origine' && c.cargo.ore), to = id => ore.filter(c => c.to === id).reduce((s, c) => s + c.cargo.ore, 0);
+  assert(ore.length >= 1, 'nessuna carovana di minerale');
+  assert(to('zpaga') > to('apaga'), `carico al primo in ordine alfabetico: apaga ${to('apaga')}, zpaga ${to('zpaga')}`);
+  assert(LE.audit(eco).ok, LE.audit(eco).problems.join('; '));
+  return `scarto ${(spread * 100).toFixed(2)}%; apaga ${to('apaga')}, zpaga ${to('zpaga')}`;
+});
+
+check('25. Attività senza più lavoratori: chiude e la cassa passa alla tesoreria (nessun fantasma)', () => {
+  const { LE } = load(); quiet(LE);
+  const places = [{ id: 'borgo', continent: 'a', kind: 'village', population: 100, links: [] }], pop = population(LE, places), eco = LE.create(1, places, 0);
+  run(LE, eco, envOf(pop), 30);
+  for (const job of ['miner', 'mystic', 'smith']) pop.state.borgo.workers[job] = 0;
+  run(LE, eco, envOf(pop), 60);
+  for (const t of ['mine', 'sanctum', 'smithy']) { const b = eco.places.borgo.b[typeIndex(LE, t)]; assert.equal(b.n, 0, t + ' ancora aperta'); assert.equal(b.cash, 0n, t + ' con cassa'); assert.equal(b.dep, 0n); assert.equal(b.debt, 0n); }
+  assert(LE.audit(eco).ok);
+});
+
+check('26. Niente dividendi con debiti, rimborsi prima dei dividendi, deposito compensato col debito alla chiusura', () => {
+  const { LE } = load(); quiet(LE);
+  const places = [{ id: 'borgo', continent: 'a', kind: 'town', population: 1000, links: [] }], pop = population(LE, places), eco = LE.create(1, places, 0);
+  run(LE, eco, envOf(pop), 4);
+  const b = eco.places.borgo.b[typeIndex(LE, 'mine')], bank = eco.banks.a, lend = 800n;
+  bank.r += 5000n; giveMoney(eco, 5000n);
+  bank.r -= lend; bank.loans += lend; b.debt += lend; b.cash += lend;
+  let asked = 0n; const before = b.debt;
+  run(LE, eco, spy(pop, undefined, (id, f) => { asked = f.wages.miner || 0n; }), 1);
+  const wages = BigInt(b.e) * BigInt(Math.ceil(LE.params.wages.miner * 1.4));
+  assert(asked <= wages, `${asked} Scintille a ${b.e} minatori con un debito: i dividendi escono dal prestito`);
+  assert(b.debt < before, 'debito non rimborsato con la cassa disponibile');
+  assert(LE.audit(eco).ok, LE.audit(eco).problems.join('; '));
+  // Chiusura con deposito pari al debito: il deposito paga la banca, quasi nulla si svaluta.
+  const { LE: L2 } = load(); quiet(L2);
+  const p2 = population(L2, places), e2 = L2.create(1, places, 0); run(L2, e2, envOf(p2), 4);
+  const m = e2.places.borgo.b[typeIndex(L2, 'smithy')], k2 = e2.banks.a;
+  p2.state.borgo.workers.smith = 0;
+  k2.dep -= m.dep; k2.loans -= m.debt; m.cash = 0n; m.dep = 500n; m.debt = 500n; k2.dep += 500n; k2.loans += 500n; k2.r += 5000n; settleLedger(L2, e2);
+  m.n = 1; m.loss = 50; m.pr = -1000n;
+  const off = e2.totals.writtenOff;
+  run(L2, e2, envOf(p2), 1);
+  assert.equal(m.n, 0, 'non ha chiuso'); assert.equal(m.dep, 0n, 'deposito rimasto dopo la chiusura');
+  assert(e2.totals.writtenOff - off <= 10n, 'svalutato con un deposito pari al debito: ' + (e2.totals.writtenOff - off));
+  assert(L2.audit(e2).ok, L2.audit(e2).problems.join('; '));
+});
+
+check('27. Credito con controllo del margine: non si apre dove si lavora in perdita, si apre dove conviene', () => {
+  const go = oreIndex => {
+    const { LE } = load(); quiet(LE);
+    const places = [{ id: 'borgo', continent: 'a', kind: 'town', population: 1500, links: [] }], pop = population(LE, places), eco = LE.create(1, places, 0);
+    run(LE, eco, envOf(pop), 2);
+    pop.state.borgo.workers.smith = 40; pop.state.borgo.workers.carpenter = 0;
+    const pl = eco.places.borgo, gw = LE.GOODS.indexOf('work'), gr = LE.GOODS.indexOf('ore');
+    for (const t of ['smithy', 'workshop']) pl.b[typeIndex(LE, t)].n = 0;
+    eco.banks.a.r += 20000n; giveMoney(eco, 20000n);
+    dropStock(LE, eco, 'borgo', 'work');
+    let opened = 0;
+    for (let k = 0; k < 6; k++) { pl.i[gw] = 1250; pl.i[gr] = oreIndex; run(LE, eco, envOf(pop), 1); opened = Math.max(opened, pl.b[typeIndex(LE, 'smithy')].n); }
+    assert(LE.audit(eco).ok);
+    return opened;
+  };
+  const bad = go(6000), good = go(700);
+  assert.equal(bad, 0, 'fucine aperte col minerale carissimo: ' + bad);
+  assert(good > 0, 'nessuna fucina aperta col minerale a buon prezzo e manufatti esauriti');
+  return `minerale carissimo ${bad} fucine, a buon prezzo ${good}`;
+});
+
+check('28. Ricapitalizzazione regolata: una banca sotto il capitale richiesto si ricostituisce con fondi pubblici, conti esatti', () => {
+  const { LE } = load(); quiet(LE);
+  const places = world({ continents: 1, per: 4, wild: false }), pop = population(LE, places), eco = LE.create(4, places, 0);
+  run(LE, eco, envOf(pop), 20);
+  const bank = eco.banks['continente-0'], k = bank.r + bank.loans - bank.dep, lost = minB(bank.r, k - 500n);
+  bank.r -= lost; giveMoney(eco, -lost);
+  eco.treasuries['continente-0'] += 200000n; giveMoney(eco, 200000n);
+  const series = [];
+  run(LE, eco, envOf(pop), 60, () => { const a = LE.audit(eco); assert(a.ok, a.problems.join('; ')); series.push(Number(bank.r + bank.loans - bank.dep)); });
+  assert(series.at(-1) > 10000, 'patrimonio non ricostituito: ' + series.at(-1));
+  assert(series[0] < series.at(-1) / 2, 'ricostituito in un colpo solo, senza regola: ' + series[0]);
+  assert(BigInt(LE.stats(eco).totals.recapitalized) > 0n, 'ricapitalizzazione non registrata');
+  return `patrimonio ${series[0]} → ${series.at(-1)}`;
+});
+
+check('29. Segnale labor: carenza oltre 1000, eccedenza sotto 1000, tutti i mestieri contati (locandieri e addetti pubblici compresi)', () => {
+  const { LE } = load(); quiet(LE);
+  const places = [{ id: 'borgo', continent: 'a', kind: 'city', population: 2000, links: [] }, { id: 'pari', continent: 'b', kind: 'city', population: 2000, links: [] }];
+  const wf = LE.params.workforce, n = j => Math.floor(2000 * (wf[j] || 20) / 1000);
+  const pop = population(LE, places, { borgo: { workers: { baker: Math.floor(n('baker') / 4), smith: n('smith') * 6, guard: n('guard') * 5, innkeeper: n('innkeeper') * 6 } } }), eco = LE.create(2, places, 0);
+  pop.state.borgo.unemployed = pop.state.pari.unemployed; // a parità di disoccupati dichiarati contano solo le eccedenze
+  run(LE, eco, envOf(pop), 24);
+  const s = LE.signals(eco, 'borgo').labor, q = LE.signals(eco, 'pari').labor;
+  assert(s && typeof s === 'object', 'labor assente');
+  for (const j of Object.keys(LE.params.wages)) assert(Number.isInteger(s[j]) && s[j] >= 0, 'labor.' + j + ' = ' + s[j]);
+  assert(s.baker > 1300, 'fornai mancanti: ' + s.baker); assert(s.smith < 800, 'fabbri in eccedenza: ' + s.smith);
+  assert(s.guard < 500, 'guardie in eccedenza: ' + s.guard); assert(s.innkeeper < 500, 'locandieri in eccedenza: ' + s.innkeeper);
+  for (const j of Object.keys(wf)) assert(q[j] >= 600 && q[j] <= 1600, `mestieri in equilibrio: ${j} = ${q[j]}`);
+  // I locandieri in numero giusto sono pagati; chi non ha posto conta come inattivo.
+  let inn = 0n;
+  run(LE, eco, spy(pop, undefined, (id, f) => { if (id === 'pari') inn += f.wages.innkeeper || 0n; }), 4);
+  assert(inn > 0n, 'locandieri mai pagati');
+  assert(LE.signals(eco, 'borgo').unemployment > LE.signals(eco, 'pari').unemployment + 60, 'eccedenze non contate nella disoccupazione');
+  assert.equal(show(LE.signals(LE.restore(LE.serialize(eco), places, eco.week * WEEK), 'borgo')), show(LE.signals(eco, 'borgo')), 'segnali diversi dopo il ripristino');
+  assert.equal(show(LE.signals(eco, 'nessuno').labor), '{}');
+  return `fornai ${s.baker}, fabbri ${s.smith}, guardie ${s.guard}, locandieri ${s.innkeeper}`;
+});
+
+check('30. Prosperità significativa: sale col benessere e scende con la miseria, per famiglie povere e ricche', () => {
+  const { LE } = load(); quiet(LE);
+  const places = [{ id: 'ricca', continent: 'a', kind: 'city', population: 2000, links: [] }, { id: 'media', continent: 'b', kind: 'city', population: 2000, links: [] }];
+  const pop = population(LE, places, { ricca: { wealth: 2000 * 2500 } }), eco = LE.create(2, places, 0);
+  run(LE, eco, envOf(pop), 40);
+  const a = LE.signals(eco, 'ricca').prosperity, b = LE.signals(eco, 'media').prosperity;
+  assert(a < 2500 && a > 600, 'ricchezza in Scintille da residenti veri: prosperità ' + a); assert(b > 500 && b < 2000, 'famiglie modeste ma occupate: ' + b);
+  pop.state.ricca.wealth /= 8n; // saccheggio: perde sette ottavi
+  run(LE, eco, envOf(pop), 4); const poor = LE.signals(eco, 'ricca').prosperity;
+  assert(poor < a - 100, `la miseria improvvisa non si vede: ${a} → ${poor}`);
+  pop.state.media.workers = {}; run(LE, eco, envOf(pop), 30);
+  assert(LE.signals(eco, 'media').prosperity < b - 250, 'senza lavoro la prosperità resta ' + LE.signals(eco, 'media').prosperity);
+  return `ricca ${a}, modesta ${b}, impoverita ${poor}`;
+});
+
+check('31. Spesa legata alla ricchezza: a parità di prezzi e redditi chi si è arricchito spende di più, chi si è impoverito risparmia', () => {
+  const go = factor => {
+    const { LE } = load(); quiet(LE);
+    const places = [{ id: 'x', continent: 'a', kind: 'city', population: 2000, links: [] }], pop = population(LE, places, { x: { wealth: 2000 * 800 } }), eco = LE.create(2, places, 0);
+    run(LE, eco, envOf(pop), 20);
+    pop.state.x.wealth = pop.state.x.wealth * BigInt(factor) / 4n;
+    LE.step(eco, eco.week, envOf(pop)); return Number(LE.stats(eco).lastWeek.spend);
+  };
+  const low = go(1), same = go(4), high = go(12);
+  assert(high > same * 1.03, `arricchiti ${high} contro ${same}`); assert(low < same * 0.97, `impoveriti ${low} contro ${same}`);
+  return `${low} < ${same} < ${high}`;
+});
+
+check('32. Acqua e pane di base: senza pozzaioli e fornai le case si arrangiano (acqua attinta, pane di casa dal grano), con registro esatto; senza grano è carestia', () => {
+  const { LE } = load(); quiet(LE);
+  const places = [{ id: 'borgo', continent: 'a', kind: 'village', population: 200, links: [] }];
+  const pop = population(LE, places, { borgo: { workers: { wellkeeper: 0, baker: 0, farmer: 40 } } }), eco = LE.create(3, places, 0);
+  run(LE, eco, envOf(pop), 40, () => { const a = LE.audit(eco); assert(a.ok, a.problems.join('; ')); });
+  assert(LE.signals(eco, 'borgo').foodScarcity < 300, 'scarsità ' + LE.signals(eco, 'borgo').foodScarcity);
+  const g = LE.audit(eco).goods; assert(g.water.produced > 0n && g.bread.produced > 0n, 'produzione domestica non registrata'); assert(g.grain.used > 0n, 'il pane di casa non consuma grano');
+  dropStock(LE, eco, 'borgo', 'grain'); pop.state.borgo.workers.farmer = 0;
+  run(LE, eco, envOf(pop), 4);
+  assert(LE.signals(eco, 'borgo').foodScarcity >= 600, 'senza grano non è carestia: ' + LE.signals(eco, 'borgo').foodScarcity);
+});
+
+check('33. Cambio di continente: i crediti si spostano con le riserve, senza insolvenze né riparazioni', () => {
+  const { LE } = load(); quiet(LE);
+  const places = world({ continents: 2, per: 3, wild: false }), pop = population(LE, places), eco = LE.create(5, places, 0);
+  run(LE, eco, envOf(pop), 40);
+  const raw = LE.serialize(eco), total = LE.audit(eco).money.accounts;
+  for (const to of ['continente-1', 'continente-9']) {
+    const list = places.map(p => (p.id === 'c0p0' ? { ...p, continent: to } : p)), e = LE.restore(raw, list, 40 * WEEK);
+    const a = LE.audit(e); assert(a.ok, a.problems.join('; '));
+    assert(!LE.events(e).some(x => x.kind === 'repair'), 'riparazione per un semplice cambio di continente');
+    assert.equal(a.money.accounts, total + (a.money.mintedBy.nuovo_luogo || 0n) - (a.money.burnedBy.luogo_scomparso || 0n));
+    run(LE, e, envOf(population(LE, list)), 2);
+    assert(!LE.events(e).some(x => x.kind === 'insolvency' && x.week >= 40), 'insolvenza causata dal trasferimento verso ' + to);
+  }
+});
+
+/* Residenti plausibili (quote per tipo di luogo vicine a world-population.js, ricchezza 800–2500 a testa), indipendenti dalle quote
+   di `params.workforce`: servono a vedere se l'economia regge senza una popolazione fatta su misura. */
+const SHARES = {
+  village: { farmer: 300, herbalist: 80, miner: 40, carpenter: 60, shepherd: 110, mystic: 10, wellkeeper: 40, baker: 60, alchemist: 10, smith: 30, merchant: 30, innkeeper: 20, guard: 40, scholar: 10, healer: 20, laborer: 90 },
+  town: { farmer: 150, herbalist: 60, miner: 50, carpenter: 80, shepherd: 50, mystic: 20, wellkeeper: 40, baker: 80, alchemist: 30, smith: 60, merchant: 90, innkeeper: 50, guard: 60, scholar: 30, healer: 40, laborer: 110 },
+  city: { farmer: 60, herbalist: 50, miner: 30, carpenter: 90, shepherd: 20, mystic: 30, wellkeeper: 40, baker: 90, alchemist: 50, smith: 80, merchant: 140, innkeeper: 70, guard: 90, scholar: 60, healer: 50, laborer: 50 } };
+function residents(LE, places, respond = false) {
+  const tweak = {};
+  for (const p of places) {
+    const adults = Math.floor(p.population * 0.6), sh = SHARES[p.kind === 'capital' ? 'city' : p.kind] || SHARES.village, workers = {};
+    for (const [j, v] of Object.entries(sh)) workers[j] = Math.round(adults * v * 0.94 / 1000);
+    tweak[p.id] = { workers, wealth: p.population * ({ village: 800, town: 1500, city: 2500, capital: 4000 }[p.kind] || 800) };
+  }
+  const pop = population(LE, places, tweak);
+  // Con `respond` i mestieri seguono lentamente labor (come farà la popolazione): al più un cambio ogni 100 lavoratori a settimana.
+  pop.react = eco => {
+    if (!respond) return;
+    for (const p of places) {
+      const x = pop.state[p.id], lab = LE.signals(eco, p.id).labor || {}, jobs = Object.keys(x.workers), of = j => lab[j] ?? 1000;
+      const total = jobs.reduce((s, j) => s + x.workers[j], 0);
+      for (let k = 0; k < Math.ceil(total / 100); k++) {
+        let from = null, to = null;
+        for (const j of jobs) { if (x.workers[j] > 0 && (from === null || of(j) < of(from))) from = j; if (to === null || of(j) > of(to)) to = j; }
+        if (from && to && of(from) < 900 && of(to) > 1050) { x.workers[from]--; x.workers[to]++; }
+      }
+    }
+  };
+  return pop;
+}
+const DEMO = [['borgoa', 'c1', 'town', 260, ['cittaa']], ['cittaa', 'c1', 'city', 600, ['borgoa', 'borgob', 'cittab']], ['borgob', 'c1', 'village', 120, ['cittaa']],
+  ['cittab', 'c2', 'city', 500, ['villac']], ['villac', 'c2', 'village', 110, []], ['borgoc', 'c2', 'town', 240, ['cittab']]].map(([id, continent, kind, population, links]) => ({ id, continent, kind, population, links }));
+
+check('34. Circolazione sostenibile per 100 anni di calendario (686 settimane) con residenti plausibili: nessun prosciugamento, accumulo morto, carestia o crisi cronica', () => {
+  const notes = [];
+  for (const respond of [false, true]) for (const seed of [1, 2]) {
+    const { LE } = load(), pop = residents(LE, DEMO, respond), eco = LE.create(seed, DEMO, 0), start = pop.total() + LE.audit(eco).money.accounts;
+    const st = Object.fromEntries(DEMO.map(p => [p.id, { food: 0, run: 0, max: 0, cr: 0, crRun: 0, crMax: 0, pi: 0, n: 0, sat: 0 }]));
+    let acc52 = 0;
+    run(LE, eco, envOf(pop), 686, w => {
+      pop.react(eco);
+      if (w === 52) acc52 = Number(LE.audit(eco).money.accounts);
+      if (w < 26) return;
+      for (const p of DEMO) {
+        const s = LE.signals(eco, p.id), x = st[p.id], f = s.foodScarcity >= 300;
+        x.n++; x.pi += s.priceIndex; x.food += f; x.run = f ? x.run + 1 : 0; x.max = Math.max(x.max, x.run);
+        x.cr += s.crisis; x.crRun = s.crisis ? x.crRun + 1 : 0; x.crMax = Math.max(x.crMax, x.crRun); x.sat += s.prosperity <= 10 || s.prosperity >= 2900;
+      }
+    });
+    const a = LE.audit(eco); assert(a.ok, a.problems.join('; '));
+    const M = Number(pop.total() + a.money.accounts) / Number(start);
+    assert(M > 0.9 && M < 1.1, `seme ${seed}: moneta ${M.toFixed(3)} volte l’iniziale`);
+    const acc = Number(a.money.accounts) / acc52; assert(acc > 0.4 && acc < 2.5, `conti dell’economia ${acc.toFixed(2)} volte la settimana 52`);
+    for (const [id, x] of Object.entries(st)) {
+      const tag = `risposta ${respond} seme ${seed} ${id}: `;
+      assert(x.food <= x.n * 0.1 && x.max <= 20, tag + `scarsità ${x.food} settimane su ${x.n}, di fila ${x.max}`);
+      assert(x.cr <= x.n * 0.2 && x.crMax <= 40, tag + `crisi ${x.cr} settimane su ${x.n}, di fila ${x.crMax}`);
+      assert(x.pi / x.n >= 750 && x.pi / x.n <= 1350, tag + 'prezzi medi ' + Math.round(x.pi / x.n));
+      assert(x.sat <= x.n * 0.05, tag + 'prosperità satura ' + x.sat);
+    }
+    notes.push(`moneta ×${M.toFixed(2)}`);
+  }
+  return notes.join(', ');
+});
+
+check('35. Le distruzioni di denaro sono riconiate e le emissioni di guerra ritirate: la moneta torna al suo livello', () => {
+  const { LE } = load(); quiet(LE);
+  const places = world({ continents: 1, per: 4, wild: false }), pop = population(LE, places), eco = LE.create(4, places, 0);
+  const all = () => pop.total() + LE.audit(eco).money.accounts, start = all();
+  run(LE, eco, envOf(pop, { war: (c, w) => w >= 5 && w < 20, disaster: (id, w) => (w >= 5 && w < 40 ? 'fire' : null) }), 45);
+  const low = all(); assert(low < start, 'nessuna distruzione');
+  run(LE, eco, envOf(pop), 150);
+  const back = all(), a = LE.audit(eco); assert(a.ok);
+  assert((start - back) * 10n < start - low, `perdite ${start - low}, dopo 150 settimane ancora ${start - back}`);
+  assert((a.money.mintedBy.riconio || 0n) > 0n, 'riconio non registrato');
+  // Emissione oltre il livello: si ritira dalle tesorerie in eccedenza.
+  eco.treasuries['continente-0'] += 300000n; eco.ledger.mint.zecca = (eco.ledger.mint.zecca || 0n) + 300000n;
+  const high = all(); run(LE, eco, envOf(pop), 150);
+  assert((LE.audit(eco).money.burnedBy.ritiro || 0n) > 0n, 'nessun ritiro'); assert(all() < high - 150000n, `eccesso non riassorbito: ${high} → ${all()}`); assert(LE.audit(eco).ok);
+});
+
+check('36. Passo divisibile: stesso mondo a qualunque budget, conti in pari a ogni parte, salvataggio a metà rifiutato con un errore chiaro, settle completa', () => {
+  const places = world(), end = 60 * WEEK;
+  const go = budget => {
+    const { LE, scope } = load(null, ['world-sim.js']); LE.params.events.warStart = 40; LE.params.events.calamity = 30;
+    const W = scope.WorldSim, pop = population(LE, places), env = envOf(pop), s = { world: W.create(0), eco: LE.create(5, places, 0) };
+    W.register('living-economy', LE.system(x => x.eco, () => env));
+    let t = 0, frames = 0, mid = 0, refused = 0; const clock = () => (t += 1);
+    if (budget === 'all') W.resolveAll(s, end);
+    else while (W.lag(s, end) > 0 && frames++ < 1e5) {
+      W.tick(s, end, { budgetMs: budget, clock });
+      if (!W.partial(s)) continue;
+      mid++;
+      const a = LE.audit(s.eco); assert(a.ok, 'a metà settimana: ' + a.problems.slice(0, 2).join('; '));
+      if (mid > 50) continue;
+      try { LE.serialize(s.eco); } catch (e) { assert(/settimana a metà/i.test(e.message), e.message); refused++; }
+      assert.doesNotThrow(() => { LE.stats(s.eco); LE.report(s.eco, 'c0p0'); LE.signals(s.eco, 'c0p0'); });
+    }
+    assert.equal(W.failures(s).length, 0, JSON.stringify(W.failures(s)));
+    return { text: snapshot(LE, s.eco, pop), frames, mid, refused };
+  };
+  const a = go('all'), b = go(1), c = go(7);
+  assert.equal(b.text, a.text, 'budget minimo diverso'); assert.equal(c.text, a.text, 'budget 7 diverso');
+  assert(b.mid > 60 * 5, 'settimana non divisa: ' + b.mid + ' interruzioni'); assert(b.refused >= 49, 'salvataggio a metà accettato');
+  const { LE, scope } = load(null, ['world-sim.js']), W = scope.WorldSim, pop = population(LE, places), env = envOf(pop), s = { world: W.create(0), eco: LE.create(5, places, 0) };
+  W.register('living-economy', LE.system(x => x.eco, () => env));
+  let t = 0; const clock = () => (t += 1);
+  W.tick(s, 3 * WEEK, { budgetMs: 4, clock }); assert(W.partial(s), 'nessuna parte aperta'); W.settle(s);
+  assert.equal(W.partial(s), null); assert.doesNotThrow(() => LE.serialize(s.eco)); assert.equal(s.eco.week, 1);
+  W.tick(s, 3 * WEEK, { budgetMs: 4, clock }); LE.step(s.eco, 4, env); assert.equal(s.eco.week, 5);
+  const ref = population(LE, places), e2 = LE.create(5, places, 0); run(LE, e2, envOf(ref), 5); assert.equal(snapshot(LE, s.eco, pop), snapshot(LE, e2, ref), 'step durante una settimana a metà: risultato diverso');
+  return `${b.mid} interruzioni in 60 settimane, identico`;
+});
+
+check('37. Un guasto a metà settimana non fa pagare due volte: conti in pari, settimana chiusa, salvataggio possibile', () => {
+  const { LE } = load(), places = world({ continents: 1, per: 4, wild: false }), pop = population(LE, places), eco = LE.create(5, places, 0);
+  run(LE, eco, envOf(pop), 3);
+  const a0 = LE.audit(eco).money, start = pop.total() + a0.accounts - a0.minted + a0.burned;
+  const broken = eco.places.c0p3.i; let n = 0;
+  const env = spy(pop, undefined, () => { if (++n === 2) for (const id of Object.keys(eco.places)) eco.places[id].i = null; });
+  const prices = Object.fromEntries(Object.keys(eco.places).map(id => [id, eco.places[id].i]));
+  assert.throws(() => LE.step(eco, 3, env), 'il guasto non si vede');
+  for (const id of Object.keys(prices)) eco.places[id].i = prices[id];
+  assert(broken && eco.week === 4, 'settimana rimasta aperta: si ripagherebbe da capo (' + eco.week + ')');
+  const a = LE.audit(eco); assert(a.ok, a.problems.join('; ')); assert.equal(pop.total() + a.money.accounts, start + a.money.minted - a.money.burned, 'denaro creato o perso dal guasto');
+  assert.doesNotThrow(() => LE.serialize(eco)); run(LE, eco, envOf(pop), 3); assert(LE.audit(eco).ok);
+});
+
+check('38. exchange: merci e denaro con l’esterno, tutto o niente, causa registrata, idempotente anche dopo un salvataggio', () => {
+  const { LE } = load(); quiet(LE);
+  assert.equal(typeof LE.exchange, 'function', 'exchange assente');
+  const places = world({ continents: 1, per: 3, wild: false }), pop = population(LE, places), eco = LE.create(4, places, 0); run(LE, eco, envOf(pop), 5);
+  const m0 = LE.audit(eco).money.accounts, stock = g => Number(LE.audit(eco).goods[g].stock), s0 = stock('ore');
+  // Il giocatore vende 10 unità di minerale e il mercato gli paga 50 Scintille.
+  const r = LE.exchange(eco, 'c0p0', 'ore', 10000, -50n, 'giocatore', 'g:1'); assert(r.ok && !r.duplicate, show(r));
+  assert.equal(stock('ore'), s0 + 10000); assert.equal(LE.audit(eco).money.accounts, m0 - 50n); assert(LE.audit(eco).ok, LE.audit(eco).problems.join('; '));
+  const again = LE.exchange(eco, 'c0p0', 'ore', 10000, -50n, 'giocatore', 'g:1'); assert(again.ok && again.duplicate); assert.equal(stock('ore'), s0 + 10000, 'applicata due volte');
+  const e2 = LE.restore(LE.serialize(eco), places, 5 * WEEK), dup = LE.exchange(e2, 'c0p0', 'ore', 10000, -50n, 'giocatore', 'g:1'); assert(dup.ok && dup.duplicate, 'dopo il caricamento si applica di nuovo');
+  assert.equal(LE.exchange(eco, 'c0p0', 'ore', 999, -50n, 'giocatore', 'g:1').ok, false, 'stesso id con contenuto diverso accettato');
+  // Acquisto: merci fuori, denaro dentro a chi le deteneva.
+  const g0 = stock('grain'), buy = LE.exchange(eco, 'c0p1', 'grain', -4000, 25n, 'giocatore', 'g:2'); assert(buy.ok, show(buy)); assert.equal(stock('grain'), g0 - 4000); assert.equal(LE.audit(eco).money.accounts, m0 - 25n); assert(LE.audit(eco).ok);
+  const a = LE.audit(eco).money; assert.equal(a.externalIn.giocatore, 25n); assert.equal(a.externalOut.giocatore, 50n);
+  // Rifiuti senza effetti.
+  const before = LE.serialize(eco);
+  for (const bad of [['nessuno', 'ore', 1, 0n, 'giocatore', 'g:3'], ['c0p0', 'spada', 1, 0n, 'giocatore', 'g:3'], ['c0p0', 'ore', 0.5, 0n, 'giocatore', 'g:3'], ['c0p0', 'ore', -1e12, 5n, 'giocatore', 'g:3'], ['c0p0', 'ore', 1000, -(10n ** 12n), 'giocatore', 'g:3'], ['c0p0', 'ore', 1, 0n, 'causa strana!', 'g:3'], ['c0p0', 'ore', 1, 0n, 'giocatore', ''], ['c0p0', 'ore', 0, 0n, 'giocatore', 'g:3'], ['__proto__', 'ore', 1, 0n, 'giocatore', 'g:3']]) {
+    const x = LE.exchange(eco, ...bad); assert(x && x.ok === false && typeof x.reason === 'string', show(bad)); assert.equal(LE.serialize(eco), before, 'un rifiuto ha cambiato lo stato: ' + show(bad));
+  }
+  for (let k = 0; k < 600; k++) LE.exchange(eco, 'c0p0', 'ore', 1, 0n, 'giocatore', 'm:' + k);
+  assert(JSON.parse(LE.serialize(eco)).tx.length <= LE.params.limits.tx, 'registro delle transazioni senza tetto');
+  // Non durante una settimana a metà.
+  const spec = LE.system(() => eco, () => envOf(pop)), from = eco.week * WEEK;
+  assert.equal(spec.resolve(null, from, from + WEEK, { due: () => true }), false, 'la settimana non si è fermata');
+  assert.equal(LE.exchange(eco, 'c0p0', 'ore', 1, 0n, 'giocatore', 'meta').ok, false, 'scambio accettato a metà settimana');
+  let guard = 0; while (spec.resolve(null, from, from + WEEK, { due: () => true }) === false && guard++ < 1000);
+  assert.equal(LE.exchange(eco, 'c0p0', 'ore', 1, 0n, 'giocatore', 'meta').ok, true);
+  // Il riconio non insegue il denaro del giocatore.
+  const minted = LE.audit(eco).money.mintedBy.riconio || 0n; run(LE, eco, envOf(pop), 20); assert.equal(LE.audit(eco).money.mintedBy.riconio || 0n, minted, 'il riconio insegue il denaro del giocatore'); assert(LE.audit(eco).ok);
+});
+
+/* ---------- comportamenti che le prove precedenti non vedevano (mutazioni sopravvissute alla revisione) ---------- */
+check('39. Zecca di guerra: emette solo per i salari pubblici mancanti, registrata; guardie raddoppiate e pagate una volta e mezza', () => {
+  const places = [{ id: 'x', continent: 'a', kind: 'city', population: 2000, links: [] }];
+  const go = (war, rich) => {
+    const { LE } = load(); quiet(LE); LE.params.tax.treasuryPerCapita = rich ? 25 : 0;
+    const pop = population(LE, places, { x: { workers: { guard: 300 } } }), eco = LE.create(4, places, 0); let guards = 0n;
+    const start = pop.total() + LE.audit(eco).money.accounts;
+    LE.step(eco, 0, spy(pop, { war: () => war }, (id, f) => { guards = f.wages.guard || 0n; }));
+    const a = LE.audit(eco); assert(a.ok, a.problems.join('; ')); assert.equal(pop.total() + a.money.accounts, start + a.money.minted - a.money.burned, 'denaro della zecca non registrato');
+    return { minted: a.money.mintedBy.zecca || 0n, guards: Number(guards), cap: 2000n * BigInt(LE.params.events.mintCapPerCapita) };
+  };
+  const war = go(true, false), peace = go(false, false);
+  assert(war.minted > 0n, 'nessuna emissione di guerra'); assert(war.minted <= war.cap, 'oltre il tetto'); assert.equal(peace.minted, 0n, 'zecca in tempo di pace');
+  const full = go(true, true), calm = go(false, true); assert.equal(full.minted, 0n, 'zecca a tesoreria piena');
+  const ratio = full.guards / calm.guards; assert(ratio > 2.8 && ratio < 3.2, 'salari delle guardie in guerra ×' + ratio.toFixed(2));
+  return `emesse ${war.minted}; guardie ×${ratio.toFixed(2)}`;
+});
+
+check('40. Carovane: razzia e perdita totale registrano merci E borsa; capacità limitata dai mercanti', () => {
+  let raided = 0, lostPurse = 0, shipped = 0, full = 0;
+  for (let seed = 1; seed <= 12; seed++) {
+    const { LE } = load(); quiet(LE); LE.params.events.caravanLossOcean = 120; LE.params.events.caravanLoss = 120; LE.params.caravans.perMerchant = 3000;
+    const w = caravanWorld(LE), eco = LE.create(seed, w.places, 0), start = w.pop.total() + LE.audit(eco).money.accounts, gi = typeIndex(LE, 'trade');
+    run(LE, eco, envOf(w.pop), 60, () => {
+      const a = LE.audit(eco); assert(a.ok, `seme ${seed} settimana ${eco.week}: ` + a.problems.slice(0, 2).join('; '));
+      assert.equal(w.pop.total() + a.money.accounts, start + a.money.minted - a.money.burned, 'denaro perso con una carovana');
+      for (const c of LE.caravans(eco)) {
+        if (c.back || c.departed !== eco.week - 1) continue;
+        const q = Object.values(c.cargo).reduce((x, y) => x + y, 0), cap = eco.places[c.from].b[gi].e * 3000;
+        shipped++; assert(q <= cap, `carico ${q} oltre la capacità ${cap}`); if (q > cap * 0.95) full++;
+      }
+    });
+    raided += LE.stats(eco).counts.caravanRaided || 0;
+    lostPurse += LE.audit(eco).money.burnedBy.carovana ? 1 : 0;
+  }
+  assert(shipped > 20, 'partenze ' + shipped); assert(full > 0, 'mai a piena capacità: il limite non è provato'); assert(raided >= 3, 'razzie incontrate: ' + raided); assert(lostPurse >= 3, 'borse perse incontrate: ' + lostPurse);
+  return `${shipped} partenze (${full} a piena capacità), ${raided} razzie, ${lostPurse} semi con borse perse`;
+});
+
+check('41. Calamità: produzione ridotta, epidemia che alza la domanda di pozioni, stagioni nella domanda', () => {
+  const go = (kind, weeks = 8) => {
+    const { LE } = load(); quiet(LE);
+    const places = [{ id: 'x', continent: 'a', kind: 'town', population: 2000, links: [] }], pop = population(LE, places, { x: { workers: { farmer: 30, miner: 20, alchemist: 200, herbalist: 400 } } }), eco = LE.create(1, places, 0), rows = [];
+    run(LE, eco, envOf(pop, kind ? { disaster: (id, w) => (w === 3 ? kind : null) } : undefined), weeks, w => rows.push({ w, made: LE.stats(eco).lastWeek.produced, want: Object.fromEntries(LE.report(eco, 'x').prices.map(p => [p.id, p.wanted])) }));
+    return rows;
+  };
+  const base = go(null), dry = go('drought'), plague = go('plague'), quake = go('quake');
+  assert.equal(dry[2].made.grain, base[2].made.grain, 'differenza prima della calamità');
+  assert(dry[4].made.grain < base[4].made.grain * 0.7, `siccità: grano ${dry[4].made.grain} contro ${base[4].made.grain}`);
+  assert(quake[4].made.ore < base[4].made.ore * 0.8, `terremoto: minerale ${quake[4].made.ore} contro ${base[4].made.ore}`);
+  assert(plague[3].want.potion > base[3].want.potion * 1.6, `epidemia: pozioni ${plague[3].want.potion} contro ${base[3].want.potion}`);
+  const wool = go(null, 28).map(r => r.want.wool).slice(7), top = Math.max(...wool), low = Math.min(...wool); assert(top > low * 1.5, `lana: domanda fra ${low} e ${top}`);
+  return `siccità ${dry[4].made.grain}/${base[4].made.grain}, terremoto ${quake[4].made.ore}/${base[4].made.ore}, pozioni ${plague[3].want.potion}/${base[3].want.potion}, lana ${low}–${top}`;
+});
+
+check('42. Credito: riserva obbligatoria, stretta dopo un’insolvenza e limite alle aperture', () => {
+  const make = () => {
+    const { LE } = load(); quiet(LE);
+    const places = [{ id: 'x', continent: 'a', kind: 'city', population: 2000, links: [] }, { id: 'y', continent: 'a', kind: 'city', population: 2000, links: [] }];
+    const pop = population(LE, places), eco = LE.create(4, places, 0); run(LE, eco, envOf(pop), 6);
+    // Le casse di x si svuotano: servono prestiti per i salari. Il luogo y ha solo depositi.
+    let got = 0n; for (const b of eco.places.x.b) { got += b.cash; b.cash = 0n; eco.banks.a.dep -= b.dep; b.dep = 0n; b.loss = 0; b.pr = 100n; }
+    giveMoney(eco, -got);
+    return { LE, places, pop, eco, bank: eco.banks.a, setReserve(v) { giveMoney(eco, v - eco.banks.a.r); eco.banks.a.r = v; } };
+  };
+  const lent = (m, w) => { const v = m.eco.totals.loansIssued; run(m.LE, m.eco, envOf(m.pop), w); assert(m.LE.audit(m.eco).ok, m.LE.audit(m.eco).problems.join('; ')); return m.eco.totals.loansIssued - v; };
+  const free = make(); const easy = lent(free, 1); assert(easy > 0n, 'senza vincoli nessun prestito: la prova non dimostra nulla');
+  // Alla riserva esatta non si presta nulla; poco sopra, al massimo l'eccedenza.
+  const tight = make(), t = tight.bank; tight.setReserve(t.dep * BigInt(tight.LE.params.bank.reserveRatio) / 1000n);
+  assert.equal(lent(tight, 1), 0n, 'prestiti sotto la riserva obbligatoria');
+  const some = make(), s = some.bank; some.setReserve(s.dep * BigInt(some.LE.params.bank.reserveRatio) / 1000n + 300n);
+  const little = lent(some, 1); assert(little > 0n && little <= 300n, 'con 300 Scintille oltre la riserva ne presta ' + little);
+  const crunch = make(); crunch.bank.cr = crunch.eco.week + 10; assert.equal(lent(crunch, 3), 0n, 'prestiti durante la stretta');
+  // Aperture: con riserve abbondanti sì, alla riserva obbligatoria no, durante la stretta no.
+  const open = mode => {
+    const { LE } = load(); quiet(LE);
+    const places = [{ id: 'x', continent: 'a', kind: 'city', population: 2000, links: [] }], pop = population(LE, places), eco = LE.create(4, places, 0); run(LE, eco, envOf(pop), 6);
+    const b = eco.banks.a; pop.state.x.workers.baker *= 3; pop.state.x.workers.farmer *= 3; pop.state.x.alive = 4000; pop.state.x.wealth = 4000n * 60n;
+    let n = 0;
+    for (let k = 0; k < 8; k++) {
+      const v = mode === 'rich' ? b.dep + 100000n : b.dep * BigInt(LE.params.bank.reserveRatio) / 1000n;
+      if (mode !== 'crunch') { giveMoney(eco, v - b.r); b.r = v; } else { giveMoney(eco, b.dep + 100000n - b.r); b.r = b.dep + 100000n; b.cr = eco.week + 5; }
+      const was = LE.stats(eco).counts.opening || 0; run(LE, eco, envOf(pop), 1); n += (LE.stats(eco).counts.opening || 0) - was;
+    }
+    return n;
+  };
+  const rich = open('rich'), poor = open('poor'), stopped = open('crunch');
+  assert(rich > 0, 'nessuna apertura con riserve abbondanti'); assert.equal(poor, 0, 'aperture oltre la riserva obbligatoria: ' + poor); assert.equal(stopped, 0, 'aperture durante la stretta: ' + stopped);
+  return `prestiti liberi ${easy}, con margine 300: ${little}; aperture ${rich}, alla riserva ${poor}, nella stretta ${stopped}`;
+});
+
+check('43. Crisi: comincia, finisce, e il conteggio delle chiusure recenti si salva', () => {
+  const { LE } = load(); quiet(LE);
+  const places = [{ id: 'x', continent: 'a', kind: 'town', population: 1200, links: [] }], pop = population(LE, places), eco = LE.create(8, places, 0), farmers = pop.state.x.workers.farmer;
+  run(LE, eco, envOf(pop), 10); assert.equal(LE.signals(eco, 'x').crisis, 0, 'crisi in tempi normali');
+  pop.state.x.workers.farmer = 0; run(LE, eco, envOf(pop), 12); assert.equal(LE.signals(eco, 'x').crisis, 1, 'carestia senza crisi');
+  pop.state.x.workers.farmer = farmers * 2; run(LE, eco, envOf(pop), 60); assert.equal(LE.signals(eco, 'x').crisis, 0, 'la crisi non finisce'); assert(LE.events(eco).some(e => e.kind === 'recovery'), 'fine della crisi non registrata');
+  eco.places.x.cl = 9000; const e2 = LE.restore(LE.serialize(eco), places, eco.week * WEEK); assert.equal(e2.places.x.cl, 9000, 'chiusure recenti non salvate');
+});
+
+check('44. Sforzo dei produttori: con i magazzini pieni si produce molto meno', () => {
+  const { LE } = load(); quiet(LE);
+  const places = [{ id: 'x', continent: 'a', kind: 'town', population: 1500, links: [] }], pop = population(LE, places), eco = LE.create(3, places, 0);
+  run(LE, eco, envOf(pop), 4); const made = LE.stats(eco).lastWeek.produced.ore;
+  giveStock(LE, eco, 'x', 'mine', 'ore', 5e7);
+  run(LE, eco, envOf(pop), 1); const now = LE.stats(eco).lastWeek.produced.ore;
+  assert(made > 0 && now < made / 20, `si produce a magazzini pieni: ${made} → ${now}`);
+  assert(LE.audit(eco).ok); return `minerale ${made} → ${now}`;
+});
+
+check('45. Cento anni di calendario in un colpo solo: nessuna pausa, stesso mondo di chi li vive settimana per settimana, popolazione compresa', () => {
+  const go = live => {
+    const { LE, scope } = load(null, ['world-sim.js']), W = scope.WorldSim, pop = residents(LE, DEMO, true), env = envOf(pop), s = { world: W.create(0), eco: LE.create(5, DEMO, 0), n: 0 };
+    W.register('living-economy', LE.system(x => x.eco, () => env));
+    W.register('gente', { level: 3, step: WEEK, maxChunks: LE.system(() => null).maxChunks, resolve: (st, from, to) => { assert.equal(to - from, WEEK, 'settimane compresse'); pop.react(st.eco); st.n++; } });
+    if (live) for (let w = 1; w <= 686; w++) W.tick(s, w * WEEK, { budgetMs: Infinity }); else W.resolveAll(s, 686 * WEEK);
+    assert.equal(W.failures(s).length, 0, JSON.stringify(W.failures(s)));
+    assert.equal(s.eco.week, 686); assert.equal(LE.stats(s.eco).totals.pausedWeeks, 0); assert.equal(s.n, 686);
+    return snapshot(LE, s.eco, pop);
+  };
+  assert.equal(go(false), go(true), 'saltare il tempo cambia il mondo');
+});
+
+check('47. Stati rari salvati (stretta e crisi bancaria, disoccupazione abituale), vecchie cause lette senza riparazioni, deperimento, salari che seguono il lavoro, utile medio che si spegne', () => {
+  const { LE } = load(); quiet(LE);
+  const places = [{ id: 'x', continent: 'a', kind: 'town', population: 1200, links: [] }, { id: 'y', continent: 'a', kind: 'town', population: 1200, links: [] }], pop = population(LE, places), eco = LE.create(8, places, 0);
+  run(LE, eco, envOf(pop), 10);
+  eco.banks.a.cr = 14; eco.banks.a.cs = 13; eco.places.x.ur = 137;
+  const back = LE.restore(LE.serialize(eco), places, 10 * WEEK);
+  assert.equal(back.banks.a.cr, 14, 'stretta del credito non salvata'); assert.equal(back.banks.a.cs, 13, 'crisi bancaria non salvata'); assert.equal(back.places.x.ur, 137, 'disoccupazione abituale non salvata');
+  run(LE, back, envOf(pop), 1); assert.equal(LE.signals(back, 'x').crisis, 1, 'la crisi bancaria non si vede dopo il ripristino');
+  const added = places.concat([{ id: 'nuova', continent: 'a', kind: 'town', population: 500, links: [] }]), old = JSON.parse(LE.serialize(LE.restore(LE.serialize(eco), added, 10 * WEEK)));
+  const was = old.ledger.mint.nuovo_luogo; delete old.ledger.mint.nuovo_luogo; old.ledger.mint['nuovo luogo'] = was; old.ledger.added['nuovo luogo'] = old.ledger.added.nuovo_luogo; delete old.ledger.added.nuovo_luogo;
+  const e = LE.restore(old, added, 10 * WEEK); assert.equal(String(LE.audit(e).money.mintedBy.nuovo_luogo), was, 'emissione con la vecchia causa perduta'); assert(!LE.events(e).some(v => v.kind === 'repair'), 'vecchia causa trattata come un danno');
+  // Deperimento: registrato e presente.
+  const { LE: L2 } = load(); quiet(L2); const p2 = population(L2, places), e2 = L2.create(8, places, 0); run(L2, e2, envOf(p2), 5);
+  const g = L2.audit(e2).goods; assert(g.bread.spoiled > 0n && g.grain.spoiled > 0n, 'nessun deperimento'); assert.equal(g.ore.spoiled, 0n);
+  // Salari: salgono dove il lavoro manca, scendono dove abbonda.
+  const jobs = Object.keys(L2.params.workforce); for (const j of jobs) { p2.state.x.workers[j] = Math.ceil(p2.state.x.workers[j] / 3); p2.state.y.workers[j] *= 3; }
+  run(L2, e2, envOf(p2), 12); assert(L2.signals(e2, 'x').wageIndex > L2.signals(e2, 'y').wageIndex + 100, `salari ${L2.signals(e2, 'x').wageIndex} dove manca lavoro, ${L2.signals(e2, 'y').wageIndex} dove abbonda`);
+  // Utile medio: a incassi nulli si spegne a zero da entrambi i lati, senza resti fermi.
+  const bz = e2.places.x.b[typeIndex(L2, 'sanctum')]; p2.state.x.workers.mystic = 0; bz.n = 0;
+  for (const v of [7n, -7n]) { for (const t of ['essence']) dropStock(L2, e2, 'x', t); bz.pr = v; run(L2, e2, envOf(p2), 12); assert.equal(bz.pr, 0n, 'utile medio fermo a ' + bz.pr); }
+});
+
+check('46. Perequazione dentro il regno: il tributo dei luoghi più ricchi sostiene i più poveri, conti esatti, nessun effetto fra regni diversi', () => {
+  const go = (rate, realms) => {
+    const { LE } = load(); quiet(LE); if (rate !== null) LE.params.tax.levy = rate;
+    const places = ['ricco', 'povero'].map(id => ({ id, continent: 'c', realm: realms ? id : 'uno', kind: 'town', population: 1000, links: [] }));
+    const pop = population(LE, places, { ricco: { wealth: 1000 * 4000 }, povero: { wealth: 1000 * 200 } }), eco = LE.create(3, places, 0), start = pop.total() + LE.audit(eco).money.accounts;
+    run(LE, eco, envOf(pop), 300, () => { const a = LE.audit(eco); assert(a.ok, a.problems.join('; ')); });
+    const a = LE.audit(eco).money; assert.equal(pop.total() + a.accounts, start + a.minted - a.burned, 'denaro creato o perso');
+    return Number(pop.state.ricco.wealth - pop.state.povero.wealth) / 1000;
+  };
+  const off = go(0, false), on = go(null, false), apart = go(null, true), apartOff = go(0, true);
+  assert(on < off * 0.75, `divario dopo 300 settimane: ${Math.round(on)} con la perequazione, ${Math.round(off)} senza`);
+  assert(on > 0, 'i ricchi diventano poveri'); assert.equal(apart, apartOff, 'tributo fra regni diversi');
+  return `divario a testa ${Math.round(off)} → ${Math.round(on)}`;
 });
 
 /* ---------- mutazioni: ogni modifica del codice deve far fallire una prova ---------- */

@@ -121,3 +121,92 @@ Una settimana: 50 luoghi ≈ 5 ms (mediana), 500 luoghi ≈ 39–41 ms. Salvatag
   dove ci sono squilibri forti; ricambio residuo di fucine e speziali (~1 chiusura ogni 40–50 settimane per luogo e tipo).
 - `report().prices[].consumed` vale solo nella sessione (non salvato). Testi degli eventi con gli id dei luoghi (i nomi
   li aggiungerà il pannello).
+
+---
+
+# Seconda fase (2026-11-25): correzioni dopo la revisione indipendente
+
+> Le sezioni precedenti descrivono la prima stesura, che la revisione ha trovato difettosa (secondo caricamento che azzerava il mondo, famiglie prosciugate, carestie croniche, 15 mutazioni su 31 non rilevate). Dove differiscono vale quanto segue.
+
+## F2.1. Soglie di accettazione — FISSATE PRIMA di misurare il codice nuovo (2026-11-24, prima di ogni modifica a living-economy.js)
+Orizzonti: 686 settimane (100 anni di calendario da 48 giorni) e 5 214 settimane; semi 1–5. Mondi: S = sintetico con stub
+(12 luoghi, 250–3 000); R = residenti veri congelati (6 luoghi, 110–520); G = luoghi del gioco con residenti veri congelati
+(12 luoghi, 140–600). In R e G si misura col bottino netto nullo (contratto 2: lo compensa la popolazione nuova); la versione col
+bottino della copia congelata si riporta a parte e non è soggetta ad A4. Si scartano le prime 26 settimane (avvio). I luoghi sotto
+20 vivi si escludono dalla settimana in cui scendono sotto quel numero (e si contano).
+- A1 scarsità di cibo ≥ 300‰: per ogni luogo ≤ 10% delle settimane e mai più di 20 settimane di fila.
+- A2 crisi: per ogni luogo ≤ 20% delle settimane e mai più di 40 di fila; nel mondo almeno una crisi ogni 100 anni in media sui semi
+  (le crisi devono esistere) e ogni crisi finisce.
+- A3 insolvenze bancarie: ≤ 1 per banca per decennio (68,6 settimane) in media.
+- A4 moneta totale (famiglie + conti − bottino netto): entro ±10% a 686 settimane, ±15% a 5 214, in ogni punto di controllo.
+- A5 prezzi: indice medio di ogni luogo fra 750 e 1 350; settimane con indice > 1 800 al massimo 5% per luogo.
+- A6 attività: numero per abitante a fine corsa fra 50% e 200% di quello alla settimana 26; nessun tipo estinto in tutto il mondo per
+  più di 104 settimane.
+- A7 famiglie: in S almeno il 25% della moneta totale e almeno il 40% della ricchezza iniziale a testa in ogni punto di controllo;
+  banche ≤ 40% e tesorerie ≤ 40% del totale. In R e G conti dell'economia a testa fra 0,4 e 2,5 volte il valore alla settimana 52.
+- A8 disuguaglianza fra luoghi: indice di Gini della ricchezza a testa (pesato per abitanti) ≤ 0,40 a fine corsa.
+- A9 prosperità: media per mondo fra 700 e 1 400; valori saturi (≤ 10 o ≥ 2 900) al massimo il 5% delle settimane-luogo.
+- A10 disoccupazione media per luogo ≤ 350‰.
+Conti: `audit` in pari a ogni settimana controllata; conservazione d'insieme esatta.
+Prestazioni: a budget 1 ms la parte più lunga ≤ 4 ms con 500 luoghi (mediana dei massimi di 5 settimane).
+
+## F2.2. Cosa cambia
+- **Salvataggio**: cause `nuovo_luogo`/`luogo_scomparso` (le vecchie con lo spazio si leggono); lettura tollerante campo per campo, un
+  solo importo illeggibile si ricava dal registro o dai totali della banca; si ricrea il mondo solo se il testo è illeggibile o di altro
+  schema. Cambio di continente: i crediti si spostano con le riserve. `serialize` a metà settimana **lancia** un errore chiaro.
+- **Passo divisibile**: `weekParts` (generatore) si ferma dopo ogni riassunto, guerra, calamità, luogo, banca, prezzo; registro merci
+  versato a ogni luogo (audit in pari anche a metà). Un guasto chiude la settimana dov'è: niente doppi pagamenti. Nessuna pausa:
+  `maxChunks` 1 000 000, intervallo compresso risolto settimana per settimana. **La popolazione deve usare lo stesso maxChunks**,
+  altrimenti WorldSim alterna i due moduli in modo diverso.
+- **Moneta**: `riconio` delle distruzioni registrate (in 26 settimane), `ritiro` delle emissioni in eccesso dalle tesorerie sopra la
+  riserva. Aliquota sul reddito secondo la cassa (0–15%), eccedenze restituite in sussidi; perequazione fra i luoghi dello stesso
+  regno (6‰ a settimana dello scarto oltre ±15% dalla media).
+- **Credito**: quote settimanali per luogo (nessun ordine alfabetico), aperture solo con margine ≥ 10% del salario, dividendi mai con
+  debiti o in perdita, rimborso prima dei depositi, deposito compensato alla chiusura; insolvenza: soccorso pubblico, poi riduzione dei
+  depositi; crisi solo se la perdita è ≥ 3%; ricapitalizzazione in 26 settimane dalle tesorerie sopra la riserva. La guerra saccheggia
+  anche la banca (2,5% a settimana).
+- **Lavoro**: attività fondate sui lavoratori veri alla prima settimana; salari a ore secondo lo sforzo; locande (servizio senza
+  scorte), vendita al dettaglio dei mercanti; chi non ha posto (addetti pubblici e locandieri compresi) conta nella disoccupazione;
+  segnale `labor` per i 16 mestieri (100–3000). Attività senza addetti chiudono in 12 settimane.
+- **Famiglie**: domanda legata alla ricchezza abituale (media mobile di 256 settimane); acqua attinta e pane di casa dal grano,
+  registrati; scarsità = la peggiore fra sete e fame in equivalente grano. Prosperità = 50% reddito su paniere, 25% ricchezza
+  sull'abituale, 25% paniere ottenuto. Crisi: cibo, banca (perdita grave), salto di disoccupazione, chiusure.
+- **Carovane**: si carica prima ciò che rende di più per settimana di viaggio; ordine dei luoghi con seme, diverso ogni settimana.
+- **exchange**(eco, luogo, merce, q, denaro, causa, idTransazione): q e denaro con segno (+ entra nel luogo); tutto o niente;
+  `externalIn/Out` nel registro; idempotente sulle ultime 256 transazioni (salvate); rifiutato a metà settimana. Non collegato.
+
+## F2.3. Parametri nuovi o cambiati (tutti PROVVISORI, da approvare)
+Rese: fattorie 20/3, erbe 12, pascoli 13, essenza 8, pozzi 42, pane 17,5, pozioni 9, fucine 13 con 150‰ di minerale. `workforce`
+e `publicJobs` (34/18/22/40‰) ricalibrati; `tax` (incomeMax 150, licenza 1, dazio 100, levy 6, levyBand 150), `coin`, `bank`,
+`business` (openMargin, idlePay), `retail`, `home`, `labor`, `prosperity`, `crisis`, `limits.tx`; `riseSlope` 1000; calamità e guerre
+più gravi (siccità 6 settimane al 20% del grano, alluvione −50% scorte, epidemia al 60%, guerra al 70%).
+
+## F2.4. Uniche fonti di verità per l'integrazione con MarketFlows/trade-economy (proposta)
+| Grandezza | Fonte unica | Gli altri |
+|---|---|---|
+| Denaro del giocatore | `s.player.gold` (borsello) e `s.economy.balance` (banca) | mai in `eco`; i passaggi sono `exchange` con causa |
+| Inventario e deposito del giocatore | `s.bag` | solo lettura |
+| Scorte dei cinque mercati (vela, filoni, velaris, namar, calis) | `s.economy.markets[].stock` | `eco` lì sospende produzione, consumo e carovane di merce e ne legge gli indici |
+| Scorte altrove, merci in viaggio fra luoghi di `eco` | `eco.places[].b[].s`, `eco.caravans` | MarketFlows non ha rotte su quei luoghi |
+| Ricchezza delle famiglie | `s.pop` | `eco` la legge da `summary`, la muove solo con `transfer`; `flows.wealth` diventa indice derivato |
+| Casse, depositi, debiti, banche, tesorerie | `eco` | sola lettura nei pannelli |
+| Prezzi al giocatore | `Economy.price` nei cinque mercati | indici di `eco` per i luoghi lontani |
+| Transazioni | `eco.tx` (idTransazione) | `trade`, `deliver`, `procure` chiamano `exchange` una volta sola, mai un confronto settimanale delle scorte |
+Scale diverse (8–16 abitanti nei tratti di MarketFlows, 140–600 nei luoghi): serve un fattore esplicito per mercato, da approvare.
+
+## F2.5. Esiti (popolazione congelata, banco `review-eco2/accetta.cjs`; tarato fino a farcela, soglie invariate)
+A1–A10 accettate in 15 corse su 15 a 686 settimane e 15 su 15 a 5 214 (S, R, G, semi 1–5). Crisi medie nel mondo per corsa: 686 w S 5 /
+R 4 / G 6,6 (minimo 2); 5 214 w S 55 / R 30 / G 69. Insolvenze per banca per decennio: massimo 0,37. Gini massimo 0,36 (R, 5 214;
+il margine più stretto). Col bottino congelato (R e G, 2 semi, 686 w) accettate. Durante la taratura erano fallite A5, A6, A8 e A10
+(scarsità di mestieri fissi, fucine estinte, città importatrici prosciugate, trappola dei forni chiusi): corrette nel modello.
+Prove 48/48; mutazioni 61/61 rilevate (54 subito, 7 con la prova 47). Salvataggio e ripristino ogni settimana: 3 600 settimane, 0 divergenze.
+Misure (stub): 50 / 200 / 500 luoghi: settimana 7,5 / 27,5 / 65,9 ms (prima 5 / – / 46); a budget 1 ms chiamata più lunga 1,1 / 1,8 / 2,9 ms
+in 8 / 25 / 70 fotogrammi; parte singola massima 0,5 / 1,3 / 6,4 ms (carovane, fisco o pausa del raccoglitore: non distinte);
+salvataggio 61 / 208 / 468 KB (prima 40 / – / 378).
+
+## F2.6. Limiti
+- Taratura sulla popolazione congelata (mestieri che non seguono `labor`): da rifare con la popolazione nuova. R e G col bottino
+  congelato crescerebbero ancora di moneta (famiglie): il pozzo è compito della popolazione (`upkeep`).
+- Nessuna seconda linea di sicurezza fra regni: gli scambi fra continenti possono ancora spostare ricchezza per secoli.
+- `exchange` riconosce i doppioni solo fra le ultime 256 transazioni. Le settimane di un'assenza lunghissima si risolvono tutte.
+- Nessun collegamento al motore, nessuna prova nel browser.
