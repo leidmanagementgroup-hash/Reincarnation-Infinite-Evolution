@@ -149,7 +149,7 @@ check('9. Nella regione del giocatore chi diventa critico durante il sonno si pu
     const x = atInn(null, seed), here = x.Game.s.region;
     // RISK-013 ha reso rari gli stati critici: qui si rendono gli scontri molto pericolosi e i vicini assenti (parametri configurabili),
     // così la prova isola davvero la regola del sonno. Le soglie non cambiano.
-    Object.assign(x.Conflicts.rules, { baseWin: -9, baseEscape: -9, glance: 3, rest: 0, healMin: 60, healSpan: 60, shelter: 0, aidBase: -9, aidMax: .15 });
+    assert(x.Conflicts.configure({ baseWin: 0, baseEscape: 0, glance: 3, rest: 0, healMin: 60, healSpan: 60, shelter: 0, aidBase: 0, aidHelper: 0, aidMax: .15 }), 'regole rifiutate');
     const before = new Map(Object.entries(x.Game.s.conflicts.people).map(([id, p]) => [id, p.status]));
     assert(x.Game.command('sleep'), 'sonno rifiutato');
     const now = x.Game.s.time;

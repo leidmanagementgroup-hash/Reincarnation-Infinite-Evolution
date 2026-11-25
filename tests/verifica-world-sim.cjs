@@ -265,6 +265,23 @@ check('18. Intervallo lasciato a metà: settle lo completa (prima di salvare o v
   assert.equal(X.partial(z), null); assert.equal(X.failures(z).length, 1);
 });
 
+check('19. Casi limite degli intervalli divisibili: orologio indietro, settle di un intervallo compresso, parità di livello, orologio non valido', () => {
+  const W = fresh(), s = { world: W.create(0), n: 0, seen: [] };
+  W.register('a-parti', { level: 3, step: 10, maxChunks: 3, resolve: (st, from, to, info) => { st.seen.push(!!info.compressed); st.n++; return st.n % 4 ? false : undefined; } });
+  W.tick(s, 1000, { budgetMs: 0, compress: true }); assert.equal(W.partial(s), 'a-parti');
+  const before = s.n; W.tick(s, 20, { budgetMs: Infinity }); assert(s.world.resolved['a-parti'] <= 20, 'risolto oltre l’orologio: ' + s.world.resolved['a-parti']);
+  assert.equal(s.n, before, 'un intervallo che finisce nel futuro non va ripreso');
+  s.seen.length = 0; assert.equal(W.settle(s), 1); assert(s.seen.length && s.seen.every(Boolean), 'settle ha perso il segno di intervallo compresso');
+  assert.equal(W.tick(s, NaN), 0); assert.equal(W.tick(s, -5), 0);
+  const X = fresh(), z = { world: X.create(0), order: [] };
+  X.register('basso', { level: 2, step: 60, maxChunks: 9, resolve: st => { st.order.push('basso'); } });
+  X.register('alto', { level: 5, step: 60, maxChunks: 9, resolve: st => { st.order.push('alto'); } });
+  X.resolveAll(z, 60); same(['alto', 'basso'], z.order, 'a parità di istante prima il livello più alto');
+  const Y = fresh(), y = { world: Y.create(0), n: 0 };
+  Y.register('continua', { level: 3, step: 60, maxChunks: 9, resolve: st => ++st.n < 5 ? false : undefined });
+  Y.tick(y, 60, { budgetMs: Infinity }); assert.equal(y.n, 5); assert.equal(Y.partial(y), null);
+});
+
 check('9. Mutazione: risolvere fino all’istante corrente invece che fino al confine di griglia → il tempo vissuto diverge da quello saltato', () => {
   const run = live => {
     const W = fresh(src => src.replace('/*ALLINEA*/', '/*ALLINEA*/now>from?now:')), s = { world: W.create(START), counters: {} };

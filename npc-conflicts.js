@@ -40,6 +40,15 @@
     aidBase:.42,aidHelper:.07,aidMax:.86,aidDanger:.012,aidHeal:3600, // soccorso dei vicini e convalescenza di due giorni
     graveShare:.5                   // colpo devastante: oltre metà dei PV massimi sotto zero, solo il giocatore può intervenire
   };
+  // Si configura solo con valori finiti, non negativi e di regole esistenti: un NaN finirebbe nelle scadenze e il salvataggio
+  // non si ricaricherebbe più. Dall'esterno si legge una copia congelata.
+  function configure(patch){
+    if(!obj(patch)||!Object.entries(patch).every(([k,v])=>own(RULES,k)&&Number.isFinite(v)&&v>=0&&v<=1e6))return false;
+    Object.assign(RULES,patch);
+    return true;
+  }
+  const TEAM_HEAL=170; // i compagni di gilda guariscono come prima (decisione del 2026-11-21 sui compagni in combattimento)
+  let fights_=0;       // scontri davvero iniziati nella regione del giocatore (per il riassunto del risveglio; non salvato)
   const gear={Soldato:5,Fabbro:4,Avventuriero:4,'Cane da guardia':2,'Maestro itinerante':2,'Maestro di bottega':2};
   const agility={wolf:.08,elf:.06,goblin:.05,fairy:.08,dwarf:-.04,orc:-.02,elder:-.08};
   const fights=new Set(['Soldato','Cane da guardia','Avventuriero']);
@@ -227,7 +236,7 @@
       p.witnessed=p.point.region===s.region&&dx(p.point,s.player)<185;
       monitor(s,id,n.name+' è in stato critico. Portagli una pozione o due erbe.',p.point,out);
     }else if(p.hp<=p.maxHp*.42&&p.status==='healthy'){
-      p.status='injured';p.deadline=stamp(s)+healTime(p);
+      p.status='injured';p.deadline=stamp(s)+(s.guild?.team?.includes(id)?TEAM_HEAL:healTime(p));
       monitor(s,id,n.name+' è ferito e si ritira dal combattimento.',p.point,out);
     }
     return {status:p.status,notices:out,hp:p.hp};
@@ -381,7 +390,7 @@
     if(!p||!canFight(s,id))return;
     node.active={id,mob:target.id,type:target.type,point:{region,x:home.x,y:home.y},until:stamp(s)+95,
       off:stamp(s)+9,enemyHp:target.hp,cd:.2,wind:0,windLock:1.2,swing:0,dir:'down',moving:false};
-    node.round++;
+    node.round++;if(region===s.region)fights_++;
     monitor(s,id,n.name+' è di pattuglia ai margini della zona abitata.',home,out);
   }
   function endure(s,region,node,foeOut,out){
@@ -511,7 +520,7 @@
   // Inizio di un sonno: chi è già in stato critico, lo stato di ognuno e i turni della regione del giocatore.
   function sleepStart(s,state){
     const status=new Map(Object.entries(state.people).map(([id,p])=>[id,p.status]));
-    return {region:s.region,status,round:state.regions[s.region]?.round||0};
+    return {region:s.region,status,fights:fights_};
   }
   // Regola prudente (PERF-005 fase 2): nella regione del giocatore chi diventa critico mentre dorme non muore durante il sonno
   // e al risveglio ha di nuovo il tempo pieno per il soccorso; nelle regioni lontane vale l'equivalenza con il tempo vissuto.
@@ -526,7 +535,7 @@
       return list.length>3?list.slice(0,3).join(', ')+' e altri '+(list.length-3):list.join(', ');
     };
     const changed=(status)=>here.filter(([id,p])=>p.status===status&&sleep.status.get(id)!==status).map(([id])=>id);
-    const rounds=(state.regions[sleep.region]?.round||0)-sleep.round,fallen=changed('dead'),injured=changed('injured');
+    const rounds=fights_-sleep.fights,fallen=changed('dead'),injured=changed('injured');
     const critical=here.filter(([,p])=>p.status==='critical'&&p.deadline>s.time).map(([id])=>id),out=[];
     if(rounds>0)out.push('Mentre riposavi: '+rounds+(rounds===1?' scontro':' scontri')+' ai margini della zona abitata.');
     if(fallen.length)out.push('Morti durante il riposo: '+names(fallen)+(fallen.length===1?'. Resta un memoriale sul luogo.':'. Restano i memoriali.'));
@@ -606,6 +615,6 @@
     }
     return entries;
   }
-  window.Conflicts={rules:RULES,odds,create,restore,condition,canInteract,canFight,point,takesOver,fighting,damageNpc,sites,use,command,faction,view,tick,actors,mend,wounded};
+  window.Conflicts={get rules(){return Object.freeze({...RULES});},configure,odds,create,restore,condition,canInteract,canFight,point,takesOver,fighting,damageNpc,sites,use,command,faction,view,tick,actors,mend,wounded};
 })();
 

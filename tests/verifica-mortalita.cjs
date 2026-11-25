@@ -64,7 +64,7 @@ check('3. Chi cade in fin di vita può sopravvivere grazie ai vicini, ma non sem
   assert(d / near >= .1 && d / near <= .6, `letalità ${(100 * d / near).toFixed(0)} % (${d} su ${near})`);
   return `${d} morti su ${near} in fin di vita`;
 });
-check('4. Dormire e vivere otto giorni hanno conseguenze coerenti (differenza ≤ 2 morti; regioni lontane identiche)', () => {
+check('4. Dormire e vivere otto giorni hanno conseguenze coerenti (differenza ≤ 2 morti e stesse persone nelle regioni lontane)', () => {
   const notes = [];
   for (const seed of SEEDS.slice(0, 3)) {
     const a = atInn(seed), b = atInn(seed);
@@ -72,6 +72,8 @@ check('4. Dormire e vivere otto giorni hanno conseguenze coerenti (differenza �
     a.frames(8 * 108000); for (let d = 0; d < 8; d++) assert(b.Game.command('sleep'));
     assert(Math.abs(a.Game.s.time - b.Game.s.time) < 1, `secondi diversi: ${a.Game.s.time} e ${b.Game.s.time}`);
     assert(Math.abs(dead(a) - dead(b)) <= 2, `seme ${seed}: vissuti ${dead(a)}, dormiti ${dead(b)}`);
+    const far = x => JSON.stringify(Object.entries(x.Game.s.conflicts.people).filter(([, p]) => p.point.region !== 'valley').map(([id, p]) => [id, p.status, p.hp, p.nearDeath, p.kills]).sort());
+    assert.equal(far(b), far(a), `seme ${seed}: regioni lontane diverse fra vissuto e dormito`);
     notes.push(`${seed}: ${dead(a)}/${dead(b)}`);
   }
   return 'morti vissuti/dormiti ' + notes.join(' · ');
@@ -124,6 +126,36 @@ check('9. Mutazione: ritirata a piena forza e nessun soccorso dei vicini → la 
   const d = rows.reduce((n, r) => n + r[0], 0), near = rows.reduce((n, r) => n + r[1], 0);
   assert(d / rows.length / 2 > 1.5 || d / near > .6, `mutazione non rilevata: ${d} morti su ${near}`);
   return `${d} morti su ${near} in fin di vita in 60 giorni con la mutazione (3 semi)`;
+});
+check('10. Regole configurabili ma protette: un valore non valido viene rifiutato e non può rompere un salvataggio', () => {
+  const x = atInn(SEEDS[0]), C = x.Conflicts;
+  assert.equal(typeof C.configure, 'function', 'manca Conflicts.configure');
+  for (const bad of [{ healMin: NaN }, { healSpan: -5 }, { aidHeal: Infinity }, { baseWin: 'x' }, { sconosciuta: 1 }]) assert.equal(C.configure(bad), false, JSON.stringify(bad));
+  try { C.rules.healMin = NaN; } catch { /* oggetto congelato in modalità stretta */ }
+  C.damageNpc(x.Game.s, 'elder', 50, { point: { region: 'valley', x: 700, y: 600 }, cause: 'Prova' });
+  assert(Number.isFinite(x.Game.s.conflicts.people.elder.deadline));
+  assert(x.Game.importSave(x.Game.exportSave()), 'salvataggio rifiutato');
+  assert.equal(C.configure({ healMin: 300 }), true); assert.equal(C.rules.healMin, 300);
+});
+check('11. Il riassunto del risveglio conta gli scontri veri, non chi si è messo al riparo', () => {
+  const y = atInn(SEEDS[0]); y.Conflicts.configure({ shelter: 1 });
+  for (const id of ['guard-valley', 'hound-valley']) { y.Conflicts.damageNpc(y.Game.s, id, 1, { point: { region: 'valley', x: 700, y: 600 } }); const p = y.Game.s.conflicts.people[id]; p.status = 'injured'; p.hp = 5; p.deadline = 1e9; }
+  y.Game.s.conflicts.regions.valley.round = 5; y.Game.s.conflicts.regions.valley.active = null;
+  const s = y.Game.s, before = s.conflicts.regions.valley.round; s.time += 1800; const text = y.Conflicts.tick(s, 0, {}).join(' ');
+  assert(s.conflicts.regions.valley.round > before, 'nessun turno: la prova non dimostra nulla');
+  assert(!/scontr/.test(text), 'senza difensori e con tutti al riparo non ci sono scontri da raccontare: ' + text);
+});
+check('12. Prima i difensori di mestiere; senza difensori i civili si riparano; i compagni di gilda guariscono come prima', () => {
+  const spy = t => t.replace("monitor(s,id,n.name+' è di pattuglia", "(window.__f??=[]).push([id,n.role,region]);monitor(s,id,n.name+' è di pattuglia");
+  const civilians = x => { const f = (x.__f || []).filter(r => r[2] === 'valley').slice(2); return [f.filter(r => !['Soldato', 'Cane da guardia', 'Avventuriero'].includes(r[1])).length, f.length]; };
+  const x = atInn(SEEDS[0], spy); sleepDays(x, 20); const [a, n] = civilians(x);
+  const y = atInn(SEEDS[0], t => spy(t).replace('const defenders=rested.filter', 'const defenders=[].filter').replace('if(!defenders.length&&roll', 'if(false&&roll')); sleepDays(y, 20); const [b, m] = civilians(y);
+  assert(n > 30, 'troppo pochi scontri: ' + n);
+  assert(a / n < b / m, `civili in prima linea ${a}/${n}, senza precedenza ${b}/${m}`);
+  const z = atInn(SEEDS[0]), s = z.Game.s, id = Object.keys(s.society.people)[0]; s.guild.team = [id];
+  z.Conflicts.damageNpc(s, id, 50, { point: { region: 'valley', x: 700, y: 600 } });
+  assert.equal(s.conflicts.people[id].status, 'injured'); assert(Math.abs(s.conflicts.people[id].deadline - s.time - 170) < 1e-6, 'guarigione dei compagni cambiata');
+  return `civili in prima linea ${a}/${n}; senza precedenza ai difensori ${b}/${m}`;
 });
 const fails = results.filter(r => r === 'FAIL').length;
 console.log(fails ? `\n${fails} prove fallite su ${results.length}` : `\nTutte le ${results.length} prove superate`);

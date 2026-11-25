@@ -85,6 +85,7 @@
         // Un intervallo lasciato a metà si riprende tale e quale (stesso «to», stessa compressione) prima di ogni altro.
         const half=open.get(w),h=half?active.findIndex(sys=>sys.id===half.id):-1;
         if(half&&h<0){open.delete(w);continue;}
+        if(half&&half.chunk.to>now)break; // orologio tornato indietro: si aspetta, senza risolvere il futuro né scavalcare l'ordine
         if(half&&h>=0)i=h;
         const sys=active[i],c=half&&h>=0?half.chunk:pending[i];
         let more;
