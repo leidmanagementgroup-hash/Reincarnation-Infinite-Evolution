@@ -2,8 +2,18 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-25] Rilievi della revisione ECC su conflitti e orchestratore — Claude
+Branch `claude/perf-005`, commit `52e88b3`. File: `npc-conflicts.js`, `world-sim.js`, `tests/verifica-mortalita.cjs`, `tests/verifica-continuita.cjs`, `tests/verifica-world-sim.cjs`, `Reincarnation.html`.
+### Corretto
+- `Conflicts.rules` era modificabile senza controlli (un NaN rendeva il salvataggio non ricaricabile): ora è una copia congelata e si cambia solo con `Conflicts.configure`, che rifiuta valori non validi.
+- Il riassunto del risveglio contava come scontri anche chi si era messo al riparo (circa sei volte troppi); i compagni di gilda restavano feriti fino a 1,6 giorni invece dei 170 s di prima.
+- `world-sim.js`: con l'orologio indietro un intervallo compresso a metà risolveva il futuro.
+- Prove deboli rafforzate (riparo dei civili, precedenza ai difensori, regioni lontane identiche, parità di livello, `settle` compresso, orologio non valido). Nota: gli «scontri» riportati dalla prova 2 di `verifica-mortalita` sono turni e comprendono chi si ripara.
+### Verifica
+- `verifica-mortalita` 12/12 e `verifica-world-sim` 19/19 (le prove nuove viste fallire prima), continuità 11, world-lod 12, integrazione, memoria 11, richieste 11, revisione LW 8; PERF-004 6/6 e salvataggi incrociati 2/2 contro `c11c5f5`. Edge completo sulla build di `e0ff054` (23 prove più Calis e Filoni), non ripetuto dopo queste correzioni.
+
 ## [2026-11-24] RISK-013: conflitti meno letali e realistici; WorldSim divisibile; mandato permanente — Claude
-Branch `claude/perf-005`. File: `npc-conflicts.js`, `world-sim.js`, `tests/verifica-mortalita.cjs` (nuovo), `tests/verifica-continuita.cjs`, `tests/verifica-world-sim.cjs`, `CLAUDE.md`, `Reincarnation.html`, documenti.
+Branch `claude/perf-005`, commit `e0ff054`. File: `npc-conflicts.js`, `world-sim.js`, `tests/verifica-mortalita.cjs` (nuovo), `tests/verifica-continuita.cjs`, `tests/verifica-world-sim.cjs`, `CLAUDE.md`, `Reincarnation.html`, documenti.
 ### Corretto
 - Causa misurata (3 semi, 8 giorni): tutti gli stati critici lontani (52 su 52) venivano da un secondo colpo a piena forza su chi, già ferito, si stava ritirando; critico significava morte al 100 % perché nessuno soccorreva; circa 11 scontri al giorno per regione con guarigione in due minuti; nessuna differenza fra soldato e civile.
 - Conflitti ordinari (RISK-013, regole provvisorie in `Conflicts.rules`, configurabili): vittoria e fuga dipendono da attacco, PV, equipaggiamento del mestiere, esperienza, evoluzione, età, agilità della stirpe e pericolosità della creatura (`Conflicts.odds`); combattono prima i difensori di mestiere, i civili di solito si mettono al riparo e fuggono appena colpiti; chi ha combattuto riposa; il colpo in ritirata è di striscio; le ferite guariscono in poche ore o in oltre un giorno secondo la gravità; allo scadere dello stato critico i vicini possono soccorrere (dipende da quanti sono in piedi e dal pericolo) e il salvato resta convalescente due giorni. Restano la morte permanente, i colpi devastanti (oltre metà dei PV massimi sotto zero) che solo il giocatore può curare e la regola dei compagni di gilda (decisione del 2026-11-21). La resa non è prevista: gli avversari degli scontri ordinari sono creature selvatiche; servirà con fazioni umane.
