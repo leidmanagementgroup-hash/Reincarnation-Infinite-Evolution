@@ -2,6 +2,13 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-25] Allineamento di `claude/perf-005` a `main` (`0bcfa34`) — Claude
+Merge di `origin/main` nel branch con l'autorizzazione dell'utente; `main` non toccato. Porta ECO-002 e ECO-003 (mercati registrabili, tendenze, mestieri e mercato) insieme a PERF-005.
+### Modificato
+- Conflitti solo nei documenti (`CHANGELOG.md`, `PROGRESS.md`, `CLAUDE.md`): entrambe le parti avevano aggiunto testo nello stesso punto, conservate tutte le righe. `Reincarnation.html` rigenerato dai sorgenti uniti; `engine.js` e `build.py` invariati.
+### Verifica
+- Sulla build unita, con riferimento `main` `0bcfa34`: 31 prove Node (comprese le tre di ECO, `verifica-mortalita` 12, popolazione 65, economia viva 48, mondo-livelli 8, `simulazione-lunga`, PERF-002/003/004 e salvataggi incrociati) e 24 in Edge, tutte con uscita 0.
+
 ## [2026-11-25] PERF-005: residenti autonomi seconda fase, economia viva sostenibile, simulazioni a 100 anni — Claude
 Branch `claude/perf-005`, commit `611ab0a` (economia: `6ef041b`). Serie finale sulla stessa build: 26 prove Node (riferimento `c11c5f5` congelato, perché `main` è avanzato) e 24 in Edge, tutte con uscita 0, comprese Calis, Filoni, cava, santuario, creature e gilda. File: `world-population.js`, `tests/verifica-popolazione.cjs`, `living-economy.js`, `tests/verifica-economia-viva.cjs`, `tests/verifica-mondo-livelli.cjs`, `tests/simulazione-lunga.cjs` (nuovo), `RESIDENTI_AUTONOMI.md`, `ECONOMIA_VIVA.md`, `SIMULATION_LOD.md`, `PROGRESS.md`. Moduli **in ombra**: `Reincarnation.html`, `engine.js` e `build.py` invariati.
 ### Corretto (dopo due revisioni indipendenti, che avevano trovato 12 difetti nei residenti e 8 nell'economia, con 25 mutazioni su 47 non rilevate)
@@ -102,6 +109,32 @@ Branch `claude/perf-005` (da `main` `c11c5f5`; commit `8d8286a`, pubblicato su `
 - `AGENTS.md` (nuovo documento nell'elenco), `PROGRESS.md`, `ROADMAP.md`; corretta la nota superata sulle verifiche aggiuntive di PERF-004 (già su `main`).
 ### Verifica
 - `tests/sonda-continuita.cjs` (nuova, non fallisce, riporta): nove ore vissute (40 500 fotogrammi) contro le stesse ore dormite: uguali calendario, economia (mercati, flussi, carovane), costruzioni, scorte di Velaris, Living World e mostri congelati; **diversi** i borghi (l'accordo è in ritardo di un impulso dopo il sonno, perché ogni borgo legge il livello degli altri nello stesso giro) e i conflitti degli NPC (vivendo la notte una guardia viene ferita; dormendo il mondo lontano fa un solo impulso); posizioni dei residenti di Velaris identiche fra quattro ore vissute e un salto del calendario con 95 e 500 residenti. `tests/banco-lod.cjs` (nuovo): con 95/500/1 000/5 000/10 000 residenti nella stessa città, piani di un giorno 18,5 ms / 356 ms / 1,1 s / 14,2 s / 51,4 s (Node), circa 2 KB a residente; posizione dagli orari per tutti 0,007–0,57 ms per fotogramma; dettaglio pieno con 1 526–3 125 vicini 14–24 ms di media; salvataggio 32,6 KB a ogni dimensione.
+
+## [2026-11-24] Integrazione competenze, plugin e agenti nel flusso di lavoro — Claude
+### Documentazione
+- `CLAUDE.md`: nuova sezione «Competenze, plugin e agenti» (router `gamedev:router` verificato; mappa compito→skill per un motore JS custom; processo Superpowers; browser di collaudo; regole anti-spreco e di precedenza). Nessun codice toccato, nessuna ricostruzione necessaria.
+
+## [2026-11-24] ECO-002: mercati registrabili a runtime — Claude
+### Aggiunto
+- `Economy.register(spec,s?)` (`trade-economy.js`): aggiunge un mercato da una descrizione per `MarketFlows.settlementProfile` (`{id,name,region,continent,x,y,size,focus,seed}`); con `s` entra subito nella partita (scorte iniziali, flussi ricostruiti con `MarketFlows.restore`). Rifiuta id duplicati o non validi.
+### Modificato
+- `Economy.restore`: richiede solo i cinque mercati storici; un mercato registrato ma assente dal salvataggio nasce con scorte iniziali; i mercati salvati ma non ancora registrati restano in `s.economy.dormant` (campo facoltativo, retrocompatibile, schema invariato) e rientrano alla registrazione. Il pannello non dice più «cinque» se i mercati sono altri (`economy-panel.js`).
+### Verifica
+- `tests/verifica-mercati-dinamici.cjs` (nuovo: 6 mercati, salvataggio con mercato sconosciuto, vecchio salvataggio, 20 giorni con registro in pari, rifiuto di id pericolosi e di salvataggi senza un mercato storico) più `verifica-integrazione`, `economia-flussi`, `economia-flussi-2`, `economia-integrazione`, `verifica-economia-tendenze` superati. Browser non provato. Nessun generatore urbano chiama ancora `register`.
+
+## [2026-11-24] Mestieri dei residenti collegati all'attività del mercato — Claude
+### Aggiunto
+- La scheda di un residente di Velaris con mestiere di cucina, birra, orto, erbe, carpenteria o acqua mostra «Mestiere e mercato»: il gruppo di lavoratori di Velaris e come reagisce alle scorte (a pieno ritmo se scarse, rallenta se abbondanti). Solo lettura da `Economy.flowReport().work`; nessun effetto su salvataggi, prezzi o routine (file: `urban-life.js`, `panels.js`, `tests/verifica-mestieri-mercato.cjs`). Mestieri senza gruppo corrispondente a Velaris (tessitrice, cuoio, ecc.) restano senza collegamento.
+### Verifica
+- `verifica-mestieri-mercato` (172 collegati su 528 residenti), `verifica-integrazione`, `verifica-perf-002` (181 scene) superati; HTML ricostruito. Browser non provato.
+
+## [2026-11-24] ECO-003: tendenze, merci in arrivo e rotte nel pannello dei mercati — Claude
+### Aggiunto
+- Sezione «Tendenze e rotte del mercato» nel pannello Economia: per ogni merce scorta/obiettivo, tendenza (produzione contro consumo dei residenti, con scorta bassa/alta), merci in viaggio verso il mercato, ricchezza locale e rotte con giorni e capacità. Solo lettura da `Economy.flowReport`; nessun effetto su denaro, scorte o salvataggio (file: `economy-panel.js`, `tests/verifica-economia-tendenze.cjs`).
+### Documentazione
+- `CLAUDE.md`: sezione su ECC e hook (hook non disattivati: il classificatore di sicurezza ha bloccato la modifica, la scelta resta all'utente).
+### Verifica
+- `node tests/verifica-economia-tendenze.cjs` (5 mercati, spedizione fittizia, nessun NaN/undefined) e `node tests/verifica-integrazione.cjs` superati; `Reincarnation.html` ricostruito. Prova nel browser non eseguita: `tests/prova-browser-economia.cjs` richiede il modulo `playwright`, non disponibile da Node qui.
 
 ## [2026-11-23] PERF-003: pianificazione dei residenti più rapida e anticipata — Claude
 Branch `claude/perf-003` (da `claude/perf-004-verifiche` `9fcd0c1`, a sua volta da `main` `913c258`; commit `d4cae02`; portato su `main` per avanzamento rapido `913c258` → `6670691` con l'autorizzazione dell'utente; sulla cartella di `main` ripetute integrazione, `verifica-perf-002` (181 scene), `verifica-perf-003` (95 e 500 residenti), `verifica-perf-004` (95), `prova-browser` 10/10 e Velaris est 12/12). Unione simulata con `codex/urban-scale` (albero temporaneo, nessun branch creato): codice senza conflitti (solo `CHANGELOG.md` e `PROGRESS.md`); sulla build unita passano integrazione, `verifica-scala-urbana` (250 edifici), `verifica-perf-002`, `verifica-perf-003` e `verifica-perf-004` con 500 residenti, `prova-browser-scala-urbana` con i laboratori da 25 e 250 edifici e `prova-browser`. File: `urban-life.js`, `Reincarnation.html`, `tests/verifica-perf-003.cjs` (nuovo), `tests/banco-popolazione.cjs`, documentazione.

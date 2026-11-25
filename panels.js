@@ -487,7 +487,8 @@
     if(resident){
       html+=npc(resident.race,resident.name,resident.personality||resident.activity)+
         row(resident.profession,[resident.raceName,resident.activity].filter(Boolean).join(' · '))+
-        row('Abitazione e lavoro',[resident.home,resident.work].filter(it=>typeof it==='string').join(' · '));
+        row('Abitazione e lavoro',[resident.home,resident.work].filter(it=>typeof it==='string').join(' · '))+
+        (resident.trade?row('Mestiere e mercato',resident.trade.text):'');
       if(resident.schedule?.length)html+=h('Giornata')+resident.schedule.map(block=>row(block.label,[block.at,block.where].filter(Boolean).join(' · '))).join('');
       if(resident.memories?.length)html+=h('Ricordi condivisi')+resident.memories.slice(-4).reverse().map(m=>row(m.text,m.day!==undefined?'Giorno '+m.day:'')).join('');
     }else if(model.local?.length){

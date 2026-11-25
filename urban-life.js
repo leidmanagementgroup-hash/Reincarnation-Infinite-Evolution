@@ -584,6 +584,18 @@
     s.urban.people[id]=values.slice(-8);
     return true;
   }
+  /* Mestiere del residente → categoria dei flussi economici (solo lettura da `Economy.flowReport`): ECO-003. */
+  const tradeOf={'Cuoca':'baker','Birraio':'baker','Orticoltrice':'farmer','Erborista':'herbalist','Carpentiere':'carpenter',
+    'Maestra d’acqua':'wellkeeper'};
+  function tradeLink(s,profession){
+    const job=own(tradeOf,profession)?tradeOf[profession]:null;
+    if(!job||!window.Economy?.flowReport)return null;
+    let row;
+    try{row=window.Economy.flowReport(s)?.work?.velaris?.find(r=>r.job===job);}catch(error){return null;}
+    if(!row)return null;
+    const effort=row.effort,mood=effort>=1300?'scorte scarse: lavora a pieno ritmo':effort>=1050?'scorte sotto l’obiettivo: lavora con più impegno':effort<=300?'scorte abbondanti: rallenta la produzione':'scorte nella norma';
+    return {job,group:row.name,workers:row.workers,effort,text:row.name+' di Velaris ('+row.workers+') · '+mood};
+  }
   function expose(s,o){
     const {p,plan,status,point}=o;
     const recall=memories(s,p.id);
@@ -591,7 +603,7 @@
       activity:status.activity,home:plan?.home.name||'Velaris',work:plan?.work.name||p.profession,
       schedule:plan?.schedule.map(x=>({at:clockLabel(x.at),label:x.label,where:x.point.name}))||[],
       memories:recall,trust:recall.reduce((sum,m)=>sum+(m.kind==='gift'?2:1),0),
-      region:point?s.region:null,point,moving:!!status.moving};
+      trade:tradeLink(s,p.profession),region:point?s.region:null,point,moving:!!status.moving};
   }
   function selectedView(s,id,local){
     const existing=local.find(x=>x.p.id===id);
