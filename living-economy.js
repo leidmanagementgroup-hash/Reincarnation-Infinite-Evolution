@@ -95,7 +95,7 @@
     calamities:{
       fire:{name:'Incendio',weight:3,weeks:2,stock:150,cash:50,production:{all:850}},
       flood:{name:'Alluvione',weight:2,weeks:3,stockGoods:{grain:500,seeds:500,bread:500},production:{farm:400,pasture:600}},
-      drought:{name:'Siccità',weight:2,weeks:6,production:{farm:200,herbary:400,pasture:500,well:500}},
+      drought:{name:'Siccità',weight:2,weeks:8,production:{farm:120,herbary:300,pasture:500,well:400}},
       plague:{name:'Epidemia',weight:2,weeks:4,production:{all:600},demand:{potion:2000}},
       quake:{name:'Terremoto',weight:1,weeks:3,stock:150,cash:20,production:{mine:500,workshop:700}}
     },

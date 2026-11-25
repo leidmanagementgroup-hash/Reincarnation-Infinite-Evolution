@@ -2,6 +2,17 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-25] PERF-005: residenti autonomi seconda fase, economia viva sostenibile, simulazioni a 100 anni — Claude
+Branch `claude/perf-005` (economia: commit `6ef041b`). File: `world-population.js`, `tests/verifica-popolazione.cjs`, `living-economy.js`, `tests/verifica-economia-viva.cjs`, `tests/verifica-mondo-livelli.cjs`, `tests/simulazione-lunga.cjs` (nuovo), `RESIDENTI_AUTONOMI.md`, `ECONOMIA_VIVA.md`, `SIMULATION_LOD.md`, `PROGRESS.md`. Moduli **in ombra**: `Reincarnation.html`, `engine.js` e `build.py` invariati.
+### Corretto (dopo due revisioni indipendenti, che avevano trovato 12 difetti nei residenti e 8 nell'economia, con 25 mutazioni su 47 non rilevate)
+- Residenti (schema 2): salvataggi validi rifiutati, importi enormi che azzeravano il mondo, stirpi iniziali sbagliate, minori al lavoro, fratelli sposati, famiglie incoerenti, recupero con segnali sbagliati, dipendenza dall'ordine, costo quadratico. Biologia configurabile per 44 stirpi in anni da 48 giorni (umani adulti a 18), lutto e seconde nozze, famiglie che migrano, fondazioni; passo divisibile (RISK-014), salvataggio compatto (RISK-015), scelte forzate dal 38,9 % allo 0,3 % (RISK-016).
+- Economia: secondo caricamento che azzerava il mondo, famiglie prosciugate, carestie e crisi croniche, credito, attività fantasma, vantaggio alfabetico; segnale del lavoro; `exchange` idempotente non collegato. Siccità resa più pericolosa (8 settimane, raccolto al 12 %) perché carestie e crisi quasi sparivano.
+- Residenti ed economia con lo stesso `maxChunks`: in un'assenza oltre dieci anni i due moduli non si alternavano (prova 8 di `verifica-mondo-livelli`, vista fallire prima).
+### Verifica
+- `verifica-popolazione` 65/65, `verifica-economia-viva` 48/48, `verifica-mondo-livelli` 8/8 (conservazione esatta con le spese delle spedizioni). `simulazione-lunga`: 15 mondi su 15 (3 scenari, 5 semi) rispettano tutte le soglie a 30 e 90 giorni, 1, 5, 10, 50 e 100 anni; prima della correzione 8 violate in 4 mondi base e piccoli. Un colpo da guerra, carestia ed epidemia toglie il 64 % a una città, che impiega circa un secolo a riprendersi (nessun rimpiazzo istantaneo: correlazione nascite/morti −0,16). Banco di accettazione dell'economia con i residenti nuovi: 10/10 (R e G).
+- Trasparenza: nel banco lungo ho corretto tre errori miei (identificatori delle calamità inventati, orizzonte «1 anno» dopo «90 giorni», morti totali al posto della mortalità per abitante nel confronto del pericolo, fattore 1,1 invariato). Nel banco di accettazione le stanze interne erano passate come luoghi selvaggi e venivano colonizzate.
+- Non riuscito: 50 000 record in un solo luogo (picco di 79 ms). Non verificato: moduli in ombra in Edge, partita giocata a mano.
+
 ## [2026-11-25] Rilievi della revisione ECC su conflitti e orchestratore — Claude
 Branch `claude/perf-005`, commit `52e88b3`. File: `npc-conflicts.js`, `world-sim.js`, `tests/verifica-mortalita.cjs`, `tests/verifica-continuita.cjs`, `tests/verifica-world-sim.cjs`, `Reincarnation.html`.
 ### Corretto

@@ -20,7 +20,8 @@ const opt = (n, d) => { const i = args.indexOf('--' + n); return i >= 0 ? args[i
 const seeds = opt('seeds', '19425,7,555,2024,77').split(',').map(Number), scale = Number(opt('scale', '1')), outFile = opt('out', '');
 const scenarios = opt('scenarios', 'base,piccolo,duro').split(',');
 const root = path.resolve(__dirname, '..'), WEEK = 10080, DAY = 1440, YEAR = 48 * DAY;
-const HORIZONS = [['30 giorni', 30 * DAY], ['90 giorni', 90 * DAY], ['1 anno', YEAR], ['5 anni', 5 * YEAR], ['10 anni', 10 * YEAR], ['50 anni', 50 * YEAR], ['100 anni', 100 * YEAR]];
+// L'anno di calendario (48 giorni) viene prima dei 90 giorni.
+const HORIZONS = [['30 giorni', 30 * DAY], ['1 anno', YEAR], ['90 giorni', 90 * DAY],['5 anni', 5 * YEAR], ['10 anni', 10 * YEAR], ['50 anni', 50 * YEAR], ['100 anni', 100 * YEAR]];
 const big = v => BigInt(v || 0);
 
 function context() {
@@ -45,7 +46,7 @@ function places(kind) {
 // Scenario duro: guerra per 12 settimane ogni 5 anni in un continente a turno; una calamità ogni 2 anni in un luogo a turno.
 const hard = list => { const inhabited = list.filter(p => p.population), conts = [...new Set(list.map(p => p.continent))]; return {
   war: (c, w) => w % 34 < 12 && conts[Math.floor(w / 34) % conts.length] === c ? true : undefined,
-  disaster: (id, w) => w % 14 === 3 && inhabited[Math.floor(w / 14) % inhabited.length].id === id ? ['siccita', 'epidemia', 'alluvione'][Math.floor(w / 14) % 3] : undefined }; };
+  disaster: (id, w) => w % 14 === 3 && inhabited[Math.floor(w / 14) % inhabited.length].id === id ? ['drought', 'plague', 'flood'][Math.floor(w / 14) % 3] : undefined }; };
 const gini = v => { const a = v.map(Number).sort((x, y) => x - y), n = a.length, sum = a.reduce((x, y) => x + y, 0); return n && sum ? a.reduce((g, x, i) => g + (2 * (i + 1) - n - 1) * x, 0) / (n * sum) : 0; };
 
 const report = { seeds, scale, rows: [], problems: [] };
@@ -81,7 +82,9 @@ for (const kind of scenarios) for (const seed of seeds) {
       if (kind !== 'duro') bad(row.mortalityPerYear >= .5 && row.mortalityPerYear <= 6, `mortalità annua ${row.mortalityPerYear} %`);
       if (kind === 'duro') {
         const twin = report.rows.find(r => r.scenario === 'base' && r.seed === seed && r.horizon === label);
-        if (twin) bad(row.deaths >= twin.deaths * 1.1, `guerre e calamità non pericolose: ${row.deaths} morti contro ${twin.deaths} del base`);
+        // Si confronta la mortalità per abitante: un mondo più pericoloso è più piccolo e ha meno morti naturali (il conteggio
+        // assoluto, usato nella prima stesura, sottostimava il pericolo). Il fattore 1,1 non cambia.
+        if (twin) bad(row.mortalityPerYear >= twin.mortalityPerYear * 1.1, `guerre e calamità non pericolose: mortalità ${row.mortalityPerYear} % contro ${twin.mortalityPerYear} %`);
         bad(row.faminePct >= .5, `nessuna carestia nello scenario duro (${row.faminePct} %)`);
       }
       bad(row.moneyPct >= 50&& row.moneyPct <= 400, `moneta al ${row.moneyPct} %`); bad(row.priceIndex >= 500 && row.priceIndex <= 2000, `indice dei prezzi ${row.priceIndex}`); bad(row.householdPct >= 10, `famiglie col ${row.householdPct} % della moneta`);

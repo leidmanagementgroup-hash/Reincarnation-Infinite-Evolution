@@ -123,3 +123,73 @@ ricchezza iniziale pro capite 800/1500/2500/4000 Scintille; distribuzione inizia
 - Economia: le prove del modulo usano uno stub; la prova con `living-economy` vera è `tests/verifica-mondo-livelli.cjs` (7/7). Segnali non validi → neutri.
 - Solo le 8 stirpi di `ContinentalBiology` (non le 44 del gioco); nomi da sillabe; testi al maschile generico.
 - `restore` conserva i luoghi spariti dal mondo; limiti tecnici: 65 535 luoghi, serie a 32 bit.
+
+---
+
+# Seconda fase (2026-11-25): riscrittura dopo la revisione indipendente
+
+> Le sezioni precedenti descrivono la prima stesura (schema 1), che la revisione ha trovato difettosa (12 difetti, 10 mutazioni su 16 non rilevate). Dove differiscono vale quanto segue. Prove: 65/65. Il coordinatore ha poi allineato `maxChunks` a quello dell'economia e adattato `tests/verifica-mondo-livelli.cjs` (8/8).
+
+## F2. Soglie fissate PRIMA di scrivere il codice e di misurare (non modificate)
+- S1 Neutro, 100 anni di calendario (686 settimane), luogo isolato da 400 di una sola stirpe, 44 stirpi × 2 semi: finale 70–115 %
+  della capienza, mai oltre 125 %. — **Esito: 92–110 %.**
+- S2 Villaggio isolato da 60, 100 anni: mai sotto 20 (8 stirpi base). — **Minimo 52.**
+- S3 Umani, città 5000: un anno (7 sett.) di carestia 1000 uccide 8–25 %, di guerra 2–12 %, 4 settimane di epidemia 3–15 %; dopo
+  2 anni < 97 % di prima; dopo 50 anni ≥ 80 %. — **18,4 %, 3,7 %, 5,8 % in più del neutro; recupero ≥ 100 %.**
+- S4 Scelte forzate ≤ 35 % in un luogo da 500; nessun tipo > 60 %. — **Prima (v1) 38,9 % (matrimonio 60, spedizione 55, migrazione 48);
+  dopo 0,3 % (massimo: migrazione 3 %).**
+- S5 55 000 record vivi ≤ 2,5 MB, appena materializzati e dopo 100 anni; righe di morti 0. — **1,48 MB; dopo 100 anni 2,58 MB per
+  58 978 vivi = 2,41 MB per 55 000. Margine stretto.**
+- S6 Parte più lunga a budget 1 ms: massimo ≤ 16 ms, p99 ≤ 4 ms. — **Rispettata** per 100 000 in coorti (1,17 ms), 10 000 record in 20
+  luoghi (1,46), 50 000 in 100 luoghi (3,0), 10 000 in UN luogo (4,1; p99 3,6). **NON rispettata per 50 000 in un solo luogo (79 ms, p99 46).**
+- S7 Consanguinei sposati 0; ripiego «adozione» ≤ 1 % dei matrimoni; minori separati ≤ 15 %. — **0; 0/858; 0 su 25.** Nei mondi casuali del
+  fuzz (luoghi da pochi abitanti e molte stirpi) il ripiego è ~1–1,5 % (117/8011): fuori dallo scenario della soglia, dichiarato.
+- S8 Bottino netto in 100 anni ≤ 5 % della moneta. — **1,1 %.**
+
+## F2. Cosa cambia rispetto alla v1
+1. **Due strati.** Aggregato (autorità): per luogo e stirpe `h` (istogramma d'età) e `c` (8 classi: adulto/anziano × celibe, sposato con
+   adulto, sposato con anziano, vedovo); per luogo `jobs` (18) e `wealth`. I record scelgono soltanto chi agisce.
+2. **Equivalenza sui margini, non più per cella congiunta (stirpe × fascia × mestiere × coniugato).** Motivo tecnico: se il mestiere sta nella
+   cella, chi agisce è quasi imposto (celle da 1–2 persone) e ogni scelta libera cambierebbe lo stato delle regole. I margini sono lo stato
+   sufficiente: nessuna regola legge altro e nessuna legge i record (generatori separati `ar`/`rr`). Dimostrazione: per costruzione +
+   `audit` (proiezione esatta) + prove 3, 3b (12 mondi × 200 settimane × 4 piani) + fuzz esterno 39 mondi × 300–400 settimane: 0 rotture.
+   `cells()` restituisce i margini, quindi l'impronta di `verifica-mondo-livelli` resta valida.
+3. **Mestieri.** Lo strato aggregato sposta i posti; una volta a settimana i record si riallineano: chi subentra lo decide l'utilità fra tutti
+   i lavoratori dei mestieri in eccesso.
+4. **Ricchezza.** `wealth` del luogo è l'autorità; la cassa è derivata (wealth − record). `transfer` è immediato ed esatto sull'aggregato; ai
+   record arriva all'inizio del passo seguente (importi in sospeso `due`, salvati).
+5. **Età.** Bambini: fascia esatta dalla nascita su griglia assoluta, mai adulti in anticipo (umani 18,6–19,3 anni). Adulti e anziani:
+   istogramma del luogo; vanno in pensione i più vecchi della classe.
+6. **Matrimoni** fra celibi della stessa stirpe senza consanguinei né rivali; **lutto** poi nuova disponibilità; **famiglie** che migrano coi figli;
+   **fondazioni/ripopolamento** (luogo adatto con < 12 abitanti, senza crisi; gruppo di una stirpe da un luogo collegato ≥ 80 abitanti).
+   Nei luoghi misti il coniuge anonimo di un residente noto diventa a sua volta noto.
+7. **Azioni personali** (amicizia, corteggiamento, rivalità, aiuto, riconciliazione, progetto): nessun effetto sui margini, contano nelle utilità
+   (matrimonio, migrazione, spedizione, mestiere). Legami con segno −60…60.
+8. **Passo divisibile**: generatore; `resolve` restituisce `false` quando `info.due()`. A metà settimana `serialize`, `materialize`, `transfer`,
+   `influence`, `know` completano prima la settimana (segnali congelati): nulla si perde. Le viste non la completano.
+9. **Settimane arretrate** (cursore avanti): segnali neutri, oppure `env` come funzione della settimana.
+10. **Salvataggio**: record per luogo in base64 con controllo; riga dei morti liberata; nomi e tratti ricavati dall'identità; bisogni ricalcolati.
+    Memoria/legami: 2/3 per i comuni, 4/4 notabili, 8/6 conosciuti o influenzati. Lapidi (≤ 2000) solo per notabili e per chi è legato a un
+    conosciuto. `person(id)` di un morto comune restituisce `null` (il nome resta leggibile nei ricordi altrui).
+    Guasti: si ripara il campo o il singolo luogo (torna aggregato con le stesse persone, nuove identità), con `pop.note`.
+11. **Segnali** `labor` (quote × 0,25…2, spostamento 4 % a settimana dello scarto) e `totals.upkeep` (viveri ≈ bottino atteso).
+
+## F2. Integrazione (per il coordinatore)
+- `tests/verifica-mondo-livelli.cjs`: le prove 1 e 5 richiedono `… + loot − upkeep` (provato in copia: 7/7).
+- Passare `kind: 'interior'` per gli interni (la prova 7 li passa come `wild`: verrebbero colonizzati).
+- `places` accetta `lineages: {id: peso}` (max 12 per luogo) e `capacity`. `configureBiology(tabella)` prima di create/restore.
+- `residents().wealth` è quello di inizio settimana fino al passo seguente.
+- Schema 1 non si migra (era in ombra): ricreato dal seme con nota.
+
+## F2. Parametri provvisori (da approvare)
+Tabella `TABLE` (44 stirpi: adulta, anziana, durata, figli per coppia, sopravvivenza infantile, origine). Carestia 2,5 %/sett. a scarsità 1000
+(quadratica sopra 200; bambini ×1,3, anziani ×1,5); guerra 0,7 %/sett. adulti, 0,35 % gli altri; calamità 1,2 %/sett. (×1,4 bambini, ×1,8 anziani).
+Nascite: piene sotto 75 % dell'affollamento, zero a 125 % (metà luogo, metà quota della stirpe). Guerra perenne → declino: voluto.
+
+## F2. Limiti noti
+- Età dei bambini non conosciuti approssimata: quando una famiglia migra, alcuni bambini si spostano di una fascia (Lk, ~0,9 anni umani).
+- Pensionamenti umani 53–92 anni (mediana 60), morti fino a 104; 2,3 % degli adulti lavora oltre 1,15 × l'età anziana.
+- Coppie lontane d'età possibili (p95 40 anni umani, vedovi compresi).
+- Comunità con meno di 20 coppie della stirpe: migrano solo coppie senza figli al seguito.
+- Nascite miste solo nella stessa stirpe; nessun matrimonio fra stirpi.
+- `stats.choices` e `decisions` sono diagnostica: non si salvano.

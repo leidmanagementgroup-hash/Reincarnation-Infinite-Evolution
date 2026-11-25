@@ -1,90 +1,77 @@
 (() => {
   'use strict';
-  /* Residenti autonomi del mondo (PERF-005, fondamenta, IN OMBRA: non è nella build né collegato al motore).
-     Due rappresentazioni della stessa popolazione:
-     - coorti per i luoghi non materializzati: conteggi interi per cella (luogo, stirpe, fascia d'età, professione, coniugato)
-       e una cassa del luogo in BigInt di Scintille;
-     - record individuali (colonne compatte in typed array, ricchezza in BigInt64Array) per i luoghi materializzati, con
-       memoria e relazioni sparse e con tetto. Identità stabili «idLuogo:n» derivate dal seme.
-     Regola d'oro (equivalenza): i QUANTI di ogni settimana (invecchiamento, morti, spedizioni, mestieri, matrimoni, nascite,
-     migrazioni) si decidono a livello di cella con conteggi, riporto intero e seme per settimana; i record scelgono soltanto
-     CHI agisce, ordinando per utilità individuale (personalità, bisogni, obiettivi, ricchezza, relazioni) con spareggio a
-     hash. Le Scintille si muovono fra luoghi solo per importi decisi dalle regole di luogo. Così materializzare un luogo
-     alla settimana 0, alla 30 o mai produce gli stessi conteggi per cella e la stessa ricchezza per luogo.
-     Passo canonico settimanale identico a ogni livello; niente Math.random né Date nella logica. */
-  const SCHEMA=1,WEEK=10080,M=1000000,MAXB=15,NL=8,NP=18,NONE=0,ADV=17,MAXW=(1n<<63n)-1n,YEAR=52.1775;
-  const LIMITS=Object.freeze({events:300,memories:8,relations:6});
-  const LINEAGES=['human','dwarf','skeleton','bear','fairy','elemental','wyvern','griffin'];
-  const LIN_NAMES=['umano','nano','scheletro','orso','fata','elementale','viverna','grifone'];
+  /* Residenti autonomi del mondo (PERF-005, IN OMBRA: non è nella build né collegato al motore).
+     Due strati della stessa popolazione:
+     - STRATO AGGREGATO, sempre presente e sempre calcolato allo stesso modo, per ogni luogo: per stirpe un istogramma d'età `h` e
+       otto classi `c` (adulto/anziano × celibe, sposato con un adulto, sposato con un anziano, vedovo); per luogo i mestieri
+       degli adulti `jobs` e la ricchezza totale `wealth` (BigInt). Tutte le regole (quanti nascono, muoiono, si sposano,
+       migrano, cambiano mestiere…) leggono e scrivono SOLO questo strato.
+     - RECORD individuali, dove il giocatore è passato: un raffinamento. A ogni evento aggregato scelgono CHI agisce fra tutti
+       quelli della stessa classe (stirpe, stadio, stato civile): mestiere, ricchezza, personalità, legami ed età restano
+       individuali. I mestieri si riallineano una volta a settimana ai posti del luogo (chi subentra lo decide l'utilità).
+     Equivalenza per costruzione: lo strato aggregato non legge mai i record, quindi materializzare un luogo prima, dopo o mai
+     produce gli stessi margini e la stessa ricchezza. `audit` verifica che i record proiettino esattamente i margini.
+     Anno di calendario = 48 giorni. Passo canonico settimanale identico a ogni livello e divisibile in parti.
+     Niente Math.random né Date nella logica. */
+  const SCHEMA=2,WEEK=10080,YW=48/7,M=1000000,NP=18,NONE=0,ADV=17,MAXW=(1n<<63n)-1n,BASE=4294967296,NOID=-1;
+  const LIMITS=Object.freeze({events:300,memories:8,relations:6,commonMemories:2,commonRelations:3,tombs:2000,bond:60});
   const PROFS=['none','farmer','herbalist','miner','carpenter','shepherd','mystic','wellkeeper','baker','alchemist',
     'smith','merchant','innkeeper','guard','scholar','healer','laborer','adventurer'];
   const PROF_NAMES=['senza lavoro','contadino','erbaiolo','minatore','falegname','pastore','cercatore di essenza','pozzaiolo',
     'fornaio','alchimista','fabbro','mercante','locandiere','guardia','studioso','guaritore','manovale','avventuriero'];
-  const KINDS=['village','town','city','capital','dungeon','wild'],SETTLE=new Set(['village','town','city','capital']);
+  const KINDS=['village','town','city','capital','dungeon','wild','interior'],SETTLE=new Set(['village','town','city','capital']);
+  const HABITABLE=new Set(['village','town','city','capital','wild']);
   const TRAITS=['bravery','ambition','sociability','wanderlust','diligence'],NEEDS=['food','safety','wealth','belonging'];
   const GOALS_L=['','family','mastery','fortune','glory','journey'],GOALS_S=['rest','eat','safety','heal','work','earn','company'];
   const GOAL_TEXT={family:'fondare una famiglia',mastery:'diventare maestro nel mestiere',fortune:'fare fortuna',glory:'la gloria delle spedizioni',journey:'vedere il mondo'};
   const CAUSES=['','vecchiaia','malattia','spedizione','calamità','guerra','fame'];
-  /* PARAMETRI BIOLOGICI. adultDays viene dal gioco (ContinentalBiology; per gli umani coincide con la regola dei 6570 giorni di
-     society.js). Durata della vita adulta e della vecchiaia (anni) e fertilità (nascite per coppia all'anno) sono PROVVISORIE:
-     da approvare dall'utente. */
-  const FALLBACK_ADULT={human:6570,dwarf:8400,skeleton:3,bear:280,fairy:820,elemental:10,wyvern:350,griffin:390};
-  const PROVISIONAL={human:[42,16,.12],dwarf:[100,40,.035],skeleton:[60,20,.02],bear:[18,6,.35],fairy:[50,20,.06],
-    elemental:[80,20,.02],wyvern:[40,15,.1],griffin:[40,15,.1]};
-  const biology={};
-  for(const id of LINEAGES){
-    const row=window.ContinentalBiology&&window.ContinentalBiology[id];
-    const game=Array.isArray(row)&&Number.isFinite(row[1])&&row[1]>=0&&row[1]<=1e6;
-    const [adultYears,elderYears,fertility]=PROVISIONAL[id];
-    biology[id]=Object.freeze({adultDays:game?row[1]:FALLBACK_ADULT[id],adultYears,elderYears,fertility,provisional:true,
-      source:game?'ContinentalBiology':'valore di riserva (uguale a ContinentalBiology)'});
-  }
-  Object.freeze(biology);
-  /* Fasce d'età per stirpe: l'infanzia è divisa in B ≤ 10 secchi di Lb settimane che avanzano tutti insieme su una griglia
-     assoluta (età esatta a ±Lb); età adulta in tre fasce (A1–A3) e vecchiaia in due (E1–E2) con transizioni a riporto. */
-  const GEO=LINEAGES.map(id=>{
-    const b=biology[id],cw=b.adultDays/7,Lb=Math.max(1,Math.ceil(cw/10)),B=Math.min(10,Math.max(1,Math.round(cw/Lb)));
-    return {Lb,B,adultW:Math.max(3,b.adultYears*YEAR),elderW:Math.max(2,b.elderYears*YEAR),fert:b.fertility};
-  });
-  const KEYS=NL*MAXB*NP*2;
-  const KEY=(l,b,p,w)=>((l*MAXB+b)*NP+p)*2+w;
-  const kLin=new Uint8Array(KEYS),kBand=new Uint8Array(KEYS),kProf=new Uint8Array(KEYS),kWed=new Uint8Array(KEYS),kStage=new Int8Array(KEYS);
-  for(let k=0;k<KEYS;k++){
-    const w=k%2,p=((k-w)/2)%NP,b=(((k-w)/2-p)/NP)%MAXB,l=Math.floor(k/(2*NP*MAXB)),g=GEO[l];
-    kLin[k]=l;kBand[k]=b;kProf[k]=p;kWed[k]=w;
-    const st=b<g.B?0:b<g.B+3?1:b<g.B+5?2:-1;
-    // celle valide: bambini senza professione né coniuge, anziani senza professione
-    kStage[k]=st<0||st===0&&(p||w)||st===2&&p?-1:st;
-  }
-  const bandName=(l,b)=>{const B=GEO[l].B;return b<B?'c'+b:['A1','A2','A3','E1','E2'][b-B];};
-  const keyName=k=>LINEAGES[kLin[k]]+'/'+bandName(kLin[k],kBand[k])+'/'+PROFS[kProf[k]]+'/'+kWed[k];
-  // Codici dei meccanismi per i generatori con seme.
-  const C={AGE:1,DEATH:2,DEPART:3,OUTCOME:4,CAREER:5,MARRY:6,BIRTH:7,MIGRATE:8,DEST:9,SPLIT:10,SOCIAL:11,MINT:12,PICK:13,
-    PHASE:14,TRAIT:15,GOAL:16,PLACE:17,NAME:18,PARENT:19,LIN:20};
-  /* Professioni attese per tipo di luogo (millesimi, professioni 1–16); disoccupati e avventurieri dipendono dai segnali. */
-  const SHARES={village:[0,300,80,40,60,110,10,40,60,10,30,30,20,40,10,20,90],town:[0,150,60,50,80,50,20,40,80,30,60,90,50,60,30,40,110],
-    city:[0,60,50,30,90,20,30,40,90,50,80,140,70,90,60,50,50]};
-  const sharesOf=kind=>SHARES[kind==='capital'?'city':SHARES[kind]?kind:'village'];
-  const PER_CAPITA={village:800,town:1500,city:2500,capital:4000,dungeon:300,wild:300};
-  const TILT={human:[0,5,0,0,0],dwarf:[5,0,0,-5,12],skeleton:[0,0,-10,0,8],bear:[10,0,0,-5,0],fairy:[0,0,12,8,0],
-    elemental:[0,8,0,0,0],wyvern:[10,0,0,12,0],griffin:[6,0,0,12,0]};
+  const STAGES=['bambino','adulto','anziano'];
+
+  /* ——— BIOLOGIA (tabella unica, configurabile con configureBiology; PROVVISORIA, da approvare dall'utente) ———
+     Anni di calendario (48 giorni): età adulta, età anziana, durata tipica; figli per coppia in tutta la vita (senza
+     affollamento), quota di piccoli che arriva all'età adulta, modo di venire al mondo.
+     Modi: nascita e schiusa vogliono una coppia; scissione e germinazione un solo genitore; risveglio, manifestazione,
+     forgiatura e rinascita nessuno (per queste i «figli per coppia» sono le venute al mondo per ogni due adulti). */
+  const TABLE={
+    slime:[1,12,16,5,.8,'scissione'],goblin:[8,32,42,6,.7,'nascita'],wolf:[2,13,17,6.5,.65,'nascita'],elf:[45,280,360,4,.97,'nascita'],
+    spirit:[3,150,200,3.8,.95,'manifestazione'],vampire:[30,320,420,4,.96,'nascita'],demon:[12,120,160,4.6,.9,'nascita'],
+    drake:[20,160,220,5,.85,'schiusa'],secret:[1,60,80,3.8,.95,'manifestazione'],kobold:[7,30,40,6,.72,'schiusa'],
+    orc:[14,45,58,5.6,.78,'nascita'],gnome:[22,110,145,4.4,.93,'nascita'],satyr:[13,60,80,4.8,.88,'nascita'],hare:[1,6,9,9,.5,'nascita'],
+    fungus:[.5,18,24,5,.75,'germinazione'],fox:[1.5,9,12,7,.62,'nascita'],terrapin:[9,110,150,5,.82,'schiusa'],dryad:[25,300,420,4,.95,'germinazione'],
+    triton:[14,70,92,5,.84,'schiusa'],raven:[2,22,30,5.6,.74,'schiusa'],salamander:[2,24,32,6,.7,'schiusa'],scarabkin:[1.2,8,11,8,.55,'schiusa'],
+    spider:[1,7,10,9,.48,'schiusa'],mimic:[2,90,130,3.9,.92,'risveglio'],troll:[16,95,130,4.6,.9,'nascita'],harpy:[6,38,50,5.4,.8,'schiusa'],
+    golem:[.5,140,200,3.6,.98,'forgiatura'],frostkin:[11,55,72,5,.86,'nascita'],sylph:[2,80,110,3.9,.93,'manifestazione'],
+    naga:[12,85,115,5,.86,'schiusa'],mantis:[.8,5,7,9.5,.46,'schiusa'],minotaur:[12,50,66,5,.86,'nascita'],djinn:[5,220,300,3.7,.97,'manifestazione'],
+    chimera:[5,40,54,5.2,.82,'nascita'],phoenix:[2,100,140,3.7,.96,'rinascita'],leviathan:[30,260,360,4.6,.9,'nascita'],
+    human:[18,60,76,4.8,.9,'nascita'],dwarf:[28,180,235,4.4,.94,'nascita'],skeleton:[.5,110,150,3.7,.96,'risveglio'],bear:[4,22,29,5.8,.75,'nascita'],
+    fairy:[8,90,120,4.6,.9,'nascita'],elemental:[1,85,120,3.8,.94,'manifestazione'],wyvern:[12,60,80,5,.84,'schiusa'],griffin:[7,48,64,5,.84,'schiusa']
+  };
+  const NAMES={slime:'slime',goblin:'goblin',wolf:'lupo',elf:'elfo',spirit:'spirito',vampire:'vampiro',demon:'demone',drake:'draconide',secret:'eclisse',
+    kobold:'coboldo',orc:'orco',gnome:'gnomo',satyr:'fauno',hare:'leporide',fungus:'micoide',fox:'volpe',terrapin:'testuggine',dryad:'driade',triton:'tritone',
+    raven:'corvide',salamander:'salamandra',scarabkin:'scarabide',spider:'aracnide',mimic:'mimico',troll:'troll',harpy:'arpia',golem:'golem',frostkin:'yeti',
+    sylph:'silfide',naga:'naga',mantis:'mantide',minotaur:'minotauro',djinn:'genio',chimera:'chimera',phoenix:'fenice',leviathan:'leviatano',human:'umano',
+    dwarf:'nano',skeleton:'scheletro',bear:'orso',fairy:'fata',elemental:'elementale',wyvern:'viverna',griffin:'grifone'};
+  const TILT={human:[0,5,0,0,0],dwarf:[5,0,0,-5,12],skeleton:[0,0,-10,0,8],bear:[10,0,0,-5,0],fairy:[0,0,12,8,0],elemental:[0,8,0,0,0],wyvern:[10,0,0,12,0],griffin:[6,0,0,12,0]};
+  const ORIGINS={nascita:2,schiusa:2,scissione:1,germinazione:1,risveglio:0,manifestazione:0,forgiatura:0,rinascita:0};
+  const DEFAULT_ROW=[16,55,70,4.8,.88,'nascita'];
+  // Stirpi base del miscuglio predefinito (quelle dei cinque continenti); i luoghi possono dichiararne altre con `lineages`.
+  const COMMON=['human','dwarf','skeleton','bear','fairy','elemental','wyvern','griffin'];
 
   const object=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
   const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
   const clamp=(x,a,b)=>x<a?a:x>b?b:x;
   const intIn=(x,a,b)=>Number.isInteger(x)&&x>=a&&x<=b;
-  const canonical=v=>typeof v==='string'&&v.length<=40&&/^(0|[1-9][0-9]*)$/.test(v);
+  const canonical=v=>typeof v==='string'&&v.length<=100000&&/^(0|[1-9][0-9]*)$/.test(v);
   const safeId=id=>typeof id==='string'&&/^[a-z][a-z0-9._-]{0,63}$/i.test(id)&&!['__proto__','constructor','prototype'].includes(id);
+  const linId=id=>typeof id==='string'&&/^[a-z][a-z0-9_-]{0,31}$/i.test(id)&&!['__proto__','constructor','prototype'].includes(id);
   function mix(h){h^=h>>>16;h=Math.imul(h,0x7feb352d);h^=h>>>15;h=Math.imul(h,0x846ca68b);h^=h>>>16;return h>>>0;}
   function hash(a,b,c,d,e){let h=mix((a|0)^0x9e3779b9);h=mix(h^(b|0));h=mix(h^(c|0));h=mix(h^(d|0));return mix(h^(e|0));}
   const u01=h=>h/4294967296;
   function fnv(s){let h=2166136261;for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619);return h>>>0;}
-  const big=x=>typeof x==='bigint'?x:0n;
   function amount(v){ // importo valido ≥ 0 (BigInt, intero sicuro o stringa decimale), altrimenti 0
     if(typeof v==='bigint')return v>0n?v:0n;
     if(Number.isSafeInteger(v))return v>0?BigInt(v):0n;
-    if(canonical(v))return BigInt(v);
-    return 0n;
+    return canonical(v)?BigInt(v):0n;
   }
   function apportion(total,weights,tie){ // ripartizione esatta a resti maggiori, spareggi con seme
     const S=weights.reduce((a,b)=>a+b,0),out=weights.map(()=>0);
@@ -97,71 +84,215 @@
     return out;
   }
 
+  /* Geometria delle fasce d'età (settimane). Infanzia: secchi di Lk settimane su una griglia assoluta (w % Lk), uguali ovunque:
+     la fascia di un bambino è funzione esatta della sua nascita e nessuno diventa adulto prima del tempo. Adulti e anziani:
+     secchi più larghi, sfalsati per stirpe; l'ultimo secchio degli anziani non ha uscita (solo la morte). */
+  function geometry(b,id){
+    const cw=Math.max(1,Math.ceil(b.adult*YW-1e-9)),Lk=Math.max(1,Math.ceil((cw-1)/21)),nK=Math.ceil((cw-1)/Lk)+1;
+    const aW=Math.max(2,(b.elder-b.adult)*YW),La=Math.max(1,Math.ceil(aW/19)),nA=Math.ceil(aW/La)+1;
+    const eW=Math.max(1,(b.life-b.elder)*YW),Le=Math.max(1,Math.ceil(eW/4)),nE=7;
+    const h=fnv(id),g={Lk,nK,La,nA,Le,nE,oA:h%La,oE:(h>>>8)%Le,n:nK+nA+nE,a0:nK*Lk,e0:nK*Lk+nA*La,adultW:aW,
+      kidRisk:Math.round(-Math.log(b.childSurvival)/(nK*Lk)*M),adultRisk:Math.round(.1/aW*M),marry:4.5/aW*M,mourn:Math.max(4,b.life*YW*.025)};
+    g.elderRisk=[.05,.1,.25,.55,1.1,1.8,3].map(x=>Math.min(900000,Math.round(x/Le*M)));
+    g.fertile=[];for(let j=0;j<nA;j++){const x=(j+.5)/nA;g.fertile.push(x<.6?1:x<.8?.5:.05);}
+    g.parents=ORIGINS[b.origin];
+    // Nascite a settimana: per coppia adulta (con peso d'età) oppure per adulto (stirpi senza coppia).
+    g.birth=g.parents===2?b.fertility/(aW*BIRTH_SPAN)*M:b.fertility/2/aW*M;
+    g.sig=[Lk,nK,La,nA,Le,nE].join();
+    return g;
+  }
+  const BIRTH_SPAN=.46;
+  const biology=Object.create(null),LIN=[],LINIX=new Map();
+  function setRow(id,row){
+    const [adult,elder,life,fertility,childSurvival,origin]=row,h=fnv(id);
+    biology[id]=Object.freeze({adult,elder,life,fertility,childSurvival,origin,parents:ORIGINS[origin],provisional:true});
+    const g=geometry(biology[id],id),tilt=TILT[id]||[0,1,2,3,4].map(t=>(mix(h+t)%21)-10);
+    if(LINIX.has(id)){const L=LIN[LINIX.get(id)];L.g=g;L.b=biology[id];return;}
+    LINIX.set(id,LIN.length);LIN.push({id,h,g,b:biology[id],tilt,name:NAMES[id]||id});
+  }
+  for(const id of Object.keys(TABLE))setRow(id,TABLE[id]);
+  // Stirpe sconosciuta: biologia predefinita, registrata al primo uso (al massimo 255 stirpi in tutto).
+  function linOf(id){
+    if(!LINIX.has(id)){if(LIN.length>=255)return LINIX.get('human');setRow(id,DEFAULT_ROW);delete biology[id];}
+    return LINIX.get(id);
+  }
+  // Nuova tabella (tutta o in parte): da chiamare prima di create/restore. Restituisce quante righe sono state accettate.
+  function configureBiology(table){
+    let n=0;
+    if(object(table))for(const [id,r] of Object.entries(table)){
+      if(!linId(id)||!object(r))continue;
+      const base=biology[id]||{};
+      const row=['adult','elder','life','fertility','childSurvival','origin'].map(k=>own(r,k)?r[k]:k==='origin'?base.origin||'nascita':base[k]);
+      const [a,e,l,f,c,o]=row;
+      if(![a,e,l,f,c].every(Number.isFinite)||!(a>0&&e>a&&l>e&&l<=10000&&f>0&&f<=100&&c>0&&c<=1)||!own(ORIGINS,o)||!LINIX.has(id)&&LIN.length>=255)continue;
+      setRow(id,row);n++;
+    }
+    return n;
+  }
+  const byLin=(a,b)=>LIN[a].id<LIN[b].id?-1:1;
+
+  // Codici dei meccanismi per i generatori con seme.
+  const C={AGE:1,DEATH:2,DEPART:3,OUTCOME:4,CAREER:5,MARRY:6,BIRTH:7,MIGRATE:8,DEST:9,SPLIT:10,SOCIAL:11,MINT:12,PICK:13,
+    PHASE:14,TRAIT:15,GOAL:16,PLACE:17,NAME:18,PARENT:19,FOUND:20,FAMILY:21,MOURN:22,JOB:23};
+  const SHARES={village:[0,300,80,40,60,110,10,40,60,10,30,30,20,40,10,20,90],town:[0,150,60,50,80,50,20,40,80,30,60,90,50,60,30,40,110],
+    city:[0,60,50,30,90,20,30,40,90,50,80,140,70,90,60,50,50]};
+  const sharesOf=kind=>SHARES[kind==='capital'?'city':SHARES[kind]?kind:'village'];
+  const PER_CAPITA={village:800,town:1500,city:2500,capital:4000,dungeon:300,wild:300,interior:300};
+  const ROOM={village:120,town:200,city:300,capital:400,wild:60,dungeon:0,interior:0}; // capienza dei luoghi nati disabitati
+  // Classi: 0–3 adulti (celibe, sposato con un adulto, sposato con un anziano, vedovo), 4–7 anziani (idem).
+  const A0=0,AA=1,AE=2,AW=3,E0=4,EA=5,EE=6,EW=7;
+
   // ——— Record individuali in colonne ———
-  const COLS=[['place',Uint16Array,1],['origin',Uint16Array,1],['serial',Uint32Array,1],['hid',Uint32Array,1],['lin',Uint8Array,1],
-    ['band',Uint8Array,1],['prof',Uint8Array,1],['wed',Uint8Array,1],['alive',Uint8Array,1],['notable',Uint8Array,1],['cause',Uint8Array,1],
-    ['wounds',Uint8Array,1],['goalS',Uint8Array,1],['goalL',Uint8Array,1],['moves',Uint8Array,1],['born',Int32Array,1],['died',Int32Array,1],
-    ['spouse',Int32Array,1],['pa',Int32Array,1],['pb',Int32Array,1],['xp',Uint32Array,1],['kids',Uint16Array,1],
-    ['traits',Uint8Array,5],['needs',Uint8Array,4],['wealth',BigInt64Array,1]];
+  const COLS=[['place',Uint16Array,1],['origin',Uint16Array,1],['serial',Uint32Array,1],['hid',Uint32Array,1],['lin',Uint8Array,1],['stage',Uint8Array,1],
+    ['cls',Uint8Array,1],['prof',Uint8Array,1],['flags',Uint8Array,1],['wounds',Uint8Array,1],['goalL',Uint8Array,1],['moves',Uint8Array,1],['proj',Uint8Array,1],
+    ['kids',Uint8Array,1],['alive',Uint8Array,1],['born',Int32Array,1],['since',Int32Array,1],['xp',Uint32Array,1],['spouse',Float64Array,1],['pa',Float64Array,1],
+    ['pb',Float64Array,1],['traits',Uint8Array,5],['needs',Uint8Array,4],['wealth',BigInt64Array,1],['gpos',Uint32Array,1],
+    ['relN',Uint8Array,1],['relU',Float64Array,6],['relS',Int8Array,6],['memN',Uint8Array,1],['memK',Uint8Array,8],['memW',Int32Array,8],['memA',Float64Array,8]];
+  const NOTABLE=1,KNOWN=2,SWAYED=4; // bandierine: notabile, conosciuto dal giocatore, influenzato
   function makeRecords(cap=64){const R={n:0,cap};for(const [k,T,m] of COLS)R[k]=new T(cap*m);return R;}
-  function grow(R,need=R.cap*2){const cap=Math.max(need,R.cap*2);for(const [k,T,m] of COLS){const a=new T(cap*m);a.set(R[k]);R[k]=a;}R.cap=cap;}
-  const keyOf=(R,i)=>KEY(R.lin[i],R.band[i],R.prof[i],R.wed[i]?1:0);
-  const idOf=(pop,i)=>pop.places[pop.R.origin[i]].id+':'+pop.R.serial[i];
+  function grow(R){const cap=R.cap*2;for(const [k,T,m] of COLS){const a=new T(cap*m);a.set(R[k]);R[k]=a;}R.cap=cap;}
   const T=(R,i,t)=>R.traits[i*5+t],N=(R,i,t)=>R.needs[i*4+t];
+  const uidOf=(R,i)=>R.origin[i]*BASE+R.serial[i];
+  const rowOf=(pop,uid)=>{if(uid<0)return -1;const i=pop.idMap.get(uid);return i===undefined?-1:i;};
+  const idOfUid=(pop,uid)=>{const o=Math.floor(uid/BASE);return (pop.places[o]?pop.places[o].id:'?')+':'+(uid-o*BASE);};
+  const idOf=(pop,i)=>idOfUid(pop,uidOf(pop.R,i));
+  function uidFrom(pop,id){
+    if(typeof id!=='string')return NOID;
+    const m=/^(.*):(\d{1,10})$/.exec(id);
+    return m&&pop.index.has(m[1])&&Number(m[2])<BASE?pop.index.get(m[1])*BASE+Number(m[2]):NOID;
+  }
+  const hidOf=(pop,uid)=>{const o=Math.floor(uid/BASE);return hash(pop.seed,pop.places[o].h,C.MINT,uid-o*BASE,0);};
   const SYL=[['Ar','Bel','Cor','Dal','El','Fen','Gar','Il','Lor','Mar','Ner','Or','Per','Ral','Sel','Tor','Ul','Val','Zer','Ast','Bri','Cal','Dor','Eri'],
     ['a','e','i','o','ia','eo','ai','u'],['n','l','r','s','th','nd','ra','na','lo','ric','mir','vel','dor','sa','te','no']];
-  const nameOf=(pop,i)=>{const h=mix(pop.R.hid[i]^C.NAME);return SYL[0][h%24]+SYL[1][(h>>>5)%8]+SYL[2][(h>>>9)%16];};
-  const ageYears=(pop,i,w)=>Math.floor(((w-pop.R.born[i])*7/365)*10)/10;
+  const nameFrom=hid=>{const h=mix(hid^C.NAME);return SYL[0][h%24]+SYL[1][(h>>>5)%8]+SYL[2][(h>>>9)%16];};
+  const nameOf=(pop,i)=>nameFrom(pop.R.hid[i]);
+  // Il nome di chi è morto o lontano si ricava dalla sua identità: non serve conservarne il record.
+  const nameOfUid=(pop,uid)=>uid>=0&&pop.places[Math.floor(uid/BASE)]?nameFrom(hidOf(pop,uid)):'qualcuno';
+  // Ordine canonico delle persone: mai l'ordine di creazione o di visita.
+  const before=(R,i,j)=>R.hid[i]!==R.hid[j]?R.hid[i]<R.hid[j]:uidOf(R,i)<uidOf(R,j);
 
-  function placeIx(pop,id){return typeof id==='string'&&pop.index.has(id)?pop.index.get(id):-1;}
-  function addAnon(P,k,d){const v=(P.anon.get(k)||0)+d;if(v)P.anon.set(k,v);else P.anon.delete(k);}
-  function anonTotal(P){let n=0;for(const v of P.anon.values())n+=v;return n;}
-  // Ricchezza individuale con saturazione: oltre 2^63−1 l'eccedenza resta nella cassa comune del luogo (nessuna perdita).
-  function give(pop,i,amt){
-    if(amt<=0n)return;
-    const R=pop.R,room=MAXW-R.wealth[i];
-    if(amt<=room)R.wealth[i]+=amt;
-    else{R.wealth[i]=MAXW;pop.places[R.place[i]].pool+=amt-room;}
-  }
+  // Elenco del luogo (ordinato in modo canonico) e gruppi per classe (stirpe × stadio × stato civile).
+  const gkey=(l,stage,cls)=>l*16+(stage===0?0:stage===1?1+cls:5+cls);
+  const EMPTY=[];
+  const group=(P,l,stage,cls)=>P.grp.get(gkey(l,stage,cls))||EMPTY;
+  function seat(P,R,i){let a=0,b=P.list.length;while(a<b){const m=(a+b)>>1;if(before(R,P.list[m],i))a=m+1;else b=m;}return a;}
+  function joinGroup(P,R,i){const k=gkey(R.lin[i],R.stage[i],R.cls[i]);let a=P.grp.get(k);if(!a)P.grp.set(k,a=[]);R.gpos[i]=a.length;a.push(i);}
+  function leaveGroup(P,R,i){const k=gkey(R.lin[i],R.stage[i],R.cls[i]),a=P.grp.get(k),last=a.pop();if(last!==i){const p=R.gpos[i];a[p]=last;R.gpos[last]=p;}if(!a.length)P.grp.delete(k);}
+  function enter(P,R,i){P.list.splice(seat(P,R,i),0,i);joinGroup(P,R,i);P.recW+=R.wealth[i];}
+  function leave(P,R,i){P.list.splice(seat(P,R,i),1);leaveGroup(P,R,i);P.recW-=R.wealth[i];}
+  function setClass(pop,i,stage,cls){const R=pop.R,P=pop.places[R.place[i]];leaveGroup(P,R,i);R.stage[i]=stage;R.cls[i]=cls;joinGroup(P,R,i);}
+  // Ricchezza individuale: la cassa del luogo è derivata (wealth − somma dei record), quindi nessuna Scintilla si crea o si perde.
+  function setWealth(pop,i,v){const R=pop.R;if(v>MAXW)v=MAXW;if(v<0n)v=0n;pop.places[R.place[i]].recW+=v-R.wealth[i];R.wealth[i]=v;}
+  const give=(pop,i,v)=>{if(v>0n)setWealth(pop,i,pop.R.wealth[i]+v);};
   function remember(pop,i,kind,a,w){
-    let m=pop.mem.get(i);
-    if(!m)pop.mem.set(i,m=[]);
-    m.push([w,kind,a]);
-    if(m.length>LIMITS.memories)m.shift();
+    const R=pop.R,cap=R.flags[i]&(KNOWN|SWAYED)?LIMITS.memories:R.flags[i]?4:LIMITS.commonMemories,o=i*8;
+    if(R.memN[i]>=cap){const drop=R.memN[i]-cap+1;for(let k=0;k+drop<R.memN[i];k++){R.memK[o+k]=R.memK[o+k+drop];R.memW[o+k]=R.memW[o+k+drop];R.memA[o+k]=R.memA[o+k+drop];}R.memN[i]-=drop;}
+    const k=o+R.memN[i]++;R.memK[k]=kind;R.memW[k]=w;R.memA[k]=a;
   }
-  function addRel(pop,i,j,g){
-    const R=pop.R;
-    let m=pop.rel.get(i);
-    if(!m)pop.rel.set(i,m=new Map());
-    if(m.has(j)){m.set(j,Math.min(1000,m.get(j)+g));return;}
-    if(m.size>=LIMITS.relations){
+  function relAt(R,i,u){const o=i*6;for(let k=0;k<R.relN[i];k++)if(R.relU[o+k]===u)return k;return -1;}
+  const bond=(pop,i,j)=>{const R=pop.R,k=relAt(R,i,uidOf(R,j));return k<0?0:R.relS[i*6+k];};
+  function dropRel(R,i,k){const o=i*6;for(let q=k;q+1<R.relN[i];q++){R.relU[o+q]=R.relU[o+q+1];R.relS[o+q]=R.relS[o+q+1];}R.relN[i]--;}
+  function addRel(pop,i,j,g){ // legame con segno: amicizia/corteggiamento > 0, rivalità < 0
+    const R=pop.R,u=uidOf(R,j),o=i*6,cap=R.flags[i]&(KNOWN|SWAYED)?LIMITS.relations:R.flags[i]?4:LIMITS.commonRelations;
+    let k=relAt(R,i,u);
+    if(k>=0){const s=clamp(R.relS[o+k]+g,-LIMITS.bond,LIMITS.bond);if(s)R.relS[o+k]=s;else dropRel(R,i,k);return;}
+    if(R.relN[i]>=cap){
       let weak=-1,ws=Infinity;
-      for(const [o,s] of m){const v=R.alive[o]?s:-1;if(v<ws){ws=v;weak=o;}}
-      if(ws>=g+10)return; // le conoscenze deboli lasciano spazio a quelle nuove; i legami forti restano
-      m.delete(weak);
+      for(let q=0;q<R.relN[i];q++){const v=Math.abs(R.relS[o+q])+(R.relU[o+q]===R.spouse[i]?100:0);if(v<ws){ws=v;weak=q;}}
+      if(ws>=Math.abs(g)+6)return; // i legami forti restano, le conoscenze deboli lasciano spazio
+      dropRel(R,i,weak);
     }
-    m.set(j,g);
+    k=R.relN[i]++;R.relU[o+k]=u;R.relS[o+k]=clamp(g,-LIMITS.bond,LIMITS.bond);
   }
-  const bond=(pop,i,j)=>{const m=pop.rel.get(i);return m&&m.has(j)?m.get(j):0;};
+  function tie(pop,i,j,g){addRel(pop,i,j,g);addRel(pop,j,i,g);}
+  // Consanguinei: fratelli (anche per un solo genitore) e genitore-figlio.
+  function kin(R,i,j){
+    const ui=uidOf(R,i),uj=uidOf(R,j),a=R.pa[i],b=R.pb[i];
+    if(a===uj||b===uj||R.pa[j]===ui||R.pb[j]===ui)return true;
+    return /*PARENTI*/a>=0&&(a===R.pa[j]||a===R.pb[j])||b>=0&&(b===R.pa[j]||b===R.pb[j]);
+  }
   function log(pop,w,kind,P,text){
     pop.log.push({week:w,kind,place:P.id,text});
     if(pop.log.length>LIMITS.events)pop.log.splice(0,pop.log.length-LIMITS.events);
   }
   function money(v){
-    v=big(v);
-    if(v===0n)return '0 Scintille';
+    if(v<=0n)return '0 Scintille';
     const parts=[];
     for(const [f,n] of [[1000000n,'Astrali'],[10000n,'Solari'],[100n,'Lunari'],[1n,'Scintille']]){const q=v/f;if(q>0n){parts.push(q+' '+n);v-=q*f;}}
     return parts.slice(0,2).join(' e ');
   }
 
+  // ——— Strato aggregato: accesso ———
+  const kidsOf=(G,g)=>{let n=0;for(let j=0;j<g.nK;j++)n+=G.h[j];return n;};
+  const adultsOf=G=>G.c[A0]+G.c[AA]+G.c[AE]+G.c[AW];
+  const eldersOf=G=>G.c[E0]+G.c[EA]+G.c[EE]+G.c[EW];
+  function linIn(P,l,niche){ // gruppo della stirpe nel luogo (creato se manca)
+    let G=P.lin.get(l);
+    if(!G){const g=LIN[l].g;G={h:new Int32Array(g.n),c:new Int32Array(8),n:0,niche:niche||Math.max(8,Math.ceil(P.capacity*.15))};P.lin.set(l,G);P.order.push(l);P.order.sort(byLin);}
+    return G;
+  }
+  function dropLin(P,l){const G=P.lin.get(l);if(G&&G.n===0){P.lin.delete(l);P.order.splice(P.order.indexOf(l),1);}}
+  const crowdOf=(P,G)=>P.capacity<=0?9:.5*P.alive/P.capacity+.5*G.n/G.niche;
+  function recount(P){P.alive=0;for(const [l,G] of P.lin){G.n=kidsOf(G,LIN[l].g)+adultsOf(G)+eldersOf(G);P.alive+=G.n;}}
+
+  // Generatori con seme: uno per le decisioni aggregate, uno separato per la scelta fra anonimi e record.
+  const ar=(pop,P,code)=>hash(pop.seed,P.h,code,pop.w,P.aq++);
+  const rr=(pop,P,code)=>hash(pop.seed,P.h,code+100,pop.w,P.rq++);
+  function drawIx(h,weights,n=weights.length){
+    let W=0;for(let t=0;t<n;t++)W+=weights[t];
+    if(W<=0)return -1;
+    let r=Math.floor(u01(h)*W);
+    for(let t=0;t<n;t++){if(r<weights[t])return t;r-=weights[t];}
+    return n-1;
+  }
+  function drawSpan(h,arr,from,to){ // indice estratto in proporzione ai conteggi arr[from..to)
+    let W=0;for(let t=from;t<to;t++)W+=arr[t];
+    if(W<=0)return -1;
+    let r=Math.floor(u01(h)*W);
+    for(let t=from;t<to;t++){if(r<arr[t])return t;r-=arr[t];}
+    return to-1;
+  }
+  // Quanto intero di un meccanismo, con riporto salvato e fase iniziale con seme (i luoghi non scattano tutti insieme).
+  function quantum(pop,P,key,code,X,cap){
+    const c0=own(P.carry,key)?P.carry[key]:hash(pop.seed,P.h,C.PHASE,code,fnv(key))%M,tot=Math.round(X)+c0,K=Math.floor(tot/M);
+    P.carry[key]=tot-K*M;
+    return K>cap?cap:K;
+  }
+  // Chi agisce: utilità individuale decrescente, spareggio con hash; `kind` conta le scelte forzate (candidati ≤ posti).
+  function tally(pop,kind,forced,k){const x=pop.choices[kind]||(pop.choices[kind]={forced:0,free:0});if(forced)x.forced+=k;else x.free+=k;}
+  function choose(pop,cand,k,util,code,kind){
+    if(k<=0||!cand.length)return [];
+    const R=pop.R,w=pop.w;
+    if(kind)tally(pop,kind,cand.length<=k,Math.min(k,cand.length));
+    if(k===1){
+      let best=-1,bu=-Infinity,bh=0;
+      for(const i of cand){
+        const u=util(i);
+        if(u<bu)continue;
+        const h=hash(pop.seed,R.hid[i],code,w,0);
+        if(best<0||u>bu||h>bh||h===bh&&before(R,i,best)){best=i;bu=u;bh=h;}
+      }
+      return best<0?[]:[best];
+    }
+    const items=cand.map(i=>[i,util(i),hash(pop.seed,R.hid[i],code,w,0)]);
+    items.sort((x,y)=>y[1]-x[1]||y[2]-x[2]||(before(R,x[0],y[0])?-1:1));
+    return items.slice(0,k).map(x=>x[0]);
+  }
+  // In un luogo non materializzato con residenti noti: l'evento tocca a un record o a un anonimo?
+  function isRecord(pop,P,recN,total,code){
+    if(!recN)return false;
+    if(P.materialized||recN>=total)return true;
+    return Math.floor(u01(rr(pop,P,code))*total)<recN;
+  }
+
   // ——— Creazione ———
-  function trait(h,t,l){const a=mix(h+t*0x9e3779b1);return clamp(Math.round(((a&255)+((a>>>8)&255))*100/510)+TILT[LINEAGES[l]][t],0,100);}
-  function ageFor(l,b,h,w){
-    const g=GEO[l],u=(h%1000)/1000,cw=g.B*g.Lb;
-    if(b<g.B)return b*g.Lb+(h%g.Lb);
-    if(b<g.B+3)return cw+Math.floor((b-g.B+u)*g.adultW/3);
-    return cw+Math.floor(g.adultW+(b-g.B-3+u)*g.elderW/2);
+  function trait(h,t,l){const a=mix(h+t*0x9e3779b1);return clamp(Math.round(((a&255)+((a>>>8)&255))*100/510)+LIN[l].tilt[t],0,100);}
+  function bucketOf(l,born,cur){const Lk=LIN[l].g.Lk;return Math.floor(cur/Lk)-Math.floor(born/Lk);}
+  function bornFor(l,slot,h,cur){ // data di nascita coerente con la fascia (esatta per i bambini)
+    const g=LIN[l].g;
+    if(slot<g.nK)return Math.min(cur,(Math.floor(cur/g.Lk)-slot)*g.Lk+h%g.Lk);
+    if(slot<g.nK+g.nA)return cur-g.a0-(slot-g.nK)*g.La-h%g.La;
+    return cur-g.e0-(slot-g.nK-g.nA)*g.Le-h%g.Le;
   }
   function pickGoal(pop,i,w,not){
     const R=pop.R,score=[0,T(R,i,2),T(R,i,4),T(R,i,1),T(R,i,0),T(R,i,3)];
@@ -169,66 +300,70 @@
     for(let g=1;g<=5;g++){if(g===not)continue;const s=score[g]+hash(pop.seed,R.hid[i],C.GOAL,w,g)%16;if(s>bs){bs=s;best=g;}}
     return best;
   }
-  function mint(pop,P,key,w,age){
-    const R=pop.R;
-    if(R.n>=R.cap)grow(R);
-    const i=R.n++,serial=P.minted++,h=hash(pop.seed,P.h,C.MINT,serial,0),l=kLin[key];
-    R.place[i]=P.ix;R.origin[i]=P.ix;R.serial[i]=serial;R.hid[i]=h;R.lin[i]=l;R.band[i]=kBand[key];R.prof[i]=kProf[key];
-    R.wed[i]=kWed[key];R.alive[i]=1;R.notable[i]=0;R.cause[i]=0;R.wounds[i]=0;R.goalS[i]=0;R.moves[i]=0;R.xp[i]=0;R.kids[i]=0;
-    R.born[i]=w-(age===undefined?ageFor(l,kBand[key],h,w):age);R.died[i]=-1;R.spouse[i]=-1;R.pa[i]=-1;R.pb[i]=-1;R.wealth[i]=0n;
-    for(let t=0;t<5;t++)R.traits[i*5+t]=trait(h,t,l);
-    for(let t=0;t<4;t++)R.needs[i*4+t]=30;
-    R.goalL[i]=kStage[key]>=1?pickGoal(pop,i,w,0):0;
-    pop.idMap.set(P.id+':'+serial,i);
+  function newRow(pop){const R=pop.R;if(pop.free.length)return pop.free.pop();if(R.n>=R.cap)grow(R);return R.n++;}
+  function derive(pop,i){const R=pop.R,h=hidOf(pop,uidOf(R,i));R.hid[i]=h;for(let t=0;t<5;t++)R.traits[i*5+t]=trait(h,t,R.lin[i]);}
+  // Nuovo record nel luogo P, nato nel luogo di origine O (identità «O:n»), fascia d'età `slot`.
+  function mint(pop,P,O,l,stage,cls,prof,slot,cur){
+    const i=newRow(pop),R=pop.R;
+    R.place[i]=P.ix;R.origin[i]=O.ix;R.serial[i]=O.minted++;R.lin[i]=l;R.stage[i]=stage;R.cls[i]=cls;R.prof[i]=prof;
+    for(const k of ['flags','wounds','goalL','moves','proj','kids','xp','relN','memN'])R[k][i]=0;
+    R.alive[i]=1;R.since[i]=0;R.spouse[i]=NOID;R.pa[i]=NOID;R.pb[i]=NOID;R.wealth[i]=0n;
+    derive(pop,i);
+    R.born[i]=bornFor(l,slot,R.hid[i],cur);
+    R.goalL[i]=stage>0?pickGoal(pop,i,0,0):0;
+    pop.idMap.set(uidOf(R,i),i);
+    if(!pop.bulk){enter(P,R,i);needsOf(pop,P,i);} // in blocco (materializzazione) l'ingresso è alla fine
     return i;
   }
   function lineageWeights(P,desc){
     if(object(desc.lineages)){
-      const ws=LINEAGES.map(id=>{const v=desc.lineages[id];return Number.isFinite(v)&&v>0?v:0;});
-      if(ws.some(x=>x>0))return ws;
+      const rows=Object.entries(desc.lineages).filter(([id,v])=>linId(id)&&Number.isFinite(v)&&v>0).sort((a,b)=>b[1]-a[1]||(a[0]<b[0]?-1:1)).slice(0,12);
+      if(rows.length)return rows.map(([id,v])=>[linOf(id),v]);
     }
-    const h=fnv(String(desc.continent||''))^P.h,ws=LINEAGES.map(()=>0);
-    ws[0]=40;ws[1+(h%7)]+=30;ws[1+((h>>>4)%7)]+=15;ws[1+((h>>>8)%7)]+=8;
-    return ws;
+    const h=(fnv(String(desc.continent||''))^P.h)>>>0,ws=COMMON.map(()=>0); // senza segno: ogni quota va a una stirpe vera
+    ws[0]=40;ws[1+h%7]+=30;ws[1+(h>>>4)%7]+=15;ws[1+(h>>>8)%7]+=8;
+    return COMMON.map((id,t)=>[linOf(id),ws[t]]).filter(x=>x[1]>0);
+  }
+  // Classi coerenti con i totali di adulti e anziani (coppie intere; chi è sposato con un anziano ha un coniuge anziano).
+  function classes(G,A,E){
+    const ae=Math.min(Math.floor(A*.05),Math.floor(E*.25)),aa=Math.floor((A-ae)*.32),aw=Math.floor(A*.03),ee=Math.floor((E-ae)*.28),ew=Math.floor((E-ae)*.3);
+    G.c.set([A-ae-2*aa-aw,2*aa,ae,aw,E-ae-2*ee-ew,ae,2*ee,ew]);
   }
   function populate(pop,P,desc){
-    const n=intIn(desc.population,0,1e7)?desc.population:0,tie=P.h;
-    P.capacity=Math.max(40,n);
-    const perLin=apportion(n,lineageWeights(P,desc),tie);
-    const share=sharesOf(P.kind);
-    for(let l=0;l<NL;l++){
-      if(!perLin[l])continue;
-      const g=GEO[l],[kids,adults,elders]=apportion(perLin[l],[24,60,16],tie+l*31);
-      apportion(kids,new Array(g.B).fill(1),tie+l*37).forEach((c,b)=>{if(c)addAnon(P,KEY(l,b,0,0),c);});
-      const bands=apportion(adults,[40,35,25],tie+l*41);
-      for(let a=0;a<3;a++){
-        const jobs=apportion(bands[a],[30,...share.slice(1),40],tie+l*43+a);
-        jobs.forEach((c,p)=>{
-          if(!c)return;
-          const wed=Math.round(c*[30,60,60][a]/100);
-          if(c-wed)addAnon(P,KEY(l,g.B+a,p,0),c-wed);
-          if(wed)addAnon(P,KEY(l,g.B+a,p,1),wed);
-        });
-      }
-      apportion(elders,[60,40],tie+l*47).forEach((c,e)=>{
-        const wed=Math.round(c*[60,45][e]/100);
-        if(c-wed)addAnon(P,KEY(l,g.B+3+e,0,0),c-wed);
-        if(wed)addAnon(P,KEY(l,g.B+3+e,0,1),wed);
-      });
-    }
-    const pc=PER_CAPITA[P.kind]||800;
-    P.pool=BigInt(n)*BigInt(Math.floor(pc*(900+hash(pop.seed,P.h,C.PLACE,0,0)%200)/1000));
+    const n=intIn(desc.population,0,1e7)?desc.population:0,tie=P.h,want=intIn(desc.capacity,1,1e9)?desc.capacity:0;
+    P.capacity=Math.max(want,n?Math.max(40,n):ROOM[P.kind]);
+    const rows=lineageWeights(P,desc),per=apportion(n,rows.map(x=>x[1]),tie);
+    let A=0;
+    rows.forEach(([l],t)=>{
+      if(!per[t])return;
+      const g=LIN[l].g,G=linIn(P,l,Math.max(8,Math.ceil(P.capacity*per[t]/n))),lh=LIN[l].h;
+      // Piramide d'età stazionaria della stirpe: sopravvivenza × ampiezza della fascia.
+      const ws=[];let s=1;
+      for(let j=0;j<g.nK;j++){ws.push(s*g.Lk);s*=Math.exp(-g.kidRisk*g.Lk/M);}
+      for(let j=0;j<g.nA;j++){ws.push(s*g.La);s*=Math.exp(-g.adultRisk*g.La/M);}
+      for(let j=0;j<g.nE;j++){ws.push(s*g.Le*(j<g.nE-1?1:.35));s*=Math.exp(-g.elderRisk[j]*g.Le/M);}
+      apportion(per[t],ws,(tie+lh)|0).forEach((c,j)=>{G.h[j]=c;});
+      let a=0,e=0;
+      for(let j=g.nK;j<g.n;j++)if(j<g.nK+g.nA)a+=G.h[j];else e+=G.h[j];
+      classes(G,a,e);A+=a;
+    });
+    recount(P);
+    apportion(A,[30,...sharesOf(P.kind).slice(1),40],tie+5).forEach((c,p)=>{P.jobs[p]=c;});
+    P.wealth=BigInt(n)*BigInt(Math.floor((PER_CAPITA[P.kind]||800)*(900+hash(pop.seed,P.h,C.PLACE,0,0)%200)/1000));
+    P.avg=n?P.wealth/BigInt(n):0n;
   }
-  function newPlace(pop,desc,ix){
+  const NEUTRAL={foodScarcity:0,wageIndex:1000,unemployment:0,prosperity:1000,crisis:0,war:0,disaster:0,labor:null};
+  function newPlace(desc,ix){
     const kind=KINDS.includes(desc.kind)?desc.kind:'village';
     return {id:desc.id,ix,kind,continent:typeof desc.continent==='string'?desc.continent.slice(0,64):'',links:[],linkIds:[],h:fnv(desc.id),
-      anon:new Map(),pool:0n,carry:{},minted:0,materialized:false,capacity:40};
+      lin:new Map(),order:[],jobs:new Int32Array(NP),wealth:0n,avg:0n,due:{w:new Map(),out:0n},carry:{},minted:0,materialized:false,capacity:40,alive:0,
+      sig:NEUTRAL,list:[],grp:new Map(),recW:0n,aq:0,rq:0};
   }
+  const placeIx=(pop,id)=>typeof id==='string'&&pop.index.has(id)?pop.index.get(id):-1;
   function linkUp(pop,descs){
     const byId=new Map(descs.map(d=>[d.id,d]));
     for(const P of pop.places){
-      const d=byId.get(P.id),ids=d&&Array.isArray(d.links)?d.links:P.linkIds;
-      const seen=new Set();
+      const d=byId.get(P.id),ids=d&&Array.isArray(d.links)?d.links:P.linkIds,seen=new Set();
       P.links=[];P.linkIds=[];
       for(const id of ids||[]){const j=placeIx(pop,id);if(j>=0&&j!==P.ix&&!seen.has(j)){seen.add(j);P.links.push(j);P.linkIds.push(id);}}
     }
@@ -238,895 +373,1360 @@
     for(const d of Array.isArray(places)?places:[])if(object(d)&&safeId(d.id)&&!seen.has(d.id)&&out.length<65535){seen.add(d.id);out.push(d);}
     return out;
   }
+  const TOTALS=['births','deaths','marriages','mourned','migrations','arrivals','families','foundings','careers','departures','expeditionDeaths','matured','retired'];
+  const BIGS=['loot','upkeep','wages','spend','tax'];
+  const RTOTALS=['marriages','bondMarriages','births','adopted','parted','left','slid','successions'];
   function blank(seed,week){
-    return {schema:SCHEMA,seed:seed>>>0,week,note:'',places:[],index:new Map(),R:makeRecords(),idMap:new Map(),mem:new Map(),rel:new Map(),
-      log:[],dec:emptyDecisions(week),_ci:null,
-      totals:{births:0,deaths:0,marriages:0,migrations:0,arrivals:0,careers:0,departures:0,expeditionDeaths:0,matured:0,loot:0n,wages:0n,spend:0n,tax:0n},
-      rtotals:{marriages:0,bondMarriages:0,births:0}};
+    const t={};for(const k of TOTALS)t[k]=0;for(const k of BIGS)t[k]=0n;
+    return {schema:SCHEMA,seed:seed>>>0,week,w:week,note:'',places:[],index:new Map(),R:makeRecords(),free:[],idMap:new Map(),tombs:new Map(),log:[],
+      flagged:new Set(),bulk:false,dec:emptyDecisions(week),choices:{},gen:null,totals:t,rtotals:Object.fromEntries(RTOTALS.map(k=>[k,0]))};
   }
-  function emptyDecisions(w){return {week:w,births:[],deaths:[],marriages:[],migrations:[],departures:[],careers:[],matured:[]};}
+  function emptyDecisions(w){return {week:w,births:[],deaths:[],widowed:[],marriages:[],migrations:[],foundings:[],departures:[],careers:[],matured:[],retired:[],actions:[]};}
   const weekOf=now=>Number.isFinite(now)&&now>=0?Math.ceil(now/WEEK):0;
   function create(seed,places,now){
     const pop=blank(Number.isFinite(seed)?Math.floor(Math.abs(seed)):0,weekOf(now)),descs=validDescs(places);
-    for(const d of descs){const P=newPlace(pop,d,pop.places.length);pop.places.push(P);pop.index.set(P.id,P.ix);}
+    for(const d of descs){const P=newPlace(d,pop.places.length);pop.places.push(P);pop.index.set(P.id,P.ix);}
     linkUp(pop,descs);
     for(const d of descs)populate(pop,pop.places[pop.index.get(d.id)],d);
     return pop;
   }
 
-  // ——— Censimento dei record per luogo e cella ———
-  function census(pop){
-    const R=pop.R,out=pop.places.map(()=>({cells:new Map(),list:[]}));
-    for(let i=0;i<R.n;i++){
-      if(!R.alive[i])continue;
-      const c=out[R.place[i]],k=keyOf(R,i);
-      c.list.push(i);
-      let a=c.cells.get(k);
-      if(!a)c.cells.set(k,a=[]);
-      a.push(i);
-    }
-    return out;
-  }
-  const getCensus=pop=>pop._ci||(pop._ci=census(pop));
-  // Celle non vuote del luogo (anonimi + record), in ordine di chiave: l'ordine è identico in ogni rappresentazione.
-  function cellList(P,c,filter){
-    const keys=new Set();
-    for(const [k,n] of P.anon)if(n>0&&filter(k))keys.add(k);
-    for(const k of c.cells.keys())if(filter(k))keys.add(k);
-    return [...keys].sort((a,b)=>a-b).map(k=>({key:k,anon:P.anon.get(k)||0,recs:c.cells.get(k)||[]}));
-  }
-  // Quanti con riporto intero per luogo e meccanismo, distribuiti fra le celle (parte intera, poi estrazioni con seme).
-  function allot(pop,P,mech,code,w,cells){
-    let X=0,cap=0;
-    for(const c of cells){X+=c.w;cap+=c.cap;}
-    const c0=own(P.carry,mech)?P.carry[mech]:hash(pop.seed,P.h,C.PHASE,code,0)%M,tot=X+c0;
-    let K=Math.floor(tot/M);
-    P.carry[mech]=tot-K*M;
-    if(K>cap)K=cap;
-    const out=cells.map(()=>0);
-    let left=K;
-    for(let t=0;t<cells.length&&left>0;t++){const f=Math.min(Math.floor(cells[t].w/M),cells[t].cap,left);out[t]=f;left-=f;}
-    for(let j=0;left>0;j++){
-      let W=0;
-      for(let t=0;t<cells.length;t++)if(out[t]<cells[t].cap)W+=cells[t].w%M;
-      const byCap=W===0;
-      if(byCap)for(let t=0;t<cells.length;t++)W+=cells[t].cap-out[t];
-      if(W<=0)break;
-      let r=Math.floor(u01(hash(pop.seed,P.h,code,w,j))*W);
-      for(let t=0;t<cells.length;t++){
-        const wt=out[t]<cells[t].cap?(byCap?cells[t].cap-out[t]:cells[t].w%M):0;
-        if(r<wt){out[t]++;left--;break;}
-        r-=wt;
-      }
-    }
-    return out;
-  }
-  function draw(pop,P,code,w,j,weights){
-    let W=0;
-    for(const x of weights)W+=x;
-    if(W<=0)return -1;
-    let r=Math.floor(u01(hash(pop.seed,P.h,code,w,j))*W);
-    for(let t=0;t<weights.length;t++){if(r<weights[t])return t;r-=weights[t];}
-    return weights.length-1;
-  }
-  // Quanti fra anonimi e record di una cella mista (luogo non materializzato con immigrati noti).
-  function split(pop,P,code,w,key,k,anonN,recN){
-    if(k<=0)return 0;
-    if(!anonN)return Math.min(k,recN);
-    if(!recN)return 0;
-    const n=anonN+recN,kr=Math.floor((k*recN+Math.floor(u01(hash(pop.seed,P.h,C.SPLIT,w,key*64+code))*n))/n);
-    return clamp(kr,Math.max(0,k-anonN),Math.min(k,recN));
-  }
-  // Chi agisce: utilità individuale decrescente, spareggio con hash (mai l'ordine di creazione).
-  function choose(pop,cand,k,util,code,w){
-    if(k<=0||!cand.length)return [];
-    const R=pop.R,items=cand.map(i=>[i,util(i),hash(pop.seed,R.hid[i],code,w,0)]);
-    items.sort((x,y)=>{const a=x[0],b=y[0];/*SCELTA*/return y[1]-x[1]||y[2]-x[2]||a-b;});
-    return items.slice(0,k).map(x=>x[0]);
-  }
-
   // ——— Segnali dell'economia ———
-  const NEUTRAL={foodScarcity:0,priceIndex:1000,wageIndex:1000,unemployment:0,prosperity:1000,crisis:0,war:0,disaster:0,season:0};
   function signalsOf(env,id){
     let raw=null;
     try{raw=env&&env.economy&&typeof env.economy.signals==='function'?env.economy.signals(id):null;}catch(e){raw=null;}
     const s={...NEUTRAL};
     if(!object(raw))return s;
     const n=(k,a,b)=>{if(Number.isFinite(raw[k]))s[k]=clamp(Math.round(raw[k]),a,b);};
-    n('foodScarcity',0,1000);n('priceIndex',0,10000);n('wageIndex',0,10000);n('unemployment',0,1000);n('prosperity',0,10000);
+    n('foodScarcity',0,1000);n('wageIndex',0,10000);n('unemployment',0,1000);n('prosperity',0,10000);
     for(const k of ['crisis','war','disaster'])s[k]=raw[k]===1||raw[k]===true?1:0;
-    n('season',0,3);
+    if(object(raw.labor)){
+      const t=new Array(NP).fill(1000);let any=false;
+      for(let p=1;p<ADV;p++)if(own(raw.labor,PROFS[p])&&Number.isFinite(raw.labor[PROFS[p]])){t[p]=clamp(Math.round(raw.labor[PROFS[p]]),0,4000);if(t[p]!==1000)any=true;}
+      if(any)s.labor=t;
+    }
     return s;
   }
-  const attract=s=>s.prosperity+s.wageIndex-s.foodScarcity-s.war*1000-s.disaster*800-s.crisis*400;
+  const hunger=s=>{const f=clamp((s.foodScarcity-200)/800,0,1);return f*f;};
+  const attract=s=>s.prosperity+s.wageIndex-s.foodScarcity-s.war*1500-s.disaster*1200-s.crisis*400;
 
-  // ——— Fasi della settimana ———
-  function adulthood(pop,i,w){
-    const R=pop.R;
-    R.goalL[i]=pickGoal(pop,i,w,0);
-    remember(pop,i,2,0,w);
-    pop.dec.matured.push(idOf(pop,i));
+  // ——— Morti ed eredità (record) ———
+  function entomb(pop,i,w,cause){
+    const R=pop.R,u=uidOf(R,i),flagged=j=>j>=0&&!!(R.flags[j]&(KNOWN|SWAYED));
+    let pinned=!!(R.flags[i]&(KNOWN|SWAYED))||flagged(rowOf(pop,R.spouse[i]))||flagged(rowOf(pop,R.pa[i]))||flagged(rowOf(pop,R.pb[i]));
+    for(let k=0;k<R.relN[i]&&!pinned;k++)pinned=flagged(rowOf(pop,R.relU[i*6+k]));
+    if(!pinned)for(const f of pop.flagged){const j=rowOf(pop,f);if(j>=0&&(R.pa[j]===u||R.pb[j]===u||relAt(R,j,u)>=0||R.spouse[j]===u)){pinned=true;break;}}
+    for(const t of pop.tombs.values())if(!pinned&&t.f&&(t.s===u))pinned=true; // coniuge di un conosciuto già morto
+    if(!pinned&&!R.flags[i])return;
+    pop.tombs.set(u,{l:R.lin[i],b:R.born[i],d:w,c:cause,p:R.prof[i],s:R.spouse[i],k:R.kids[i],f:pinned?1:0});
+    if(pop.tombs.size>LIMITS.tombs){
+      let drop=-1;
+      for(const [k,t] of pop.tombs)if(!t.f){drop=k;break;}
+      pop.tombs.delete(drop<0?pop.tombs.keys().next().value:drop);
+    }
   }
-  function phaseShift(pop,w,ci){
-    const R=pop.R;
-    for(const P of pop.places){
-      const c=ci[P.ix];
-      for(let l=0;l<NL;l++){
-        const g=GEO[l];
-        if(w%g.Lb!==0)continue;
-        for(let b=g.B-1;b>=0;b--){
-          const from=KEY(l,b,0,0),to=KEY(l,b+1,0,0),n=P.anon.get(from)||0,rs=c.cells.get(from);
-          if(n){addAnon(P,from,-n);addAnon(P,to,n);}
-          if(rs)for(const i of rs){R.band[i]=b+1;if(b+1===g.B)adulthood(pop,i,w);}
-          if(b+1===g.B)pop.totals.matured+=n+(rs?rs.length:0);
-        }
+  function kill(pop,P,i,cause,w){
+    const R=pop.R,u=uidOf(R,i),id=idOf(pop,i),amt=R.wealth[i],heirs=[],s=R.cls[i]===1||R.cls[i]===2?rowOf(pop,R.spouse[i]):-1;
+    setWealth(pop,i,0n);
+    if(s>=0){
+      setClass(pop,s,R.stage[s],3);R.since[s]=w;remember(pop,s,5,u,w);pop.dec.widowed.push(idOf(pop,s));
+      if(amt>0n){give(pop,s,amt);remember(pop,s,10,u,w);heirs.push({id:idOf(pop,s),as:'coniuge',amount:String(amt)});}
+    }else if(amt>0n&&R.kids[i]){
+      const kids=P.list.filter(j=>j!==i&&(R.pa[j]===u||R.pb[j]===u));
+      if(kids.length){
+        const each=amt/BigInt(kids.length);
+        let rest=amt-each*BigInt(kids.length);
+        for(const j of kids){const v=each+(rest>0n?1n:0n);if(rest>0n)rest--;give(pop,j,v);remember(pop,j,10,u,w);heirs.push({id:idOf(pop,j),as:'figlio',amount:String(v)});}
       }
+    } // altrimenti resta nella cassa del luogo
+    entomb(pop,i,w,cause);
+    for(let k=0;k<R.relN[i];k++){
+      const j=rowOf(pop,R.relU[i*6+k]);
+      if(j<0||R.flags[j]&(KNOWN|SWAYED))continue;
+      const q=relAt(R,j,u);if(q>=0)dropRel(R,j,q);
+    }
+    pop.dec.deaths.push({id,cause:CAUSES[cause],place:P.id,heirs});
+    log(pop,w,cause===3?'expedition':'death',P,cause===3?`${nameOf(pop,i)} non torna dalla spedizione.`:`Muore ${nameOf(pop,i)} (${LIN[R.lin[i]].name}, ${Math.floor((w-R.born[i])/YW)} anni) a ${P.id}: ${CAUSES[cause]}.`);
+    leave(P,R,i);R.alive[i]=0;pop.idMap.delete(u);pop.flagged.delete(u);pop.free.push(i);
+  }
+  // Morte di una persona della stirpe l: stage 0 bambino (fascia esatta slot), 1 adulto, 2 anziano (classe estratta).
+  function death(pop,P,l,stage,slot,cause,w,job){
+    const G=P.lin.get(l),g=LIN[l].g,R=pop.R;
+    let cls=-1,recs=EMPTY,total=0;
+    if(stage===0){total=G.h[slot];recs=group(P,l,0,0);if(recs.length)recs=recs.filter(i=>bucketOf(l,R.born[i],w)===slot);}
+    else{cls=drawSpan(ar(pop,P,C.DEATH),G.c,stage===1?0:4,stage===1?4:8);total=G.c[cls];recs=group(P,l,stage,cls%4);}
+    const rec=isRecord(pop,P,recs.length,total,C.DEATH);
+    G.h[slot]--;G.n--;P.alive--;pop.totals.deaths++;
+    if(stage===1){if(job>=0)P.jobs[job]--;else{const p=drawIx(ar(pop,P,C.JOB),P.jobs);if(p>=0)P.jobs[p]--;}}
+    const c=G.c;
+    switch(cls){
+      case A0:case AW:case E0:case EW:c[cls]--;break;
+      case AA:c[AA]-=2;c[AW]++;break;
+      case AE:c[AE]--;c[EA]--;c[EW]++;break;
+      case EA:c[EA]--;c[AE]--;c[AW]++;break;
+      case EE:c[EE]-=2;c[EW]++;break;
+    }
+    if(!rec)return;
+    const last=slot===g.n-1,mid=stage===1?g.a0+(slot-g.nK+.5)*g.La:g.e0+(slot-g.nK-g.nA+.5)*g.Le,old=LIN[l].b.life*YW*1.2; // chi ha superato di un quinto la durata tipica viene prima
+    const [i]=choose(pop,recs,1,i=>{
+      const age=w-R.born[i];
+      if(stage===0)return N(R,i,0);
+      return (last||age>old?age:-Math.abs(age-mid))+(age>old?1e6:0)+R.wounds[i]+(cause===3?(R.prof[i]===ADV?1e5:0)+T(R,i,0)*9:cause===5&&R.prof[i]===13?40:0);
+    },C.DEATH)/*MORTE*/;
+    kill(pop,P,i,cause,w);
+    return i;
+  }
+
+  // ——— Fasi della settimana per luogo (strato aggregato e, dove ci sono, record) ———
+  function retireRecords(pop,P,l,cls,k,w){ // k adulti della classe diventano anziani: i più vecchi (mai entrambi i coniugi insieme)
+    const R=pop.R,all=group(P,l,1,cls);
+    if(!k||!all.length)return;
+    const items=choose(pop,all.slice(),all.length,i=>-R.born[i],C.AGE);
+    let left=k;
+    for(const i of items){
+      if(!left)break;
+      if(R.stage[i]!==1||R.cls[i]!==cls)continue; // il coniuge è appena diventato anziano: ora è in un'altra classe
+      left--;
+      const s=cls===1||cls===2?rowOf(pop,R.spouse[i]):-1;
+      R.prof[i]=NONE;remember(pop,i,12,0,w);pop.dec.retired.push(idOf(pop,i));
+      setClass(pop,i,2,cls);
+      if(s>=0)setClass(pop,s,R.stage[s],2);
     }
   }
-  function phaseBands(pop,w,ci){
-    const R=pop.R;
-    for(const P of pop.places){
-      const c=ci[P.ix];
-      const cells=cellList(P,c,k=>{const g=GEO[kLin[k]],b=kBand[k];return kStage[k]>=1&&b<g.B+4;});
-      if(!cells.length)continue;
-      const spec=cells.map(x=>{
-        const g=GEO[kLin[x.key]],b=kBand[x.key],n=x.anon+x.recs.length;
-        return {w:Math.round(n*(b<g.B+3?3e6/g.adultW:2e6/g.elderW)),cap:n};
-      });
-      const out=allot(pop,P,'age',C.AGE,w,spec);
-      cells.forEach((x,t)=>{
-        const k=out[t];if(!k)return;
-        const l=kLin[x.key],g=GEO[l],b=kBand[x.key],retire=b===g.B+2,to=KEY(l,b+1,retire?0:kProf[x.key],kWed[x.key]);
-        const kr=split(pop,P,C.AGE,w,x.key,k,x.anon,x.recs.length);
-        if(k-kr){addAnon(P,x.key,kr-k);addAnon(P,to,k-kr);}
-        for(const i of choose(pop,x.recs,kr,i=>-R.born[i],C.AGE,w)){
-          R.band[i]=b+1;
-          if(retire){R.prof[i]=0;remember(pop,i,12,0,w);}
+  function* phaseShift(pop,P,w){
+    for(const l of P.order.slice()){
+      const G=P.lin.get(l),g=LIN[l].g,h=G.h,oA=g.nK,oE=g.nK+g.nA;
+      if((w+g.oE)%g.Le===0){h[oE+g.nE-1]+=h[oE+g.nE-2];for(let j=g.nE-2;j>0;j--)h[oE+j]=h[oE+j-1];h[oE]=0;}
+      if((w+g.oA)%g.La===0){
+        const n=h[oE-1],k=[0,0,0,0],kr=[0,0,0,0],before=[0,1,2,3].map(q=>[group(P,l,1,q).length,G.c[q]]);
+        for(let j=oE-1;j>oA;j--)h[j]=h[j-1];
+        h[oA]=0;h[oE]+=n;
+        for(let t=0;t<n;t++){
+          const c=G.c,q=drawIx(ar(pop,P,C.AGE),[c[A0]*.2,c[AA],c[AE]*2,c[AW]*3]);
+          if(q===0){c[A0]--;c[E0]++;}else if(q===3){c[AW]--;c[EW]++;}
+          else if(q===1){c[AA]-=2;c[AE]++;c[EA]++;}else{c[AE]--;c[EA]--;c[EE]+=2;}
+          k[q]++;
+          const p=drawIx(ar(pop,P,C.JOB),P.jobs);if(p>=0)P.jobs[p]--;
+          if(before[q][0]){ // la classe 2 può crescere durante il ciclo: conta anche chi vi è appena entrato
+            if(P.materialized)kr[q]++;else{const [r,tot]=before[q];if(Math.floor(u01(rr(pop,P,C.AGE))*Math.max(1,tot))<r)kr[q]++;}
+          }else if(q===2&&kr[1]&&P.materialized)kr[q]++;
         }
-      });
-    }
-  }
-  function hazard(k,s){
-    const l=kLin[k],g=GEO[l],b=kBand[k],st=kStage[k];
-    let h;
-    if(st===0)h=25;else if(b===g.B)h=30;else if(b===g.B+1)h=50;else if(b===g.B+2)h=120;
-    else if(b===g.B+3)h=0.5e6/g.elderW;else h=2e6/g.elderW;
-    return h*(1000+s.foodScarcity*0.8+s.disaster*1500+(st===1?s.war*800:0))/1000;
-  }
-  function kill(pop,i,w,cause,list,P){
-    const R=pop.R;
-    R.alive[i]=0;R.died[i]=w;R.cause[i]=cause;
-    let amt=R.wealth[i];R.wealth[i]=0n;
-    const sp=R.spouse[i];
-    if(R.wed[i]===1&&sp>=0&&R.alive[sp]){
-      R.wed[sp]=2;remember(pop,sp,5,i,w);
-      if(R.place[sp]===R.place[i]&&amt>0n){give(pop,sp,amt);remember(pop,sp,10,i,w);amt=0n;}
-    }
-    if(amt>0n&&R.kids[i]){
-      const heirs=list.filter(j=>R.alive[j]&&(R.pa[j]===i||R.pb[j]===i));
-      if(heirs.length){
-        const each=amt/BigInt(heirs.length);
-        let rest=amt-each*BigInt(heirs.length);
-        for(const j of heirs){give(pop,j,each+(rest>0n?1n:0n));if(rest>0n)rest--;remember(pop,j,10,i,w);}
-        amt=0n;
-      }
-    }
-    if(amt>0n)P.pool+=amt;
-    const id=idOf(pop,i);
-    pop.dec.deaths.push({id,cause:CAUSES[cause]});
-  }
-  function phaseDeath(pop,w,sig,ci){
-    const R=pop.R;
-    for(const P of pop.places){
-      const c=ci[P.ix],s=sig[P.ix],cells=cellList(P,c,k=>kStage[k]>=0);
-      if(!cells.length)continue;
-      const out=allot(pop,P,'death',C.DEATH,w,cells.map(x=>{const n=x.anon+x.recs.length;return {w:Math.round(n*hazard(x.key,s)),cap:n};}));
-      cells.forEach((x,t)=>{
-        const k=out[t];if(!k)return;
-        const kr=split(pop,P,C.DEATH,w,x.key,k,x.anon,x.recs.length);
-        if(k-kr)addAnon(P,x.key,kr-k);
-        pop.totals.deaths+=k;
-        const cand=x.recs/*MORTE*/;
-        for(const i of choose(pop,cand,kr,i=>(w-R.born[i])+R.wounds[i]*20+N(R,i,0)*2,C.DEATH,w)){
-          const st=kStage[x.key],cause=st===2?1:s.disaster?4:s.war&&st===1?5:s.foodScarcity>500?6:2;
-          kill(pop,i,w,cause,c.list,P);
-          log(pop,w,'death',P,`Muore ${nameOf(pop,i)} (${LIN_NAMES[R.lin[i]]}, ${Math.floor(ageYears(pop,i,w))} anni) a ${P.id}: ${CAUSES[cause]}.`);
-        }
-      });
-    }
-  }
-  function placeWealth(pop,P,list){let W=P.pool;for(const i of list)if(pop.R.alive[i])W+=pop.R.wealth[i];return W;}
-  function phaseExpeditions(pop,w,sig,ci){
-    const R=pop.R;
-    for(const P of pop.places){
-      const c=ci[P.ix],s=sig[P.ix],cells=cellList(P,c,k=>kStage[k]===1&&kProf[k]===ADV);
-      if(!cells.length)continue;
-      const rate=40000*(1000+s.crisis*500+Math.max(0,1000-s.prosperity)/2)/1000;
-      const out=allot(pop,P,'depart',C.DEPART,w,cells.map(x=>{const n=x.anon+x.recs.length;return {w:Math.round(n*rate),cap:n};}));
-      const wilds=P.links.filter(j=>!SETTLE.has(pop.places[j].kind));
-      cells.forEach((x,t)=>{
-        const k=out[t];if(!k)return;
-        pop.totals.departures+=k;
-        const outcomes=[];
-        for(let j=0;j<k;j++){
-          const h=hash(pop.seed,P.h,C.OUTCOME,w,x.key*1024+j),di=wilds.length?wilds[hash(pop.seed,P.h,C.DEST,w,x.key*1024+j)%wilds.length]:-1;
-          const D=di>=0?pop.places[di]:null,d=D?1+D.h%4+(D.kind==='dungeon'?1:0):2,r=u01(h),h2=mix(h^0x5bd1e995);
-          let o,loot=0n,xp=2,wound=0;
-          if(r<0.012*d)o='death';
-          else if(r<0.072*d){o='wounded';loot=BigInt(d*(h2%300));xp=5*d;wound=20+h2%40;}
-          else if(r<0.072*d+0.5){o='success';loot=BigInt(d*(400+h2%1600));xp=10*d;}
-          else o='empty';
-          outcomes.push({o,loot,xp,wound,to:D?D.id:'terre selvagge',rank:o==='success'?3:o==='empty'?2:o==='wounded'?1:0});
-        }
-        const kr=split(pop,P,C.DEPART,w,x.key,k,x.anon,x.recs.length);
-        // Anonimi: esiti dalla coda della lista.
-        let lost=0,lostTo='';
-        for(const e of outcomes.slice(kr)){
-          pop.totals.loot+=e.loot;P.pool+=e.loot;
-          if(e.o==='death'){addAnon(P,x.key,-1);lost++;lostTo=e.to;pop.totals.deaths++;pop.totals.expeditionDeaths++;}
-        }
-        if(lost)log(pop,w,'expedition',P,`${lost===1?'Un avventuriero':lost+' avventurieri'} di ${P.id} non ${lost===1?'torna':'tornano'} dalla spedizione a ${lostTo}.`);
-        // Record: i più motivati partono; gli esiti migliori vanno ai più esperti.
-        const who=choose(pop,x.recs,kr,i=>T(R,i,0)*3+T(R,i,1)*2+N(R,i,2)*2-R.wounds[i]*4+(R.goalL[i]===4?80:0)+(R.goalL[i]===3?40:0)+(R.goalS[i]===5?30:0),C.DEPART,w);
-        const mine=outcomes.slice(0,kr).sort((a,b)=>b.rank-a.rank||(b.loot>a.loot?1:b.loot<a.loot?-1:0));
-        const skill=who.slice().sort((a,b)=>(R.xp[b]-R.wounds[b]*2)-(R.xp[a]-R.wounds[a]*2)||R.hid[a]-R.hid[b]);
-        skill.forEach((i,j)=>{
-          const e=mine[j],id=idOf(pop,i),name=nameOf(pop,i);
-          pop.dec.departures.push({id,to:e.to,outcome:e.o,loot:String(e.loot)});
-          pop.totals.loot+=e.loot;
-          if(e.o==='death'){
-            pop.totals.deaths++;pop.totals.expeditionDeaths++;
-            kill(pop,i,w,3,c.list,P);
-            log(pop,w,'expedition',P,`${name} non torna dalla spedizione a ${e.to}.`);
-            return;
+        pop.totals.retired+=n;
+        if(n&&P.list.length){
+          if(P.materialized)for(const q of [1,2,0,3]){retireRecords(pop,P,l,q,k[q],w);yield;}
+          else for(const q of [1,2,0,3]){ // misto: mai più record di quanti gli anonimi possano compensare
+            const c0=q===0?G.c[A0]:q===1?G.c[AA]:q===2?G.c[AE]:G.c[AW],r=group(P,l,1,q).length,must=Math.max(0,q===1?Math.ceil((r-c0)/2):r-c0);
+            retireRecords(pop,P,l,q,Math.max(must,Math.min(kr[q],k[q])),w);
           }
-          give(pop,i,e.loot);R.xp[i]=Math.min(4e9,R.xp[i]+e.xp);R.wounds[i]=Math.min(100,R.wounds[i]+e.wound);
-          remember(pop,i,8,e.rank,w);
-          log(pop,w,'expedition',P,e.o==='success'?`${name} torna da ${e.to} con ${money(e.loot)}.`:e.o==='wounded'?`${name} torna ferito dalla spedizione a ${e.to}.`:`${name} torna a mani vuote da ${e.to}.`);
-        });
-      });
+        }
+      }
+      if(w%g.Lk===0){
+        const n=h[g.nK-1];
+        for(let j=g.nK-1;j>0;j--)h[j]=h[j-1];
+        h[0]=0;h[oA]+=n;G.c[A0]+=n;P.jobs[NONE]+=n;pop.totals.matured+=n;
+        const kids=group(P,l,0,0);
+        if(kids.length)for(const i of kids.slice()){
+          const R=pop.R;
+          if(bucketOf(l,R.born[i],w)<g.nK)continue;
+          R.prof[i]=NONE;setClass(pop,i,1,0);R.goalL[i]=pickGoal(pop,i,w,0);pop.dec.matured.push(idOf(pop,i));
+        }
+      }
+      if(P.list.length)yield;
     }
+  }
+  const wish=(R,i)=>T(R,i,2)*2+N(R,i,3)*2+(R.goalL[i]===1?150:0);
+  function marryRecords(pop,P,l,kr,w){ // kr partecipanti fra i celibi noti (se dispari, l'ultimo sposa un anonimo che diventa noto)
+    const R=pop.R,g=LIN[l].g;
+    if(kr%2){
+      // Il coniuge anonimo prende un volto: un posto di lavoro fra quelli degli anonimi, un'età fra quelle del luogo.
+      const free=Array.from(P.jobs);for(const j of P.list)if(R.stage[j]===1&&free[R.prof[j]]>0)free[R.prof[j]]--;
+      const slot=drawSpan(rr(pop,P,C.MARRY),P.lin.get(l).h,g.nK,g.nK+g.nA),p=drawIx(rr(pop,P,C.MARRY),free);
+      const mate=mint(pop,P,P,l,1,0,p<0?NONE:p,slot<0?g.nK:slot,w);
+      R.needs[mate*4+3]=100;kr++;
+    }
+    const S=group(P,l,1,0).slice().sort((a,b)=>before(R,a,b)?-1:1),W=new Map(S.map(i=>[i,wish(R,i)])),free=new Set(S);
+    tally(pop,'matrimonio',S.length<=kr,kr);
+    for(let m=kr>>1;m>0;m--){
+      let a=-1,as=-Infinity,b=-1,adopted=false;
+      for(const i of free){
+        let bb=0;
+        for(let k=0;k<R.relN[i];k++){const j=rowOf(pop,R.relU[i*6+k]);if(j>=0&&free.has(j)&&R.relS[i*6+k]>bb&&!kin(R,i,j))bb=R.relS[i*6+k];}
+        const s=W.get(i)+bb*4;
+        if(s>as){
+          // serve almeno un partner possibile (non consanguineo, non rivale)
+          let ok=false;for(const j of free)if(j!==i&&!kin(R,i,j)&&bond(pop,i,j)>=0&&bond(pop,j,i)>=0){ok=true;break;}
+          if(ok){a=i;as=s;}
+        }
+      }
+      if(a>=0){
+        let bs=-Infinity;
+        for(const j of free){
+          if(j===a||kin(R,a,j))continue;
+          const x=bond(pop,a,j),y=bond(pop,j,a);
+          if(x<0||y<0)continue;
+          const s=(x+y)*4+W.get(j)-Math.abs(R.born[a]-R.born[j])*300/g.adultW;
+          if(s>bs){bs=s;b=j;}
+        }
+      }else{ // nessuna coppia possibile: prima si riconciliano due rivali, altrimenti uno scopre di essere stato adottato
+        const f=[...free];
+        out:for(const i of f)for(const j of f)if(i!==j&&!kin(R,i,j)){a=i;b=j;break out;}
+        if(a<0){[a,b]=f;adopted=true;R.pa[a]=R.pb[a]=NOID;if(kin(R,a,b))R.pa[b]=R.pb[b]=NOID;remember(pop,a,16,0,w);pop.rtotals.adopted++;}
+        for(const [x,y] of [[a,b],[b,a]]){const k=relAt(R,x,uidOf(R,y));if(k>=0&&R.relS[x*6+k]<0)dropRel(R,x,k);}
+      }
+      const tieNow=bond(pop,a,b)+bond(pop,b,a);
+      free.delete(a);free.delete(b);
+      pop.rtotals.marriages++;if(tieNow>0)pop.rtotals.bondMarriages++;
+      for(const [x,y] of [[a,b],[b,a]]){setClass(pop,x,1,1);R.spouse[x]=uidOf(R,y);remember(pop,x,3,uidOf(R,y),w);addRel(pop,x,y,40);}
+      pop.dec.marriages.push({a:idOf(pop,a),b:idOf(pop,b),place:P.id,bond:tieNow,adopted});
+      log(pop,w,'marriage',P,`${nameOf(pop,a)} e ${nameOf(pop,b)} si sposano a ${P.id}.`);
+    }
+  }
+  function* phaseMarriage(pop,P,s,w){
+    const mod=clamp(s.prosperity/1000,.4,1.5)*(1-s.crisis*.3)*(1-s.war*.3);
+    for(const l of P.order){
+      const G=P.lin.get(l),g=LIN[l].g,n=G.c[A0];
+      if(!n)continue;
+      const K=quantum(pop,P,'marry:'+LIN[l].id,C.MARRY,n*g.marry*mod/2,n>>1);
+      if(!K)continue;
+      let kr=0,rec=group(P,l,1,0).length,tot=n;
+      if(rec)for(let t=0;t<2*K;t++){if(isRecord(pop,P,rec,tot,C.MARRY)){kr++;rec--;}tot--;}
+      G.c[A0]-=2*K;G.c[AA]+=2*K;pop.totals.marriages+=K;
+      if(kr){marryRecords(pop,P,l,kr,w);yield;}
+    }
+  }
+  function phaseMourning(pop,P,w){
+    const R=pop.R;
+    for(const l of P.order){
+      const G=P.lin.get(l),n=G.c[AW];
+      if(!n)continue;
+      const K=quantum(pop,P,'mourn:'+LIN[l].id,C.MOURN,n*M/LIN[l].g.mourn,n);
+      if(!K)continue;
+      G.c[AW]-=K;G.c[A0]+=K;pop.totals.mourned+=K;
+      let rec=group(P,l,1,3).length,kr=0,tot=n;
+      if(rec)for(let t=0;t<K;t++){if(isRecord(pop,P,rec,tot,C.MOURN)){kr++;rec--;}tot--;}
+      for(const i of choose(pop,group(P,l,1,3).slice(),kr,i=>(w-R.since[i])*4+wish(R,i)/10,C.MOURN)){setClass(pop,i,1,0);remember(pop,i,17,R.spouse[i],w);}
+    }
+  }
+  function risksOf(g,s){
+    const fam=25000*hunger(s),war=s.war,dis=s.disaster*12000;
+    return {fam,war:war*7000,dis,kid:Math.round(g.kidRisk+fam*1.3+war*3500+dis*1.4),adult:Math.round(g.adultRisk+fam+war*7000+dis),
+      elder:g.elderRisk.map(x=>Math.min(950000,Math.round(x+fam*1.5+war*3500+dis*1.8)))};
+  }
+  function causeOf(stage,base,r){
+    const top=Math.max(r.fam,r.war,r.dis);
+    if(top<=base)return stage===2?1:2;
+    return top===r.dis?4:top===r.fam?6:5;
+  }
+  function* phaseDeath(pop,P,s,w){
+    let X=0;
+    const rows=P.order.map(l=>{
+      const G=P.lin.get(l),g=LIN[l].g,r=risksOf(g,s);
+      let x=kidsOf(G,g)*r.kid+adultsOf(G)*r.adult;
+      for(let j=0;j<g.nE;j++)x+=G.h[g.nK+g.nA+j]*r.elder[j];
+      X+=x;
+      return {l,G,g,r,x};
+    });
+    const K=quantum(pop,P,'death',C.DEATH,X,P.alive);
+    for(let t=0;t<K;t++){
+      let W=0;for(const q of rows)W+=q.x;
+      if(W<=0)break;
+      let r=Math.floor(u01(ar(pop,P,C.DEATH))*W);
+      for(const q of rows){
+        if(r>=q.x){r-=q.x;continue;}
+        const {l,G,g}=q;
+        let stage=-1,slot=-1,risk=0;
+        const k=kidsOf(G,g)*q.r.kid;
+        if(r<k){stage=0;slot=drawSpan(ar(pop,P,C.DEATH),G.h,0,g.nK);risk=q.r.kid;}
+        else{
+          r-=k;const a=adultsOf(G)*q.r.adult;
+          if(r<a){stage=1;slot=drawSpan(ar(pop,P,C.DEATH),G.h,g.nK,g.nK+g.nA);risk=q.r.adult;}
+          else{r-=a;stage=2;for(let j=0;j<g.nE;j++){const x=G.h[g.nK+g.nA+j]*q.r.elder[j];if(r<x||j===g.nE-1&&G.h[g.nK+g.nA+j]){slot=g.nK+g.nA+j;risk=q.r.elder[j];break;}r-=x;}}
+        }
+        if(slot<0)break;
+        q.x-=risk;
+        death(pop,P,l,stage,slot,causeOf(stage,stage===0?g.kidRisk:stage===1?g.adultRisk:g.elderRisk[slot-g.nK-g.nA],q.r),w,-1);
+        break;
+      }
+      if(P.list.length&&t%4===3)yield;
+    }
+  }
+  const RANK={success:3,empty:2,wounded:1,death:0};
+  function* phaseExpeditions(pop,P,s,w){
+    const n=P.jobs[ADV],R=pop.R;
+    if(!n)return;
+    const K=quantum(pop,P,'depart',C.DEPART,n*40000*(1000+s.crisis*500+Math.max(0,1000-s.prosperity)/2)/1000,n);
+    if(!K)return;
+    const wilds=P.links.filter(j=>!SETTLE.has(pop.places[j].kind)&&pop.places[j].kind!=='interior'),outcomes=[];
+    pop.totals.departures+=K;
+    for(let j=0;j<K;j++){
+      const h=ar(pop,P,C.OUTCOME),di=wilds.length?wilds[ar(pop,P,C.DEST)%wilds.length]:-1,D=di>=0?pop.places[di]:null;
+      const d=D?1+D.h%4+(D.kind==='dungeon'?1:0):2,r=u01(h),h2=mix(h^0x5bd1e995);
+      let o='empty',loot=0n,xp=2,wound=0;
+      if(r<.012*d)o='death';
+      else if(r<.072*d){o='wounded';loot=BigInt(d*(h2%300));xp=5*d;wound=20+h2%40;}
+      else if(r<.072*d+.5){o='success';loot=BigInt(d*(400+h2%1600));xp=10*d;}
+      // Viveri ed equipaggiamento consumati: in media quanto il bottino atteso (600 d + 9 d²), mai più della ricchezza del luogo.
+      let cost=BigInt(Math.round(d*(400+(h2>>>12)%401)+d*d*9));
+      if(cost>P.wealth)cost=P.wealth;
+      P.wealth+=loot-cost;pop.totals.loot+=loot;pop.totals.upkeep+=cost;
+      outcomes.push({o,loot,cost,xp,wound,to:D?D.id:'terre selvagge'});
+    }
+    // Chi non torna: stirpe e classe dalla regola di luogo; fra i record della classe, prima gli avventurieri.
+    for(const e of outcomes)if(e.o==='death'){
+      const l=P.order[drawIx(ar(pop,P,C.DEATH),P.order.map(l=>adultsOf(P.lin.get(l))))],g=LIN[l].g,slot=drawSpan(ar(pop,P,C.DEATH),P.lin.get(l).h,g.nK,g.nK+g.nA);
+      pop.totals.expeditionDeaths++;
+      const n0=pop.dec.deaths.length;
+      death(pop,P,l,1,slot,3,w,P.jobs[ADV]>0?ADV:-1);
+      if(pop.dec.deaths.length>n0)pop.dec.departures.push({id:pop.dec.deaths[n0].id,from:P.id,to:e.to,outcome:'death',loot:'0',skill:0});
+    }
+    const alive=outcomes.filter(e=>e.o!=='death');
+    if(!P.list.length||!alive.length)return;
+    let cand=P.list.filter(i=>R.stage[i]===1&&R.prof[i]===ADV),kr=0,rec=cand.length,tot=n;
+    for(let j=0;j<alive.length;j++){if(isRecord(pop,P,rec,tot,C.DEPART)){kr++;rec--;}tot--;}
+    if(P.materialized)kr=alive.length;
+    if(cand.length<kr){ // meno avventurieri noti che partenze: si uniscono volontari
+      const extra=choose(pop,P.list.filter(i=>R.stage[i]===1&&R.prof[i]!==ADV),kr-cand.length,i=>T(R,i,0)*3+T(R,i,1)-R.wounds[i]*4,C.PICK);
+      cand=cand.concat(extra);
+    }
+    yield;
+    const who=choose(pop,cand,kr,i=>{
+      let mates=0;
+      for(let k=0;k<R.relN[i];k++){const j=rowOf(pop,R.relU[i*6+k]);if(j>=0&&R.prof[j]===ADV)mates+=R.relS[i*6+k];}
+      return T(R,i,0)*3+T(R,i,1)*2+N(R,i,2)*2-R.wounds[i]*4+(R.goalL[i]===4?80:0)+(R.goalL[i]===3?40:0)+(goalNow(R,i)===5?30:0)+mates/2;
+    },C.DEPART,'spedizione');
+    const mine=alive.slice(0,who.length).sort((a,b)=>RANK[b.o]-RANK[a.o]||(b.loot>a.loot?1:b.loot<a.loot?-1:0));
+    const skill=i=>R.xp[i]-R.wounds[i]*2;
+    who.sort((a,b)=>/*ESITI*/skill(b)-skill(a)||(before(R,a,b)?-1:1)).forEach((i,j)=>{
+      const e=mine[j],name=nameOf(pop,i);
+      pop.dec.departures.push({id:idOf(pop,i),from:P.id,to:e.to,outcome:e.o,loot:String(e.loot),skill:skill(i)});
+      setWealth(pop,i,R.wealth[i]+e.loot-e.cost);
+      R.xp[i]=Math.min(4e9,R.xp[i]+e.xp);R.wounds[i]=Math.min(100,R.wounds[i]+e.wound);
+      remember(pop,i,8,RANK[e.o],w);
+      log(pop,w,'expedition',P,e.o==='success'?`${name} torna da ${e.to} con ${money(e.loot)}.`:e.o==='wounded'?`${name} torna ferito dalla spedizione a ${e.to}.`:`${name} torna a mani vuote da ${e.to}.`);
+    });
   }
   function targets(P,s,A){
-    const sh=sharesOf(P.kind),S=sh.reduce((a,b)=>a+b,0),t=new Array(NP).fill(0);
+    const sh=sharesOf(P.kind),lab=s.labor,we=sh.map((x,p)=>lab?x*clamp(500+lab[p]/2,250,2000)/1000:x),S=we.reduce((a,b)=>a+b,0),t=new Array(NP).fill(0);
     const noneT=20+s.crisis*60+s.disaster*40+clamp(Math.floor((1000-s.wageIndex)/8),0,100);
     const advT=35+s.crisis*30+s.war*20+(s.prosperity<800?20:0),rest=1000-noneT-advT;
-    for(let p=1;p<ADV;p++)t[p]=Math.floor(A*sh[p]*rest/(S*1000));
+    for(let p=1;p<ADV;p++)t[p]=Math.floor(A*we[p]*rest/(S*1000));
     t[NONE]=Math.floor(A*noneT/1000);t[ADV]=Math.floor(A*advT/1000);
     return t;
   }
-  function careerUtil(R,i,src,dst){
-    let u=N(R,i,2)*2+T(R,i,1)+(src===NONE?300:0)+(R.goalS[i]===4?100:0);
+  // Cambi di mestiere: lo strato aggregato sposta i posti, gradualmente, verso le quote del luogo e i posti vacanti.
+  function phaseCareers(pop,P,s){
+    let A=0;for(let p=0;p<NP;p++)A+=P.jobs[p];
+    if(!A)return;
+    const t=targets(P,s,A),sur=Array.from(P.jobs,(n,p)=>Math.max(0,n-t[p])),def=Array.from(P.jobs,(n,p)=>Math.max(0,t[p]-n));
+    const mis=def.reduce((a,b)=>a+b,0),K=quantum(pop,P,'career',C.CAREER,mis*40000,Math.min(mis,sur.reduce((a,b)=>a+b,0)));
+    for(let j=0;j<K;j++){
+      const src=drawIx(ar(pop,P,C.CAREER),sur),dst=drawIx(ar(pop,P,C.CAREER),def);
+      if(src<0||dst<0)break;
+      sur[src]--;def[dst]--;P.jobs[src]--;P.jobs[dst]++;pop.totals.careers++;
+    }
+  }
+  function careerUtil(pop,i,src,dst){
+    const R=pop.R;
+    let u=N(R,i,2)*2+T(R,i,1)+(src===NONE?120:0)+(goalNow(R,i)===4?100:0);
     u-=R.goalL[i]===2&&src!==NONE?150+T(R,i,4):T(R,i,4)/2;
+    u-=Math.min(60,R.proj[i]/2);
     if(dst===ADV)u+=T(R,i,0)*2+(R.goalL[i]===4?150:0)-R.wounds[i]*2;
+    else if(src===ADV)u+=R.wounds[i]*2-T(R,i,0);
     if(dst===11&&R.goalL[i]===3)u+=60;
+    if(dst===NONE)u+=R.wounds[i]*2-R.xp[i]/10;
     return u;
   }
-  function phaseCareers(pop,w,sig,ci){
-    const R=pop.R;
-    for(const P of pop.places){
-      const c=ci[P.ix],s=sig[P.ix],cells=cellList(P,c,k=>kStage[k]===1);
-      if(!cells.length)continue;
-      const live=cells.map(x=>({key:x.key,anon:x.anon,recs:x.recs.slice()})),cur=new Array(NP).fill(0);
-      let A=0;
-      for(const x of live){const n=x.anon+x.recs.length;cur[kProf[x.key]]+=n;A+=n;}
-      const t=targets(P,s,A),sur=cur.map((n,p)=>Math.max(0,n-t[p])),def=cur.map((n,p)=>Math.max(0,t[p]-n));
-      const mis=def.reduce((a,b)=>a+b,0);
-      const K=allot(pop,P,'career',C.CAREER,w,[{w:mis*25000,cap:Math.min(mis,sur.reduce((a,b)=>a+b,0))}])[0];
-      for(let j=0;j<K;j++){
-        const src=draw(pop,P,C.CAREER,w,j*4+1,sur),dst=draw(pop,P,C.CAREER,w,j*4+2,def);
-        if(src<0||dst<0)break;
-        const pool=live.map(x=>kProf[x.key]===src?x.anon+x.recs.length:0),ti=draw(pop,P,C.CAREER,w,j*4+3,pool);
-        if(ti<0)break;
-        const x=live[ti],to=KEY(kLin[x.key],kBand[x.key],dst,kWed[x.key]);
-        sur[src]--;def[dst]--;pop.totals.careers++;
-        if(split(pop,P,C.CAREER,w,x.key*64+j%64,1,x.anon,x.recs.length)===0){x.anon--;addAnon(P,x.key,-1);addAnon(P,to,1);continue;}
-        const [i]=choose(pop,x.recs,1,i=>careerUtil(R,i,src,dst),C.CAREER,w*64+j%64);
-        x.recs.splice(x.recs.indexOf(i),1);
-        R.prof[i]=dst;remember(pop,i,6,dst,w);
-        const id=idOf(pop,i);
-        pop.dec.careers.push({id,from:PROFS[src],to:PROFS[dst]});
-        log(pop,w,'career',P,`${nameOf(pop,i)} diventa ${PROF_NAMES[dst]} a ${P.id}.`);
+  // I record si riallineano ai posti del luogo: chi subentra in un posto vacante lo decide l'utilità fra TUTTI quelli dei mestieri in eccesso.
+  function* reconcile(pop,P,w){
+    const R=pop.R,hist=new Array(NP).fill(0),adults=[];
+    for(const i of P.list)if(R.stage[i]===1){adults.push(i);hist[R.prof[i]]++;}
+    const over=hist.map((n,p)=>Math.max(0,n-P.jobs[p])),room=hist.map((n,p)=>Math.max(0,P.jobs[p]-n)),moves=over.reduce((a,b)=>a+b,0);
+    if(!moves)return;
+    yield;
+    const need=new Array(NP).fill(0);
+    if(P.materialized)for(let p=0;p<NP;p++)need[p]=room[p];
+    else for(let j=0;j<moves;j++){const p=drawIx(rr(pop,P,C.CAREER),room);room[p]--;need[p]++;}
+    for(let dst=NP-1;dst>=0;dst--){
+      if(!need[dst])continue;
+      const cand=adults.filter(i=>over[R.prof[i]]>0&&R.prof[i]!==dst);
+      tally(pop,'mestiere',cand.length<=need[dst],need[dst]);
+      const picks=choose(pop,cand,cand.length<=1?1:cand.length,i=>careerUtil(pop,i,R.prof[i],dst),C.CAREER);
+      for(const i of picks){
+        if(!need[dst])break;
+        const src=R.prof[i];
+        if(!over[src])continue;
+        over[src]--;need[dst]--;R.prof[i]=dst;pop.rtotals.successions++;
+        remember(pop,i,6,dst,w);
+        pop.dec.careers.push({id:idOf(pop,i),from:PROFS[src],to:PROFS[dst]});
+        log(pop,w,'career',P,dst===NONE?`${nameOf(pop,i)} resta senza lavoro a ${P.id}.`:`${nameOf(pop,i)} diventa ${PROF_NAMES[dst]} a ${P.id}.`);
+      }
+      yield;
+    }
+  }
+  function* phaseBirths(pop,P,s,w){
+    const R=pop.R,mod0=clamp(.6+.4*s.prosperity/1000,.5,1.2)*(1-hunger(s)*.5-Math.min(1,s.foodScarcity/1000)*.45)*(1-s.war*.3)*(1-s.disaster*.5);
+    for(const l of P.order.slice()){
+      const G=P.lin.get(l),g=LIN[l].g,A=adultsOf(G),crowd=/*CAPIENZA*/clamp((1.25-crowdOf(P,G))/.5,0,1);
+      if(!A)continue;
+      let X;
+      if(g.parents===2){
+        let f=0;for(let j=0;j<g.nA;j++)f+=G.h[g.nK+j]*g.fertile[j];
+        X=(G.c[AA]/2*(f/A)+G.c[AE]*.05)*g.birth;
+      }else X=A*g.birth;
+      const K=quantum(pop,P,'birth:'+LIN[l].id,C.BIRTH,X*crowd*Math.max(0,mod0),1e9);
+      if(!K)continue;
+      G.h[0]+=K;G.n+=K;P.alive+=K;pop.totals.births+=K;
+      if(!P.list.length)continue;
+      const couples=g.parents===2?group(P,l,1,1).filter(i=>uidOf(R,i)<R.spouse[i]).concat(group(P,l,1,2)):null;
+      const adults=g.parents===1?[].concat(...[0,1,2,3].map(q=>group(P,l,1,q))):null;
+      const total=g.parents===2?G.c[AA]/2+G.c[AE]:A,recN=couples?couples.length:adults?adults.length:0;
+      let kr=0;
+      for(let t=0;t<K;t++)if(g.parents===0?P.materialized:isRecord(pop,P,recN,total,C.BIRTH))kr++;
+      if(!kr)continue;
+      yield;
+      const util=i=>{
+        const j=couples?rowOf(pop,R.spouse[i]):i,x=(w-Math.min(R.born[i],R.born[j])-g.a0)/(g.e0-g.a0);
+        return (R.goalL[i]===1?60:0)+(R.goalL[j]===1?60:0)+(T(R,i,2)+T(R,j,2)+N(R,i,3)+N(R,j,3))/2-22*(R.kids[i]+R.kids[j])-(x>.6?300*(x-.6):0);
+      };
+      const cand=couples||adults;
+      let picks=cand?choose(pop,cand,Math.min(kr,cand.length),util,C.PARENT,'genitori'):[];
+      for(let t=0;t<kr;t++){
+        const a=picks.length?picks[t%picks.length]:-1,b=a>=0&&couples?rowOf(pop,R.spouse[a]):-1,i=mint(pop,P,P,l,0,0,NONE,0,w);
+        R.born[i]=w;
+        if(a>=0){R.pa[i]=uidOf(R,a);R.kids[a]=Math.min(255,R.kids[a]+1);remember(pop,a,4,uidOf(R,i),w);}
+        if(b>=0){R.pb[i]=uidOf(R,b);R.kids[b]=Math.min(255,R.kids[b]+1);remember(pop,b,4,uidOf(R,i),w);}
+        pop.rtotals.births++;
+        pop.dec.births.push({id:idOf(pop,i),place:P.id,parents:[a,b].filter(x=>x>=0).map(x=>idOf(pop,x))});
+        log(pop,w,'birth',P,`Nasce ${nameOf(pop,i)} (${LIN[l].name})${a<0?'':' da '+nameOf(pop,a)+(b>=0?' e '+nameOf(pop,b):'')} a ${P.id}.`);
       }
     }
   }
-  const MARRY=[3500,2500,800];
-  function bestBond(pop,i,singles){
-    const m=pop.rel.get(i);
-    if(!m)return 0;
-    let b=0;
-    for(const [j,s] of m)if(s>b&&singles.has(j))b=s;
-    return b;
+
+  // ——— Migrazioni, famiglie, fondazioni ———
+  function kidPicks(pop,P,G,g){ // quanti figli porta una famiglia e di quali fasce (regola aggregata)
+    const C0=kidsOf(G,g);
+    if(g.parents!==2||!C0||G.c[AA]<40)return []; // nelle comunità piccole partono solo coppie senza figli al seguito
+    const u=u01(ar(pop,P,C.FAMILY)),n=Math.min(C0,u<.5?0:u<.85?1:2),out=[],h=G.h.slice(0,g.nK);
+    for(let t=0;t<n;t++){ // il secondo figlio è vicino d'età al primo, come fra fratelli
+      const j=drawSpan(ar(pop,P,C.FAMILY),h,t?Math.max(0,out[0]-4):0,t?Math.min(g.nK,out[0]+5):g.nK);
+      if(j<0)break;
+      h[j]--;out.push(j);
+    }
+    return out;
   }
-  function phaseMarriage(pop,w,sig,ci){
-    const R=pop.R;
-    for(const P of pop.places){
-      const c=ci[P.ix],s=sig[P.ix];
-      const mod=Math.max(0,s.prosperity)*(1000-s.crisis*300)*(1000-s.war*300)/1e9;
-      const adults=cellList(P,c,k=>kWed[k]===0&&kStage[k]===1); // una sola volta per luogo, poi per stirpe (ordine per chiave)
-      if(!adults.length)continue;
-      for(let l=0;l<NL;l++){
-        const g=GEO[l],cells=adults.filter(x=>kLin[x.key]===l);
-        if(!cells.length)continue;
-        let S=0,X=0;
-        const ws=cells.map(x=>{const n=x.anon+x.recs.length;S+=n;const v=Math.round(n*MARRY[kBand[x.key]-g.B]*mod);X+=v;return v;});
-        const m=allot(pop,P,'marry:'+l,C.MARRY*8+l,w,[{w:Math.floor(X/2),cap:Math.floor(S/2)}])[0];
-        if(!m)continue;
-        pop.totals.marriages+=m;
-        // Persone per cella: per ogni coppia si estrae una cella; metà delle volte il partner viene dalla stessa cella
-        // (omogamia: stesso mestiere e fascia d'età), altrimenti da un'altra estrazione. Regola di cella, uguale ovunque.
-        const take=cells.map(()=>0),avail=cells.map(x=>x.anon+x.recs.length),wt=()=>cells.map((x,t)=>avail[t]-take[t]>0?Math.max(1,ws[t]):0);
-        for(let j=0;j<m;j++){
-          const a=draw(pop,P,C.MARRY*8+l,w,1000+2*j,wt());
-          if(a<0)break;
-          take[a]++;
-          const b=avail[a]-take[a]>0&&hash(pop.seed,P.h,C.MARRY*8+l,w,5000+j)%2===0?a:draw(pop,P,C.MARRY*8+l,w,1001+2*j,wt());
-          if(b<0){take[a]--;break;}
-          take[b]++;
-        }
-        const singles=new Set();
-        for(const x of cells)for(const i of x.recs)singles.add(i);
-        const quota=cells.map((x,t)=>{
-          const k=take[t];if(!k)return 0;
-          const kr=split(pop,P,C.MARRY,w,x.key,k,x.anon,x.recs.length);
-          if(k-kr){addAnon(P,x.key,kr-k);addAnon(P,x.key+1,k-kr);}
-          return kr;
-        });
-        const cellOf=new Map();
-        cells.forEach((x,t)=>{if(quota[t])for(const i of x.recs)cellOf.set(i,t);});
-        const wish=i=>T(R,i,2)*2+N(R,i,3)*2+(R.goalL[i]===1?150:0);
-        // Prima le coppie già legate (corteggiamento, amicizia) entro le quote di cella decise dalla regola: chi si conosce si sposa.
-        const pairs=[],seenPair=new Set();
-        for(const [i] of cellOf){
-          const m2=pop.rel.get(i);
-          if(m2)for(const j of m2.keys()){
-            if(!cellOf.has(j))continue;
-            const a=Math.min(i,j),b=Math.max(i,j),pk=a*4294967296+b;
-            if(seenPair.has(pk))continue;
-            seenPair.add(pk);
-            pairs.push([(bond(pop,a,b)+bond(pop,b,a))*3+wish(a)+wish(b),hash(pop.seed,R.hid[a]^R.hid[b],C.MARRY,w,2),a,b]);
-          }
-        }
-        pairs.sort((a,b)=>b[0]-a[0]||b[1]-a[1]||a[2]-b[2]||a[3]-b[3]);
-        const chosen=[],picked=new Set(),left=quota.slice();
-        for(const [,,i,j] of pairs){
-          if(picked.has(i)||picked.has(j))continue;
-          const ti=cellOf.get(i),tj=cellOf.get(j);
-          if(ti===tj?left[ti]<2:left[ti]<1||left[tj]<1)continue;
-          left[ti]--;left[tj]--;picked.add(i);picked.add(j);chosen.push(i,j);
-        }
-        // Poi il resto delle quote, per desiderio di famiglia e bisogno di compagnia.
-        cells.forEach((x,t)=>{
-          if(!left[t])return;
-          for(const i of choose(pop,x.recs.filter(i=>!picked.has(i)),left[t],i=>wish(i)+bestBond(pop,i,singles)*3,C.MARRY,w)){chosen.push(i);picked.add(i);}
-        });
-        // Coppie: prima chi ha già un legame (il più forte), poi per spareggio con hash.
-        const free=chosen.slice();
-        while(free.length>=2){
-          let ba=0,bb=1,bs=-1,bh=0;
-          for(let a=0;a<free.length;a++)for(let b=a+1;b<free.length;b++){
-            const sv=bond(pop,free[a],free[b])+bond(pop,free[b],free[a]),hv=hash(pop.seed,R.hid[free[a]]^R.hid[free[b]],C.MARRY,w,1);
-            if(sv>bs||sv===bs&&hv>bh){bs=sv;bh=hv;ba=a;bb=b;}
-          }
-          const i=free[ba],j=free[bb];
-          free.splice(bb,1);free.splice(ba,1);
-          pop.rtotals.marriages++;
-          if(bs>0)pop.rtotals.bondMarriages++;
-          for(const [x,y] of [[i,j],[j,i]]){R.wed[x]=1;R.spouse[x]=y;remember(pop,x,3,y,w);addRel(pop,x,y,50);}
-          pop.dec.marriages.push({a:idOf(pop,i),b:idOf(pop,j)});
-          log(pop,w,'marriage',P,`${nameOf(pop,i)} e ${nameOf(pop,j)} si sposano a ${P.id}.`);
-        }
-        for(const i of free){R.wed[i]=1;R.spouse[i]=-1;remember(pop,i,3,-1,w);}
+  function takeRow(pop,P,i){leave(P,pop.R,i);pop.R.wealth[i]=0n;}
+  /* Una famiglia parte coi propri figli anche se hanno fasce d'età diverse da quelle decise dalla regola di luogo: perché i margini
+     restino esatti, lungo la strada fra le due fasce un bambino per fascia si sposta di una sola fascia (data di nascita corretta di
+     Lk settimane: meno di un anno per gli umani). Mai i conosciuti o influenzati, mai un genitore troppo giovane, mai un adulto:
+     l'età dei bambini non conosciuti è quindi approssimata, quella adulta resta sempre esatta. */
+  function slide(pop,P,l,from,to,skip,w){
+    const R=pop.R,g=LIN[l].g,dir=to>from?1:-1,moves=[],used=new Set(skip),at=new Map();
+    for(const k of group(P,l,0,0)){const b=bucketOf(l,R.born[k],w);if(b<Math.min(from,to)||b>Math.max(from,to)||R.flags[k]&(KNOWN|SWAYED))continue;let a=at.get(b);if(!a)at.set(b,a=[]);a.push(k);}
+    for(let x=from;x!==to;x+=dir){
+      let best=-1,bb=0;
+      for(const k of at.get(x)||EMPTY){
+        if(used.has(k)||best>=0&&before(R,best,k))continue;
+        const born=Math.min(w,R.born[k]-dir*g.Lk);
+        if([R.pa[k],R.pb[k]].every(u=>{const p=rowOf(pop,u);return p<0||born-R.born[p]>=g.a0;})){best=k;bb=born;}
       }
+      if(best<0)return false;
+      used.add(best);moves.push([best,bb]);
     }
+    for(const [k,born] of moves)R.born[k]=born;
+    pop.rtotals.slid+=moves.length;
+    return true;
   }
-  const FERT=[1,.8,.25];
-  function phaseBirths(pop,w,sig,ci){
-    const R=pop.R;
-    for(const P of pop.places){
-      const c=ci[P.ix],s=sig[P.ix];
-      const alive=anonTotal(P)+c.list.length;
-      if(!alive)continue;
-      const crowd=alive<=P.capacity?1:Math.max(0,1-(alive-P.capacity)/(P.capacity/2));
-      const mod=crowd*Math.min(2,s.prosperity/1000)*(1-s.foodScarcity/1500)*(1-s.war*.3)*(1-s.disaster*.5);
-      const couples=cellList(P,c,k=>kWed[k]===1&&kStage[k]===1);
-      for(let l=0;l<NL;l++){
-        const g=GEO[l],cells=couples.filter(x=>kLin[x.key]===l);
-        if(!cells.length)continue;
-        let X=0;
-        for(const x of cells)X+=(x.anon+x.recs.length)*FERT[kBand[x.key]-g.B];
-        const K=allot(pop,P,'birth:'+l,C.BIRTH*8+l,w,[{w:Math.round(X*g.fert/YEAR/2*M*Math.max(0,mod)),cap:1e9}])[0];
-        if(!K)continue;
-        pop.totals.births+=K;
-        const key=KEY(l,0,0,0);
-        if(!P.materialized){addAnon(P,key,K);continue;}
-        const parents=[];
-        for(const x of cells)for(const i of x.recs)parents.push(i);
-        for(let j=0;j<K;j++){
-          const pairs=parents.filter(i=>R.wed[i]===1&&R.spouse[i]>=0&&R.alive[R.spouse[i]]&&R.place[R.spouse[i]]===P.ix&&(R.spouse[i]>i||!parents.includes(R.spouse[i])));
-          const pool=pairs.length?pairs:parents;
-          const [a]=choose(pop,pool,1,i=>(R.goalL[i]===1?100:0)+T(R,i,2)+N(R,i,3)-30*R.kids[i],C.PARENT,w*64+j%64);
-          const b=a===undefined?-1:R.spouse[a];
-          const i=mint(pop,P,key,w,0);
-          R.goalL[i]=0;
-          if(a!==undefined){R.pa[i]=a;R.kids[a]=Math.min(65535,R.kids[a]+1);remember(pop,a,4,i,w);}
-          if(b>=0){R.pb[i]=b;R.kids[b]=Math.min(65535,R.kids[b]+1);if(R.alive[b])remember(pop,b,4,i,w);}
-          remember(pop,i,1,a===undefined?-1:a,w);
-          pop.rtotals.births++;
-          const id=idOf(pop,i);
-          pop.dec.births.push({id,parents:[a,b].filter(x=>x!==undefined&&x>=0).map(x=>idOf(pop,x))});
-          log(pop,w,'birth',P,`Nasce ${nameOf(pop,i)} (${LIN_NAMES[l]})${a===undefined?'':' da '+nameOf(pop,a)+(b>=0?' e '+nameOf(pop,b):'')} a ${P.id}.`);
-        }
+  const minorsOf=(pop,P,l,a,b)=>{const R=pop.R,ua=uidOf(R,a),ub=uidOf(R,b);return group(P,l,0,0).filter(k=>R.pa[k]===ua||R.pb[k]===ua||R.pa[k]===ub||R.pb[k]===ub);};
+  // Bambini che partono con una coppia: i propri figli; se la coppia non ne ha altrettanti, orfani o (affido) altri della stessa fascia.
+  function kidsFor(pop,P,l,slots,a,b,w){
+    const R=pop.R,out=[],bucket=k=>bucketOf(l,R.born[k],w),by=(x,y)=>bucket(x)-bucket(y)||(before(R,x,y)?-1:1);
+    const anonAt=slot=>{let n=P.lin.get(l).h[slot];for(const k of group(P,l,0,0))if(bucket(k)===slot)n--;for(const x of out)if(x.row<0&&x.slot===slot)n--;return n;};
+    const mine=a>=0?minorsOf(pop,P,l,a,b).sort(by):EMPTY,sorted=slots.slice().sort((x,y)=>x-y);
+    if(mine.length===sorted.length){
+      const skip=new Set(mine);
+      let ok=true;
+      mine.forEach((k,t)=>{if(ok&&bucket(k)!==sorted[t]&&!(P.materialized?slide(pop,P,l,sorted[t],bucket(k),skip,w):anonAt(sorted[t])>0))ok=false;else if(ok)out.push({row:k,slot:sorted[t],parted:false});});
+      if(ok)return out;
+    }
+    for(const slot of sorted.slice(out.length)){
+      const taken=new Set(out.map(x=>x.row)),recs=group(P,l,0,0).filter(k=>bucket(k)===slot&&!taken.has(k)&&(!mine.includes(k)||mine.length>sorted.length));
+      const pool0=recs.length?recs:group(P,l,0,0).filter(k=>bucket(k)===slot&&!taken.has(k)),orphans=pool0.filter(j=>[R.pa[j],R.pb[j]].every(u=>{const p=rowOf(pop,u);return p<0||R.place[p]!==P.ix;}));
+      const own=pool0.filter(k=>mine.includes(k));
+      let row=-1;
+      if(own.length)row=own.sort(by)[0];
+      else if(anonAt(slot)<=0&&pool0.length)row=(orphans.length?orphans:pool0).sort(by)[0];
+      out.push({row,slot,parted:row>=0&&!own.length&&!orphans.length});
+    }
+    return out;
+  }
+  function planSingle(pop,P,l,cls,to,share,plan,w,forced){
+    const G=P.lin.get(l),g=LIN[l].g,R=pop.R,recs=group(P,l,1,cls),rec=isRecord(pop,P,recs.length,G.c[cls],C.MIGRATE);
+    const slot=drawSpan(ar(pop,P,C.MIGRATE),G.h,g.nK,g.nK+g.nA),job=drawIx(ar(pop,P,C.JOB),P.jobs);
+    G.c[cls]--;G.h[slot]--;G.n--;P.alive--;if(job>=0)P.jobs[job]--;
+    P.wealth-=share;pop.totals.migrations++;
+    let row=-1;
+    if(rec){
+      [row]=choose(pop,recs,1,i=>{
+        let ties=0;
+        for(let k=0;k<R.relN[i];k++){const j=rowOf(pop,R.relU[i*6+k]),s=R.relS[i*6+k];if(j>=0&&R.place[j]===P.ix)ties+=s>0?s:s*1.5;}
+        return T(R,i,3)*3+N(R,i,2)+N(R,i,1)*2+N(R,i,0)+(R.goalL[i]===5?120:0)+(R.goalL[i]===3?40:0)-clamp(ties,-60,100)-R.proj[i]/4;
+      },C.MIGRATE,'migrazione');
+      takeRow(pop,P,row);
+    }
+    plan.push({from:P.ix,to,l,kind:0,cls,adults:[{slot,job,row}],kids:[],purse:share,found:!!forced});
+  }
+  function planFamily(pop,P,l,to,share,plan,w,forced){
+    const G=P.lin.get(l),g=LIN[l].g,R=pop.R,couples=group(P,l,1,1).filter(i=>uidOf(R,i)<R.spouse[i]),total=G.c[AA]/2;
+    const slots=kidPicks(pop,P,G,g),rec=isRecord(pop,P,couples.length,total,C.FAMILY);
+    let a=-1,b=-1;
+    const s1=drawSpan(ar(pop,P,C.FAMILY),G.h,g.nK,g.nK+g.nA);G.h[s1]--;
+    const s2=drawSpan(ar(pop,P,C.FAMILY),G.h,g.nK,g.nK+g.nA);G.h[s2]--;
+    const j1=drawIx(ar(pop,P,C.JOB),P.jobs);if(j1>=0)P.jobs[j1]--;
+    const j2=drawIx(ar(pop,P,C.JOB),P.jobs);if(j2>=0)P.jobs[j2]--;
+    let kids=slots.map(slot=>({row:-1,slot,parted:false}));
+    if(rec){
+      const index=new Map();
+      for(const k of group(P,l,0,0))for(const u of [R.pa[k],R.pb[k]])if(u>=0){let x=index.get(u);if(!x)index.set(u,x=[]);x.push(bucketOf(l,R.born[k],w));}
+      const want=slots.slice().sort((x,y)=>x-y),kidsAt=i=>(index.get(uidOf(R,i))||index.get(R.spouse[i])||EMPTY).slice().sort((x,y)=>x-y);
+      [a]=choose(pop,couples,1,i=>{
+        const j=rowOf(pop,R.spouse[i]),own=kidsAt(i);
+        let miss=Math.abs(own.length-want.length)*2; // la famiglia parte intera: stessi figli, fasce uguali o vicine
+        if(own.length===want.length)for(let k=0;k<own.length;k++){const d=Math.abs(own[k]-want[k]);miss+=d*.02;}
+        return T(R,i,3)+T(R,j,3)+(N(R,i,1)+N(R,j,1))*2+N(R,i,2)+N(R,j,2)+(R.goalL[i]===5?60:0)+(R.goalL[j]===5?60:0)-miss*2000;
+      },C.FAMILY,'famiglia');
+      b=rowOf(pop,R.spouse[a]);
+    }
+    if(P.list.length&&slots.length)kids=kidsFor(pop,P,l,slots,a,b,w);
+    for(const q of slots)G.h[q]--;
+    G.c[AA]-=2;const n=2+slots.length;G.n-=n;P.alive-=n;
+    const purse=share*BigInt(n);
+    P.wealth-=purse;pop.totals.migrations+=n;pop.totals.families++;
+    if(a>=0){
+      const ua=uidOf(R,a),ub=uidOf(R,b);
+      takeRow(pop,P,a);takeRow(pop,P,b);
+      for(const k of kids)if(k.row>=0)takeRow(pop,P,k.row);
+      for(const k of group(P,l,0,0))if(R.pa[k]===ua||R.pb[k]===ua||R.pa[k]===ub||R.pb[k]===ub)pop.rtotals.left++;
+    }else for(const k of kids)if(k.row>=0)takeRow(pop,P,k.row);
+    for(const k of kids)if(k.parted)pop.rtotals.parted++;
+    plan.push({from:P.ix,to,l,kind:1,cls:1,adults:[{slot:s1,job:j1,row:a},{slot:s2,job:j2,row:b}],kids,purse,found:!!forced});
+  }
+  function* phaseMigration(pop,P,s,w,n0,plan){
+    const dests=P.links.filter(j=>HABITABLE.has(pop.places[j].kind)&&n0[j]>0&&pop.places[j].capacity>0);
+    if(!dests.length||!P.alive)return;
+    const att=/*DESTINAZIONI*/dests.map(j=>{const D=pop.places[j];return Math.max(40,attract(D.sig)-1000+Math.round(600*clamp(1.1-n0[j]/D.capacity,-1.5,1)));});
+    const own=attract(s),best=Math.max(...dests.map(j=>attract(pop.places[j].sig)));
+    const rate=600+s.foodScarcity*4+s.crisis*2000+s.war*6000+s.disaster*3000+Math.max(0,s.unemployment-100)*3+Math.max(0,best-own)*1.5+(P.alive>P.capacity*1.1?3000:0);
+    const share=P.wealth/BigInt(P.alive);
+    for(const l of P.order.slice()){
+      const G=P.lin.get(l),id=LIN[l].id,n=G.c[A0]+G.c[AW];
+      const K=quantum(pop,P,'migrate:'+id,C.MIGRATE,n*rate,n);
+      for(let t=0;t<K;t++){
+        const cls=drawIx(ar(pop,P,C.MIGRATE),[G.c[A0],0,0,G.c[AW]]);
+        if(cls<0)break;
+        planSingle(pop,P,l,cls,dests[drawIx(ar(pop,P,C.DEST),att)],share,plan,w,false);
+        if(P.list.length&&t%4===3)yield;
       }
+      const F=quantum(pop,P,'family:'+id,C.FAMILY,G.c[AA]/2*rate*.5,G.c[AA]>>1);
+      for(let t=0;t<F;t++){planFamily(pop,P,l,dests[drawIx(ar(pop,P,C.DEST),att)],share,plan,w,false);if(P.list.length)yield;}
     }
   }
-  function withdraw(pop,P,list,need){
-    const R=pop.R,a=P.pool<need?P.pool:need;
-    P.pool-=a;need-=a;
-    if(need>0n){
-      const rich=list.filter(i=>R.alive[i]&&R.wealth[i]>0n).sort((x,y)=>R.wealth[y]>R.wealth[x]?1:R.wealth[y]<R.wealth[x]?-1:x-y);
-      for(const i of rich){const t=R.wealth[i]<need?R.wealth[i]:need;R.wealth[i]-=t;need-=t;if(need===0n)break;}
-    }
-    return need;
+  // Nuovi insediamenti: un luogo adatto, disabitato o quasi, senza crisi in corso, viene fondato da un gruppo della stessa stirpe
+  // (famiglie e singoli) partito da un luogo collegato abbastanza popoloso. Regola del solo strato aggregato.
+  function phaseFounding(pop,D,w,n0,plan){
+    if(!HABITABLE.has(D.kind)||D.capacity<20||n0[D.ix]>=12)return;
+    const s=D.sig;
+    if(s.war||s.disaster||s.crisis||s.foodScarcity>600)return;
+    const src=D.links.filter(j=>HABITABLE.has(pop.places[j].kind)&&pop.places[j].alive>=80);
+    if(!src.length)return;
+    const press=src.map(j=>{const P=pop.places[j];return 100+Math.round(900*clamp(P.alive/Math.max(1,P.capacity)-.6,0,1));});
+    if(!quantum(pop,D,'found',C.FOUND,Math.max(...press)*40,1))return;
+    const P=pop.places[src[drawIx(ar(pop,D,C.FOUND),press)]],fit=P.order.filter(l=>{const G=P.lin.get(l);return G.c[A0]>=8&&(LIN[l].g.parents===2?G.c[AA]>=12:adultsOf(G)>=20);});
+    if(!fit.length)return;
+    const l=fit[drawIx(ar(pop,D,C.FOUND),fit.map(q=>adultsOf(P.lin.get(q))))],share=P.wealth/BigInt(P.alive),g=LIN[l].g;
+    const fam=Math.min(g.parents===2?5:3,P.lin.get(l).c[AA]>>2),from=plan.length;
+    for(let t=0;t<fam;t++)planFamily(pop,P,l,D.ix,share,plan,w,true);
+    for(let t=0;t<6&&P.lin.get(l).c[A0]>2;t++)planSingle(pop,P,l,A0,D.ix,share,plan,w,true);
+    const G=linIn(D,l);G.niche=Math.max(G.niche,Math.ceil(D.capacity*.7));
+    let n=0;for(const m of plan.slice(from))n+=m.adults.length+m.kids.length;
+    pop.totals.foundings++;
+    pop.dec.foundings.push({place:D.id,from:P.id,people:n,lineage:LIN[l].id});
+    log(pop,w,'founding',D,`${n} ${LIN[l].name==='umano'?'coloni':'coloni ('+LIN[l].name+')'} partono da ${P.id} ${n0[D.ix]?'e ripopolano':'e fondano un insediamento a'} ${D.id}.`);
   }
-  function phaseMigration(pop,w,sig,ci){
-    const R=pop.R,plan=[];
-    for(const P of pop.places){
-      const c=ci[P.ix],s=sig[P.ix],dests=P.links.filter(j=>SETTLE.has(pop.places[j].kind));
-      if(!dests.length)continue;
-      const cells=cellList(P,c,k=>kStage[k]===1&&kWed[k]===0);
-      if(!cells.length)continue;
-      const alive=anonTotal(P)+c.list.length,own=attract(s),att=dests.map(j=>Math.max(50,attract(sig[j])+1000));
-      const best=Math.max(...dests.map(j=>attract(sig[j])));
-      const rate=500+s.foodScarcity*3+s.crisis*4000+s.war*8000+s.disaster*6000+Math.max(0,s.unemployment-100)*2+Math.max(0,best-own)*2+(alive>P.capacity*1.2?2000:0);
-      const out=allot(pop,P,'migrate',C.MIGRATE,w,cells.map(x=>{const n=x.anon+x.recs.length;return {w:Math.round(n*rate),cap:n};}));
-      const share=alive?placeWealth(pop,P,c.list)/BigInt(alive):0n;
-      cells.forEach((x,t)=>{
-        const k=out[t];if(!k)return;
-        const kr=split(pop,P,C.MIGRATE,w,x.key,k,x.anon,x.recs.length);
-        const who=choose(pop,x.recs,kr,i=>{
-          let ties=0;const m=pop.rel.get(i);
-          if(m)for(const [j,sv] of m)if(R.alive[j]&&R.place[j]===P.ix)ties+=sv;
-          return T(R,i,3)*3+N(R,i,2)+N(R,i,1)*2+N(R,i,0)+(R.goalL[i]===5?120:0)+(R.goalL[i]===3?40:0)-Math.min(300,ties);
-        },C.MIGRATE,w);
-        for(let j=0;j<k;j++){
-          const D=dests[draw(pop,P,C.DEST,w,x.key*1024+j,att)];
-          pop.totals.migrations++;
-          if(j<kr){
-            const i=who[j];
-            let purse=share;/*BORSA*/
-            const mine=R.wealth[i];
-            R.wealth[i]=0n;
-            if(mine>=purse)P.pool+=mine-purse;else withdraw(pop,P,c.list,purse-mine);
-            plan.push({from:P.ix,to:D,key:x.key,i,purse});
-          }else{
-            addAnon(P,x.key,-1);
-            withdraw(pop,P,c.list,share);
-            plan.push({from:P.ix,to:D,key:x.key,i:-1,purse:share});
-          }
-        }
-      });
+  function arrive(pop,m,w,tag){
+    const R=pop.R,D=pop.places[m.to],F=pop.places[m.from],G=linIn(D,m.l),g=LIN[m.l].g,n=m.adults.length+m.kids.length;
+    for(const a of m.adults){G.h[a.slot]++;D.jobs[a.job<0?NONE:a.job]++;}
+    for(const k of m.kids)G.h[k.slot]++;
+    if(m.kind)G.c[AA]+=2;else G.c[m.cls]++;
+    G.n+=n;D.alive+=n;D.wealth+=m.purse;pop.totals.arrivals+=n;
+    const rows=[],each=m.purse/BigInt(m.adults.length);
+    for(const a of m.adults){
+      let i=a.row;
+      if(i>=0){R.place[i]=D.ix;R.wealth[i]=each>MAXW?MAXW:each;enter(D,R,i);}
+      else if(D.materialized){i=mint(pop,D,F,m.l,1,m.kind?1:m.cls,a.job<0?NONE:a.job,a.slot,w);setWealth(pop,i,each);if(!m.kind&&m.cls===3)R.since[i]=w;}
+      if(i<0)continue;
+      rows.push(i);R.moves[i]=Math.min(3,R.moves[i]+1);remember(pop,i,7,D.ix,w);
+      pop.dec.migrations.push({id:idOf(pop,i),from:F.id,to:D.id,family:m.kind?tag:null,parted:false});
     }
-    for(const m of plan){
-      const D=pop.places[m.to],F=pop.places[m.from];
-      pop.totals.arrivals++;
-      if(m.i<0){
-        if(D.materialized){const i=mint(pop,D,m.key,w);R.moves[i]=1;give(pop,i,m.purse);remember(pop,i,7,F.ix,w);}
-        else{addAnon(D,m.key,1);D.pool+=m.purse;}
-        continue;
+    if(m.kind&&rows.length===2&&R.spouse[rows[0]]!==uidOf(R,rows[1])){R.spouse[rows[0]]=uidOf(R,rows[1]);R.spouse[rows[1]]=uidOf(R,rows[0]);tie(pop,rows[0],rows[1],40);}
+    for(const k of m.kids){
+      let i=k.row;
+      if(i>=0){
+        R.place[i]=D.ix;enter(D,R,i);
+        // All'arrivo il margine è quello della regola: si corregge con gli altri bambini del luogo (o, in mancanza, la sua data di nascita).
+        const b=bucketOf(m.l,R.born[i],w);
+        let recs=0;for(const q of group(D,m.l,0,0))if(bucketOf(m.l,R.born[q],w)===b)recs++;
+        if(b!==k.slot&&(D.materialized||recs>G.h[b])&&!slide(pop,D,m.l,b,k.slot,[i],w)&&!slide(pop,D,m.l,b,k.slot,[],w)){R.born[i]=bornFor(m.l,k.slot,R.hid[i],w);pop.rtotals.slid++;}
+      }else if(D.materialized){
+        i=mint(pop,D,F,m.l,0,0,NONE,k.slot,w);
+        if(rows.length===2&&rows.every(p=>R.born[i]-R.born[p]>=g.a0)){R.pa[i]=uidOf(R,rows[0]);R.pb[i]=uidOf(R,rows[1]);for(const p of rows)R.kids[p]=Math.min(255,R.kids[p]+1);}
       }
-      const i=m.i;
-      R.place[i]=D.ix;R.moves[i]=Math.min(255,R.moves[i]+1);give(pop,i,m.purse);remember(pop,i,7,D.ix,w);
-      pop.dec.migrations.push({id:idOf(pop,i),from:F.id,to:D.id});
-      log(pop,w,'migration',F,`${nameOf(pop,i)} lascia ${F.id} per ${D.id}.`);
+      if(i<0)continue;
+      R.moves[i]=Math.min(3,R.moves[i]+1);
+      pop.dec.migrations.push({id:idOf(pop,i),from:F.id,to:D.id,family:tag,parted:k.parted});
+    }
+    if(rows.length)log(pop,w,'migration',F,m.kind?`La famiglia di ${nameOf(pop,rows[0])} lascia ${F.id} per ${D.id}.`:`${nameOf(pop,rows[0])} lascia ${F.id} per ${D.id}.`);
+  }
+
+  // ——— Vita dei record ———
+  // Salari, spese e tasse della settimana arrivano ai record all'inizio del passo (in proporzione; lo strato aggregato li ha già contati).
+  function* distribute(pop,P){
+    const due=P.due;
+    P.due={w:new Map(),out:0n};
+    if(!P.list.length||!due.w.size&&due.out===0n)return;
+    const R=pop.R,per=new Map();
+    let sum=0n;
+    for(const [p,amt] of due.w)if(P.jobs[p]>0)per.set(p,amt/BigInt(P.jobs[p]));
+    for(const i of P.list)if(R.stage[i]===1&&per.has(R.prof[i]))sum+=per.get(R.prof[i]);
+    yield;
+    let base=P.wealth+due.out;
+    if(P.recW+sum>base)base=P.recW+sum;
+    const W=P.wealth,cut=due.out>0n||P.recW+sum>W;
+    for(let t=0;t<P.list.length;t++){
+      const i=P.list[t];
+      let v=R.wealth[i];
+      if(R.stage[i]===1){const add=per.get(R.prof[i]);if(add)v+=add;}
+      if(cut)v=v*W/base;
+      if(v!==R.wealth[i])setWealth(pop,i,v);
+      if(t%96===95)yield;
     }
   }
-  function achieved(pop,i){
-    const R=pop.R,g=R.goalL[i];
-    if(g===1)return R.wed[i]===1&&R.kids[i]>0;
+  const goalNow=(R,i)=>{ // bisogno più urgente (puro: si ricava, non si salva)
+    const adult=R.stage[i]===1,nd=[N(R,i,0),N(R,i,1),R.wounds[i]>=30?80:0,adult&&R.prof[i]===NONE?75:0,N(R,i,2),N(R,i,3)];
+    let gs=0,gv=59;
+    for(let k=0;k<nd.length;k++)if(nd[k]>gv){gv=nd[k];gs=k+1;}
+    return R.stage[i]>0?gs:0;
+  };
+  // Bisogni: funzione pura dello stato a fine settimana (al caricamento si ricalcolano identici).
+  function needsOf(pop,P,i){
+    const R=pop.R,s=P.sig,avg=P.avg+1n,rp=R.wealth[i]>avg*100n?10000:Number(R.wealth[i]*100n/avg);
+    let nrel=0;
+    for(let k=0;k<R.relN[i];k++)if(R.relS[i*6+k]>0&&pop.idMap.has(R.relU[i*6+k]))nrel++;
+    const wed=R.cls[i]===1||R.cls[i]===2,o=i*4;
+    R.needs[o]=clamp(Math.floor(s.foodScarcity/8)-(rp>=200?20:0)+10,0,100);
+    R.needs[o+1]=clamp(s.war*60+s.disaster*50+s.crisis*20+(R.wounds[i]>>1),0,100);
+    R.needs[o+2]=clamp(100-(rp>>1),0,100);
+    R.needs[o+3]=clamp(90-14*nrel-(wed?40:0)-5*R.kids[i],0,100);
+  }
+  function achieved(R,i){
+    const g=R.goalL[i],wed=R.cls[i]===1||R.cls[i]===2;
+    if(g===1)return wed&&R.kids[i]>0;
     if(g===2)return R.xp[i]>=150&&R.prof[i]!==NONE&&R.prof[i]!==ADV;
     if(g===3)return R.wealth[i]>=50000n;
     if(g===4)return R.xp[i]>=120&&R.prof[i]===ADV;
-    if(g===5)return R.moves[i]>=2;
-    return false;
+    return g===5&&R.moves[i]>=2;
   }
-  function phaseRecords(pop,w,sig,ci){
-    const R=pop.R;
-    for(const P of pop.places){
-      const c=ci[P.ix],list=c.list.filter(i=>R.alive[i]);
-      if(!list.length)continue;
-      const s=sig[P.ix],grown=list.filter(i=>kStage[keyOf(R,i)]>=1);
-      // Cassa comune: senza anonimi nel luogo si ridistribuisce agli adulti (il totale del luogo non cambia).
-      if(P.pool>0n&&grown.length&&anonTotal(P)===0){
-        const each=P.pool/BigInt(grown.length);
-        if(each>0n){P.pool-=each*BigInt(grown.length);for(const i of grown)give(pop,i,each);}
+  // Azione personale della settimana: non cambia nessun margine, ma legami, rivalità, aiuti e progetti contano nelle decisioni.
+  function act(pop,P,i,w,X){
+    const R=pop.R,h=hash(pop.seed,R.hid[i],C.SOCIAL,w,0),soc=T(R,i,2),r=(h>>>8)%100,o=i*6,here=u=>{const j=rowOf(pop,u);return j>=0&&R.place[j]===P.ix?j:-1;};
+    const did=(kind,j)=>{if(pop.dec.actions.length<20000)pop.dec.actions.push({kind,a:idOf(pop,i),b:j>=0?idOf(pop,j):null});};
+    if(h%100>=20+soc*.5)return;
+    if(r<35){
+      for(let k=0;k<R.relN[i];k++)if(R.relS[o+k]<0){
+        const j=here(R.relU[o+k]);
+        if(j<0)continue;
+        if(soc+(h>>>16)%60>=70){const end=R.relS[o+k]>=-8;tie(pop,i,j,end?10:6);if(end){remember(pop,i,15,uidOf(R,j),w);remember(pop,j,15,uidOf(R,i),w);}did('riconciliazione',j);}
+        else{tie(pop,i,j,-3);did('rivalità',j);}
+        return;
       }
-      const avg=placeWealth(pop,P,list)/BigInt(anonTotal(P)+list.length);
-      for(const i of list){
-        const rp=Number((R.wealth[i]*100n)/(avg+1n)),st=kStage[keyOf(R,i)];
-        let nrel=0;const m=pop.rel.get(i);if(m)for(const j of m.keys())if(R.alive[j])nrel++;
-        R.wounds[i]=Math.max(0,R.wounds[i]-3);
-        R.needs[i*4]=clamp(Math.floor(s.foodScarcity/8)-(rp>=200?20:0)+10,0,100);
-        R.needs[i*4+1]=clamp(s.war*60+s.disaster*50+s.crisis*20+(R.wounds[i]>>1),0,100);
-        R.needs[i*4+2]=clamp(100-(rp>>1),0,100);
-        R.needs[i*4+3]=clamp(90-12*nrel-(R.wed[i]===1?40:0)-5*R.kids[i],0,100);
-        if(st===1&&R.prof[i]!==NONE&&R.prof[i]!==ADV)R.xp[i]=Math.min(4e9,R.xp[i]+1);
-        const nd=[R.needs[i*4],R.needs[i*4+1],R.wounds[i]>=30?80:0,st===1&&R.prof[i]===NONE?75:0,R.needs[i*4+2],R.needs[i*4+3]];
-        let gs=0,gv=59;
-        for(let k=0;k<nd.length;k++)if(nd[k]>gv){gv=nd[k];gs=k+1;}
-        R.goalS[i]=st>=1?gs:0;
-        if(st>=1&&R.goalL[i]&&achieved(pop,i)){
+    }
+    if(R.stage[i]===1&&R.cls[i]===0&&r<60){
+      const S=X.singles.get(R.lin[i])||EMPTY;
+      let j=-1,bs=0;
+      if((h>>>16)%3)for(let k=0;k<R.relN[i];k++)if(R.relS[o+k]>bs){const q=here(R.relU[o+k]);if(q>=0&&R.stage[q]===1&&R.cls[q]===0&&R.lin[q]===R.lin[i]&&!kin(R,i,q)){j=q;bs=R.relS[o+k];}}
+      if(j<0&&S.length>1)j=S[(h>>>12)%S.length];
+      if(j>=0&&j!==i&&!kin(R,i,j)&&bond(pop,i,j)>=0&&bond(pop,j,i)>=0){tie(pop,i,j,4+(h>>>20)%5);did('corteggiamento',j);return;}
+    }
+    if(R.stage[i]===1&&T(R,i,1)>=60&&r>=60&&r<72&&R.prof[i]!==NONE){
+      const S=X.jobs[R.prof[i]],j=S[(h>>>12)%S.length];
+      if(j!==i&&R.spouse[i]!==uidOf(R,j)&&bond(pop,i,j)<=10){
+        const b0=bond(pop,i,j);tie(pop,i,j,-6-(T(R,i,1)>80?4:0));
+        if(b0>-10&&bond(pop,i,j)<=-10)remember(pop,i,14,uidOf(R,j),w);
+        did('rivalità',j);return;
+      }
+    }
+    if(r>=72&&r<88&&R.wealth[i]>P.avg*2n){
+      let j=-1;
+      for(let k=0;k<R.relN[i];k++)if(R.relS[o+k]>0){const q=here(R.relU[o+k]);if(q>=0&&R.wealth[q]*2n<P.avg&&(j<0||R.wealth[q]<R.wealth[j]))j=q;}
+      if(j>=0){const v=R.wealth[i]/20n;setWealth(pop,i,R.wealth[i]-v);give(pop,j,v);tie(pop,i,j,8);remember(pop,j,18,uidOf(R,i),w);did('aiuto',j);return;}
+    }
+    const j=X.grown[(h>>>12)%X.grown.length];
+    if(j===i||bond(pop,i,j)<0)return;
+    tie(pop,i,j,2+(h>>>20)%4+(R.prof[i]===R.prof[j]?2:0));did('amicizia',j);
+  }
+  function* life(pop,P,w){
+    const R=pop.R;
+    P.avg=P.alive?P.wealth/BigInt(P.alive):0n;
+    if(!P.list.length)return;
+    if(P.recW>P.wealth){ // borse e viveri oltre la cassa: si ripartiscono in proporzione
+      const W=P.wealth,base=P.recW;
+      for(let t=0;t<P.list.length;t++){const i=P.list[t];setWealth(pop,i,R.wealth[i]*W/base);if(t%96===95)yield;}
+    }
+    const X={grown:[],singles:new Map(),jobs:Array.from({length:NP},()=>[])};
+    for(const i of P.list){
+      if(!R.stage[i])continue;
+      X.grown.push(i);
+      if(R.stage[i]!==1)continue;
+      X.jobs[R.prof[i]].push(i);
+      if(R.cls[i]===0){let a=X.singles.get(R.lin[i]);if(!a)X.singles.set(R.lin[i],a=[]);a.push(i);}
+    }
+    yield;
+    // Cassa comune (solo senza anonimi): oltre il 4 % della ricchezza si ridistribuisce agli adulti e agli anziani.
+    let each=0n;
+    if(P.materialized&&X.grown.length){const keep=P.wealth/50n,pool=P.wealth-P.recW;if(pool>keep*2n)each=(pool-keep)/BigInt(X.grown.length);}
+    for(let t=0;t<P.list.length;t++){
+      const i=P.list[t];
+      if(R.wounds[i])R.wounds[i]=Math.max(0,R.wounds[i]-3);
+      if(R.stage[i]){
+        if(each>0n)give(pop,i,each);
+        if(R.stage[i]===1&&R.prof[i]!==NONE&&R.prof[i]!==ADV)R.xp[i]=Math.min(4e9,R.xp[i]+1);
+        if(R.goalL[i]&&achieved(R,i)){
           const old=R.goalL[i];
           remember(pop,i,11,old,w);
           log(pop,w,'goal',P,`${nameOf(pop,i)} realizza il proprio sogno: ${GOAL_TEXT[GOALS_L[old]]}.`);
           R.goalL[i]=pickGoal(pop,i,w,old);
         }
-        if(!R.notable[i]&&(R.xp[i]>=300||R.wealth[i]>=1000000n))R.notable[i]=1;
+        if(R.stage[i]===1){ // progetto personale: avanza con l'operosità, dà esperienza e trattiene nel luogo e nel mestiere
+          R.proj[i]+=1+(T(R,i,4)>60?1:0);
+          if(R.proj[i]>=100){R.proj[i]=0;R.xp[i]=Math.min(4e9,R.xp[i]+30);remember(pop,i,13,R.goalL[i],w);pop.dec.actions.push({kind:'progetto',a:idOf(pop,i),b:null});}
+        }
+        if(!(R.flags[i]&NOTABLE)&&(R.xp[i]>=600||R.wealth[i]>=5000000n))R.flags[i]|=NOTABLE;
+        if(X.grown.length>1)act(pop,P,i,w,X);
       }
-      // Relazioni: incontri settimanali secondo la socievolezza; i single cercano spesso compagnia della stessa stirpe.
-      if(grown.length<2)continue;
-      const singles=new Map();
-      for(const i of grown)if(R.wed[i]===0&&kStage[keyOf(R,i)]===1){let a=singles.get(R.lin[i]);if(!a)singles.set(R.lin[i],a=[]);a.push(i);}
-      for(const i of grown){
-        const h=hash(pop.seed,R.hid[i],C.SOCIAL,w,0);
-        if(h%100>=T(R,i,2))continue;
-        const sl=singles.get(R.lin[i]),mates=sl&&R.wed[i]===0?sl.filter(o=>R.prof[o]===R.prof[i]&&R.band[o]===R.band[i]):null,r3=(h>>>8)%3;
-        const pool=mates&&mates.length>1&&r3===0?mates:R.wed[i]===0&&sl&&sl.length>1&&r3===1?sl:grown;
-        const j=pool[(h>>>12)%pool.length];
-        if(j===i)continue;
-        const gain=3+(h>>>20)%5+(R.prof[i]===R.prof[j]?3:0)+(pool!==grown?4:0);
-        addRel(pop,i,j,gain);addRel(pop,j,i,gain);
-      }
+      if(t%32===31)yield;
+    }
+    for(let t=0;t<P.list.length;t++){
+      const i=P.list[t];
+      if(!(R.flags[i]&(KNOWN|SWAYED)))for(let k=R.relN[i]-1;k>=0;k--)if(!pop.idMap.has(R.relU[i*6+k]))dropRel(R,i,k);
+      needsOf(pop,P,i);
+      if(t%96===95)yield;
     }
   }
-  function stepWeek(pop,w,env){
-    pop.dec=emptyDecisions(w);
-    const sig=pop.places.map(P=>signalsOf(env,P.id));
-    phaseShift(pop,w,census(pop));
-    phaseBands(pop,w,census(pop));
-    phaseDeath(pop,w,sig,census(pop));
-    phaseExpeditions(pop,w,sig,census(pop));
-    phaseCareers(pop,w,sig,census(pop));
-    phaseMarriage(pop,w,sig,census(pop));
-    phaseBirths(pop,w,sig,census(pop));
-    phaseMigration(pop,w,sig,census(pop));
-    phaseRecords(pop,w,sig,census(pop));
-    pop.week=w+1;pop._ci=null;
+
+  // ——— La settimana, come sequenza di parti interrompibili ———
+  function* week(pop,w,env){
+    pop.w=w;pop.dec=emptyDecisions(w);
+    for(const P of pop.places){P.sig=signalsOf(env,P.id);P.aq=0;P.rq=0;if(P.ix%64===63)yield;}
+    yield;
+    for(const P of pop.places){if(P.list.length||P.due.w.size||P.due.out)yield* distribute(pop,P);}
+    for(const P of pop.places){
+      if(!P.alive)continue;
+      const s=P.sig;
+      yield* phaseShift(pop,P,w);
+      yield* phaseMarriage(pop,P,s,w);
+      phaseMourning(pop,P,w);
+      yield;
+      yield* phaseDeath(pop,P,s,w);
+      yield* phaseExpeditions(pop,P,s,w);
+      phaseCareers(pop,P,s);
+      yield* phaseBirths(pop,P,s,w);
+      yield;
+    }
+    // Migrazioni in due fasi: prima le decisioni di tutti i luoghi, poi gli arrivi.
+    const plan=[],n0=pop.places.map(P=>P.alive);
+    for(const P of pop.places){if(!P.alive)continue;yield* phaseMigration(pop,P,P.sig,w,n0,plan);yield;}
+    for(const P of pop.places){if(n0[P.ix]>=12)continue;phaseFounding(pop,P,w,n0,plan);yield;}
+    for(let t=0;t<plan.length;t++){arrive(pop,plan[t],w,t+1);if(t%8===7)yield;}
+    for(const P of pop.places){
+      for(const l of P.order.slice())if(P.lin.get(l).n===0)dropLin(P,l);
+      if(P.list.length)yield* reconcile(pop,P,w);
+    }
+    for(const P of pop.places){yield* life(pop,P,w);if(P.list.length||P.ix%16===15)yield;}
+    pop.week=w+1;
   }
-  function step(pop,week,env){
-    if(!pop||!Number.isInteger(week)||week<pop.week)return 0;
-    let done=0;
-    for(let w=pop.week;w<=week;w++){stepWeek(pop,w,env);done++;}
+  const open=(pop,w,env)=>{pop.gen=week(pop,w,env);};
+  // Esegue una parte; restituisce true quando la settimana è finita.
+  function advance(pop){
+    let r;
+    try{r=pop.gen.next();}catch(e){pop.gen=null;throw e;}
+    if(r.done)pop.gen=null;
+    return r.done;
+  }
+  const partial=pop=>!!(pop&&pop.gen);
+  function settle(pop){if(!partial(pop))return 0;while(!advance(pop));return 1;}
+  function step(pop,weekTo,env){
+    if(!pop||!Number.isInteger(weekTo)||weekTo<pop.week)return 0;
+    let done=settle(pop);
+    // Le settimane arretrate non ricevono i segnali di oggi: neutre, a meno che env sia una funzione della settimana.
+    for(let w=pop.week;w<=weekTo;w++){open(pop,w,typeof env==='function'?env(w):w===weekTo?env:null);settle(pop);done++;}
     return done;
   }
-  // Specifica per WorldSim.register: livello 3, passo settimanale; anche l'intervallo compresso si risolve settimana per settimana.
+  // Specifica per WorldSim: livello 3, passo settimanale, intervallo divisibile (info.due) e risolto sempre settimana per settimana.
+  // maxChunks come l'economia viva: mai compresso, altrimenti in un'assenza lunga i due moduli non si alternerebbero ogni settimana.
   function system(get,envOf){
-    return {level:3,step:WEEK,maxChunks:520,resolve(s,from,to){
+    return {level:3,step:WEEK,maxChunks:1000000,resolve(s,from,to,info){
       const pop=get(s);
       if(!pop)return;
-      const a=Math.floor(from/WEEK),b=Math.floor(to/WEEK);
-      for(let w=Math.max(a,pop.week);w<b;w++)step(pop,w,typeof envOf==='function'?envOf(s,w):null);
+      const a=Math.floor(from/WEEK),b=Math.floor(to/WEEK),due=info&&typeof info.due==='function'?info.due:null;
+      for(;;){
+        if(!partial(pop)){
+          if(pop.week>=b)return;
+          const w=pop.week;
+          open(pop,w,w>=a&&typeof envOf==='function'?envOf(s,w):null);
+        }
+        while(!advance(pop))if(due&&due())return false;
+        if(due&&due()&&pop.week<b)return false;
+      }
     }};
   }
 
-  // ——— Materializzazione: dalle coorti ai record (idempotente, definitiva) ———
+  // ——— Materializzazione: dai margini ai record (idempotente, definitiva) ———
   function materialize(pop,placeId){
     const ix=placeIx(pop,placeId);
     if(ix<0)return 0;
-    const P=pop.places[ix],R=pop.R,w=pop.week;
+    settle(pop);
+    const P=pop.places[ix],R=pop.R,cur=pop.week-1;
     if(P.materialized)return 0;
     P.materialized=true;
-    const fresh=[];
-    for(const k of [...P.anon.keys()].sort((a,b)=>a-b)){
-      const n=P.anon.get(k);
-      for(let j=0;j<n;j++)fresh.push(mint(pop,P,k,w));
-    }
-    P.anon=new Map();
-    pop._ci=null;
-    if(!fresh.length)return 0;
-    // Coppie fra i coniugati della stessa stirpe; chi resta senza coppia è vedovo.
-    for(let l=0;l<NL;l++){
-      const wed=fresh.filter(i=>R.lin[i]===l&&R.wed[i]).sort((a,b)=>R.hid[a]-R.hid[b]||a-b);
-      for(let t=0;t+1<wed.length;t+=2){const a=wed[t],b=wed[t+1];R.spouse[a]=b;R.spouse[b]=a;addRel(pop,a,b,60);addRel(pop,b,a,60);}
-      if(wed.length%2)R.wed[wed[wed.length-1]]=2;
-      const couples=wed.filter(i=>R.wed[i]===1&&R.spouse[i]>i&&kStage[keyOf(R,i)]===1);
-      for(const i of fresh)if(R.lin[i]===l&&kStage[keyOf(R,i)]===0&&couples.length){
-        const a=couples[hash(pop.seed,R.hid[i],C.PARENT,0,0)%couples.length],b=R.spouse[a];
-        R.pa[i]=a;R.pb[i]=b;R.kids[a]++;R.kids[b]++;
+    const free=Array.from(P.jobs),jobs=[],fresh=[];
+    for(const i of P.list)if(R.stage[i]===1)free[R.prof[i]]--;
+    free.forEach((n,p)=>{for(let t=0;t<n;t++)jobs.push(p);});
+    const shuffle=(a,salt)=>a.map((x,t)=>[x,hash(pop.seed,P.h,C.MINT,salt,t),t]).sort((x,y)=>x[1]-y[1]||x[2]-y[2]).map(x=>x[0]);
+    const work=shuffle(jobs,7);
+    let at=0;
+    pop.bulk=true;
+    const make=(l,stage,cls,slot)=>{const i=mint(pop,P,P,l,stage,cls,stage===1?work[at++]:NONE,slot,cur);fresh.push(i);return i;};
+    for(const l of P.order){
+      const G=P.lin.get(l),g=LIN[l].g,rest=(stage,q)=>G.c[stage===1?q:4+q]-group(P,l,stage,q).length,kidN=new Array(g.nK).fill(0);
+      for(const i of group(P,l,0,0))kidN[bucketOf(l,R.born[i],cur)]++;
+      // Età degli anonimi: un campione dell'istogramma; celibi fra i più giovani, vedovi e sposati con anziani fra i più vecchi.
+      const ages=(from,to,n,salt)=>{
+        const a=[];for(let j=from;j<to;j++)for(let t=0;t<G.h[j];t++)a.push(j);
+        return shuffle(a,salt).slice(0,n).map((s,t)=>[s,s*4+hash(pop.seed,P.h,C.MINT,salt+1,t)%14]).sort((x,y)=>x[1]-y[1]||x[0]-y[0]).map(x=>x[0]);
+      };
+      const n=[0,1,2,3].map(q=>rest(1,q)),e=[0,1,2,3].map(q=>rest(2,q)),A=ages(g.nK,g.nK+g.nA,n[0]+n[1]+n[2]+n[3],31+l),E=ages(g.nK+g.nA,g.n,e[0]+e[1]+e[2]+e[3],61+l);
+      const take=(list,k)=>list.splice(0,k),couple=(a,b)=>{R.spouse[a]=uidOf(R,b);R.spouse[b]=uidOf(R,a);addRel(pop,a,b,40);addRel(pop,b,a,40);};
+      for(const s of take(A,n[0]))make(l,1,0,s);
+      const couples=[],wed=take(A,n[1]);
+      for(let t=0;t+1<wed.length;t+=2){const a=make(l,1,1,wed[t]),b=make(l,1,1,wed[t+1]);couple(a,b);couples.push([a,b]);}
+      const ae=take(A,n[2]),ea=take(E,e[1]);
+      ae.forEach((s,t)=>{const a=make(l,1,2,s),b=make(l,2,1,ea[t]);couple(a,b);couples.push([a,b]);});
+      for(const s of A){const i=make(l,1,3,s);R.since[i]=cur;}
+      const old=take(E,e[2]);
+      for(let t=0;t+1<old.length;t+=2)couple(make(l,2,2,old[t]),make(l,2,2,old[t+1]));
+      take(E,e[3]).forEach(s=>make(l,2,3,s));
+      for(const s of E)make(l,2,0,s);
+      // Bambini: genitori abbastanza più vecchi e ancora in età, con pochi figli; altrimenti nessun genitore noto.
+      const units=g.parents===2?couples:g.parents===1?fresh.filter(i=>R.lin[i]===l&&R.stage[i]===1).map(i=>[i]):[];
+      for(let j=0;j<g.nK;j++)for(let t=kidN[j];t<G.h[j];t++){
+        const i=make(l,0,0,j),ok=units.filter(u=>u.every(p=>{const d=R.born[i]-R.born[p];return d>=g.a0&&d<=g.e0;})&&R.kids[u[0]]<6);
+        if(!ok.length)continue;
+        let best=null;
+        for(let q=0;q<3;q++){const u=ok[hash(pop.seed,R.hid[i],C.PARENT,q,0)%ok.length];if(!best||R.kids[u[0]]<R.kids[best[0]])best=u;}
+        R.pa[i]=uidOf(R,best[0]);if(best.length>1)R.pb[i]=uidOf(R,best[1]);
+        for(const p of best)R.kids[p]++;
       }
     }
-    // Conoscenze iniziali e notabili.
-    const grown=fresh.filter(i=>kStage[keyOf(R,i)]>=1),single=new Map();
-    for(const i of grown)if(R.wed[i]===0&&kStage[keyOf(R,i)]===1){let a=single.get(R.lin[i]);if(!a)single.set(R.lin[i],a=[]);a.push(i);}
+    pop.bulk=false;
+    if(!fresh.length)return 0;
+    for(const i of fresh)joinGroup(P,R,i);
+    P.list=P.list.concat(fresh).sort((a,b)=>before(R,a,b)?-1:1);
+    // Conoscenze iniziali (solo fra i nuovi), qualche corteggiamento, notabili.
+    const grown=fresh.filter(i=>R.stage[i]).sort((a,b)=>before(R,a,b)?-1:1),single=new Map();
+    for(const i of grown)if(R.stage[i]===1&&R.cls[i]===0){let a=single.get(R.lin[i]);if(!a)single.set(R.lin[i],a=[]);a.push(i);}
     for(const i of grown){
       const h=hash(pop.seed,R.hid[i],C.SOCIAL,0,1),j=grown[h%grown.length];
-      if(j!==i){const g=5+(h>>>16)%20;addRel(pop,i,j,g);addRel(pop,j,i,g);}
-      // Chi vive già nel luogo ha qualche legame con altri single della propria stirpe (amicizie, corteggiamenti).
-      const sl=R.wed[i]===0?single.get(R.lin[i]):null;
-      if(sl&&sl.length>1)for(let t=0;t<2;t++){
-        const h2=hash(pop.seed,R.hid[i],C.SOCIAL,1,t),o=sl[h2%sl.length];
-        if(o!==i){const g=10+(h2>>>16)%30;addRel(pop,i,o,g);addRel(pop,o,i,g);}
-      }
-      if(hash(pop.seed,R.hid[i],C.MINT,1,0)%100<3)R.notable[i]=1;
+      if(j!==i)tie(pop,i,j,3+(h>>>16)%12);
+      const sl=R.stage[i]===1&&R.cls[i]===0?single.get(R.lin[i]):null;
+      if(sl&&sl.length>1){const h2=hash(pop.seed,R.hid[i],C.SOCIAL,1,0),o=sl[h2%sl.length];if(o!==i&&!kin(R,i,o))tie(pop,i,o,6+(h2>>>16)%20);}
+      if(hash(pop.seed,R.hid[i],C.MINT,1,0)%100<2)R.flags[i]|=NOTABLE;
     }
-    if(grown.length&&!grown.some(i=>R.notable[i]))R.notable[grown.reduce((a,b)=>R.hid[b]>R.hid[a]?b:a)]=1;
-    // La cassa del luogo si divide fra adulti e anziani secondo l'operosità (somma esatta).
-    const weight=i=>BigInt(kStage[keyOf(R,i)]===2?150:100+T(R,i,1)+T(R,i,4));
+    if(grown.length&&!grown.some(i=>R.flags[i]&NOTABLE))R.flags[grown[grown.length-1]]|=NOTABLE;
+    // La cassa del luogo (senza i salari in sospeso) si divide fra adulti e anziani secondo l'operosità; il resto resta cassa.
+    let pool=P.wealth-P.recW;for(const v of P.due.w.values())pool-=v;
+    const weight=i=>BigInt(R.stage[i]===2?150:100+T(R,i,1)+T(R,i,4));
     let total=0n;for(const i of grown)total+=weight(i);
-    if(total>0n&&P.pool>0n){
-      let given=0n;
-      const shares=grown.map(i=>{const v=P.pool*weight(i)/total;given+=v;return v;});
-      let rest=P.pool-given;/*RESTO*/
-      grown.forEach((i,t)=>{let v=shares[t];if(rest>0n){v++;rest--;}give(pop,i,v);});
-      P.pool=0n;
-    }
+    if(total>0n&&pool>0n)for(const i of grown)give(pop,i,pool*weight(i)/total);
+    for(const i of fresh)needsOf(pop,P,i);
     return fresh.length;
   }
 
   // ——— Interfaccia con l'economia ———
   function summary(pop,placeId){
-    const out={alive:0,children:0,adults:0,elders:0,households:0,workers:{},unemployed:0,adventurers:0,wealth:'0'};
-    const ix=placeIx(pop,placeId);
+    const out={alive:0,children:0,adults:0,elders:0,households:0,workers:{},unemployed:0,adventurers:0,wealth:'0'},ix=placeIx(pop,placeId);
     if(ix<0)return out;
-    const P=pop.places[ix],c=getCensus(pop)[ix];
-    let wedN=0,single=0;
-    const add=(k,n)=>{
-      out.alive+=n;
-      const st=kStage[k];
-      if(st===0)out.children+=n;else if(st===1)out.adults+=n;else out.elders+=n;
-      if(st>=1){if(kWed[k])wedN+=n;else single+=n;}
-      if(st===1){const p=kProf[k];if(p===NONE)out.unemployed+=n;else if(p===ADV)out.adventurers+=n;else out.workers[PROFS[p]]=(out.workers[PROFS[p]]||0)+n;}
-    };
-    for(const [k,n] of P.anon)add(k,n);
-    for(const [k,rs] of c.cells)add(k,rs.length);
-    out.households=single+Math.ceil(wedN/2);
-    const sorted={};
-    for(const p of PROFS)if(out.workers[p])sorted[p]=out.workers[p];
-    out.workers=sorted;
-    out.wealth=String(placeWealth(pop,P,c.list));
+    const P=pop.places[ix];
+    for(const [l,G] of P.lin){
+      const c=G.c;
+      out.children+=kidsOf(G,LIN[l].g);out.adults+=adultsOf(G);out.elders+=eldersOf(G);
+      out.households+=c[A0]+c[AW]+c[E0]+c[EW]+(c[AA]+c[EE])/2+c[AE];
+    }
+    out.alive=out.children+out.adults+out.elders;
+    out.unemployed=P.jobs[NONE];out.adventurers=P.jobs[ADV];
+    for(let p=1;p<ADV;p++)if(P.jobs[p])out.workers[PROFS[p]]=P.jobs[p];
+    out.wealth=String(P.wealth);
     return out;
   }
-  // Prelievo esatto proporzionale alla ricchezza (cassa e record), mai sotto zero.
-  function levy(pop,P,list,want){
-    const R=pop.R,holders=list.filter(i=>R.alive[i]&&R.wealth[i]>0n);
-    let W=P.pool;for(const i of holders)W+=R.wealth[i];
-    const amt=want<W?want:W;
-    if(amt<=0n)return 0n;
-    const shares=holders.map(i=>R.wealth[i]*amt/W),fromPool=P.pool*amt/W;
-    let taken=fromPool;P.pool-=fromPool;
-    holders.forEach((i,t)=>{R.wealth[i]-=shares[t];taken+=shares[t];});
-    let rest=amt-taken;
-    if(rest>0n){const t=P.pool<rest?P.pool:rest;P.pool-=t;rest-=t;}
-    for(const i of holders){if(rest===0n)break;const t=R.wealth[i]<rest?R.wealth[i]:rest;R.wealth[i]-=t;rest-=t;}
-    return amt-rest;
-  }
+  // Salari, spesa e tasse: esatti e immediati nello strato aggregato; ai record arrivano all'inizio della settimana seguente.
   function transfer(pop,placeId,flows){
     const got={wages:0n,spend:0n,tax:0n},ix=placeIx(pop,placeId);
     if(ix<0||!object(flows))return got;
-    const P=pop.places[ix],R=pop.R,c=getCensus(pop)[ix];
+    settle(pop);
+    const P=pop.places[ix];
     if(object(flows.wages))for(let p=1;p<NP;p++){
-      if(!own(flows.wages,PROFS[p]))continue;
+      if(!own(flows.wages,PROFS[p])||!P.jobs[p])continue;
       const amt=amount(flows.wages[PROFS[p]]);
       if(amt<=0n)continue;
-      const recs=[];let anonN=0;
-      for(const [k,n] of P.anon)if(kStage[k]===1&&kProf[k]===p)anonN+=n;
-      for(const [k,rs] of c.cells)if(kStage[k]===1&&kProf[k]===p)for(const i of rs)recs.push(i);
-      const n=anonN+recs.length;
-      if(!n)continue;
-      recs.sort((a,b)=>a-b);
-      const base=amt/BigInt(n);
-      let rem=amt-base*BigInt(n);
-      for(const i of recs){let v=base;if(rem>0n){v++;rem--;}give(pop,i,v);}
-      P.pool+=base*BigInt(anonN)+rem;
-      got.wages+=amt;
+      P.wealth+=amt;got.wages+=amt;
+      if(P.list.length)P.due.w.set(p,(P.due.w.get(p)||0n)+amt);
     }
-    got.spend=levy(pop,P,c.list,amount(flows.spend));
-    got.tax=levy(pop,P,c.list,amount(flows.tax));
+    for(const k of ['spend','tax']){const v=amount(flows[k]),a=v<P.wealth?v:P.wealth;P.wealth-=a;got[k]=a;if(P.list.length)P.due.out+=a;}
     pop.totals.wages+=got.wages;pop.totals.spend+=got.spend;pop.totals.tax+=got.tax;
     return got;
   }
 
   // ——— Viste ———
   function view(pop,i,full){
-    const R=pop.R,k=keyOf(R,i),w=pop.week,st=kStage[k],sp=R.spouse[i];
-    const v={id:idOf(pop,i),name:nameOf(pop,i),place:pop.places[R.place[i]].id,origin:pop.places[R.origin[i]].id,lineage:LINEAGES[R.lin[i]],
-      stage:['bambino','adulto','anziano'][st]||'adulto',band:bandName(R.lin[i],R.band[i]),ageYears:ageYears(pop,i,R.alive[i]?w:R.died[i]),
-      profession:PROFS[R.prof[i]],professionName:PROF_NAMES[R.prof[i]],married:['single','married','widowed'][R.wed[i]],
-      spouse:R.wed[i]===1&&sp>=0?idOf(pop,sp):null,formerSpouse:R.wed[i]===2&&sp>=0?idOf(pop,sp):null,
-      parents:[R.pa[i],R.pb[i]].filter(x=>x>=0).map(x=>idOf(pop,x)),kids:R.kids[i],
-      traits:Object.fromEntries(TRAITS.map((t,k2)=>[t,T(R,i,k2)])),needs:Object.fromEntries(NEEDS.map((t,k2)=>[t,N(R,i,k2)])),
-      goals:{short:GOALS_S[R.goalS[i]]||'rest',long:GOALS_L[R.goalL[i]]||null},wealth:String(R.wealth[i]),xp:R.xp[i],wounds:R.wounds[i],
-      notable:!!R.notable[i],alive:!!R.alive[i],died:R.alive[i]?null:R.died[i],cause:R.alive[i]?null:CAUSES[R.cause[i]]};
+    const R=pop.R,w=pop.week,wed=R.cls[i]===1||R.cls[i]===2,sp=R.spouse[i];
+    const v={id:idOf(pop,i),name:nameOf(pop,i),place:pop.places[R.place[i]].id,origin:pop.places[R.origin[i]].id,lineage:LIN[R.lin[i]].id,
+      stage:STAGES[R.stage[i]],ageYears:Math.floor((w-R.born[i])/YW*10)/10,profession:PROFS[R.prof[i]],professionName:PROF_NAMES[R.prof[i]],
+      married:R.stage[i]===0||R.cls[i]===0?'single':wed?'married':'widowed',spouse:wed?idOfUid(pop,sp):null,formerSpouse:!wed&&sp>=0?idOfUid(pop,sp):null,
+      parents:[R.pa[i],R.pb[i]].filter(x=>x>=0).map(x=>idOfUid(pop,x)),kids:R.kids[i],
+      traits:Object.fromEntries(TRAITS.map((t,k)=>[t,T(R,i,k)])),needs:Object.fromEntries(NEEDS.map((t,k)=>[t,N(R,i,k)])),
+      goals:{short:GOALS_S[goalNow(R,i)],long:GOALS_L[R.goalL[i]]||null},project:R.proj[i],wealth:String(R.wealth[i]),xp:R.xp[i],wounds:R.wounds[i],
+      notable:!!(R.flags[i]&NOTABLE),known:!!(R.flags[i]&KNOWN),influenced:!!(R.flags[i]&SWAYED),alive:true,died:null,cause:null};
     if(full){
-      v.memories=(pop.mem.get(i)||[]).map(([mw,kind,a])=>({week:mw,kind,text:memoryText(pop,kind,a)}));
-      v.relations=[...(pop.rel.get(i)||new Map())].map(([j,s])=>({id:idOf(pop,j),name:nameOf(pop,j),strength:s,alive:!!R.alive[j]}));
-      v.children=[];
-      for(let j=0;j<R.n;j++)if(R.pa[j]===i||R.pb[j]===i)v.children.push(idOf(pop,j));
+      v.memories=[];for(let k=0;k<R.memN[i];k++)v.memories.push({week:R.memW[i*8+k],kind:R.memK[i*8+k],text:memoryText(pop,R.memK[i*8+k],R.memA[i*8+k])});
+      v.relations=[];for(let k=0;k<R.relN[i];k++){const u=R.relU[i*6+k];v.relations.push({id:idOfUid(pop,u),name:nameOfUid(pop,u),strength:R.relS[i*6+k],alive:pop.idMap.has(u)});}
+      v.children=[];const u=uidOf(R,i);
+      if(R.kids[i])for(const j of pop.idMap.values())if(R.pa[j]===u||R.pb[j]===u)v.children.push(idOf(pop,j));
+      v.children.sort();
     }
     return v;
   }
   function memoryText(pop,kind,a){
-    const who=a>=0&&a<pop.R.n?nameOf(pop,a):'qualcuno',where=a>=0&&a<pop.places.length?pop.places[a].id:'?';
+    const who=nameOfUid(pop,a),where=a>=0&&a<pop.places.length?pop.places[a].id:'un altro luogo';
     switch(kind){
-      case 1:return a>=0?'Nasce in famiglia, da '+who+'.':'Nasce.';
-      case 2:return 'Diventa adulto.';
-      case 3:return a>=0?'Sposa '+who+'.':'Si sposa.';
+      case 3:return 'Sposa '+who+'.';
       case 4:return 'Nasce '+who+'.';
       case 5:return 'Perde '+who+'.';
-      case 6:return 'Diventa '+(PROF_NAMES[a]||'altro')+'.';
+      case 6:return a===NONE?'Resta senza lavoro.':'Diventa '+(PROF_NAMES[a]||'altro')+'.';
       case 7:return 'Si trasferisce: '+where+'.';
       case 8:return ['Spedizione fatale.','Torna ferito da una spedizione.','Spedizione a mani vuote.','Spedizione riuscita.'][a]||'Spedizione.';
       case 10:return 'Eredita da '+who+'.';
-      case 11:return 'Realizza il proprio sogno: '+(GOAL_TEXT[GOALS_L[a]]||'')+'.';
+      case 11:return 'Realizza il proprio sogno: '+(GOAL_TEXT[GOALS_L[a]]||'vivere bene')+'.';
       case 12:return 'Lascia il lavoro per l’età.';
-      default:return 'Ricordo.';
+      case 13:return 'Porta a termine un progetto personale ('+(GOAL_TEXT[GOALS_L[a]]||'vivere bene')+').';
+      case 14:return 'Entra in rivalità con '+who+'.';
+      case 15:return 'Si riconcilia con '+who+'.';
+      case 16:return 'Scopre di essere stato adottato.';
+      case 17:return 'Finisce il lutto per '+who+'.';
+      case 18:return 'Riceve aiuto da '+who+'.';
+      default:return 'Un ricordo lontano.';
     }
   }
-  function residents(pop,placeId){
-    const ix=placeIx(pop,placeId);
-    if(ix<0)return [];
-    return getCensus(pop)[ix].list.map(i=>view(pop,i,false));
-  }
+  function residents(pop,placeId){const ix=placeIx(pop,placeId);return ix<0?[]:pop.places[ix].list.map(i=>view(pop,i,false));}
   function person(pop,id){
-    if(typeof id!=='string'||!pop.idMap.has(id))return null;
-    return view(pop,pop.idMap.get(id),true);
+    const u=uidFrom(pop,id);
+    if(u<0)return null;
+    const i=rowOf(pop,u);
+    if(i>=0)return view(pop,i,true);
+    const t=pop.tombs.get(u);
+    if(!t)return null;
+    return {id,name:nameOfUid(pop,u),lineage:LIN[t.l].id,alive:false,born:t.b,died:t.d,ageYears:Math.floor((t.d-t.b)/YW*10)/10,cause:CAUSES[t.c],
+      profession:PROFS[t.p],professionName:PROF_NAMES[t.p],formerSpouse:t.s>=0?idOfUid(pop,t.s):null,spouse:null,parents:[],kids:t.k,xp:0,memories:[],relations:[]};
   }
+  // Margini del luogo: stirpe × stadio × stato civile (col tipo di coniuge), mestieri, età. Sono lo stato sufficiente delle regole.
   function cells(pop,placeId){
     const ix=placeIx(pop,placeId),out={};
     if(ix<0)return out;
-    const P=pop.places[ix],c=getCensus(pop)[ix],n=new Map();
-    for(const [k,v] of P.anon)n.set(k,(n.get(k)||0)+v);
-    for(const [k,rs] of c.cells)n.set(k,(n.get(k)||0)+rs.length);
-    for(const k of [...n.keys()].sort((a,b)=>a-b))if(n.get(k))out[keyName(k)]=n.get(k);
+    const P=pop.places[ix],names=['adulto/single','adulto/married-adulto','adulto/married-anziano','adulto/widowed','anziano/single','anziano/married-adulto','anziano/married-anziano','anziano/widowed'];
+    for(const l of P.order){
+      const G=P.lin.get(l),id=LIN[l].id,k=kidsOf(G,LIN[l].g);
+      if(k)out[id+'/bambini']=k;
+      names.forEach((n,q)=>{if(G.c[q])out[id+'/'+n]=G.c[q];});
+    }
+    P.jobs.forEach((n,p)=>{if(n)out['mestiere/'+PROFS[p]]=n;});
+    for(const l of P.order)P.lin.get(l).h.forEach((n,j)=>{if(n)out['eta/'+LIN[l].id+'/'+j]=n;});
     return out;
   }
   const events=pop=>pop.log.map(e=>({...e}));
   const decisions=pop=>JSON.parse(JSON.stringify(pop.dec));
+  function flag(pop,id,f){
+    const i=rowOf(pop,uidFrom(pop,id));
+    if(i<0)return -1;
+    settle(pop);
+    const j=rowOf(pop,uidFrom(pop,id));
+    if(j>=0){pop.R.flags[j]|=f;pop.flagged.add(uidOf(pop.R,j));}
+    return j;
+  }
+  // Conosciuto dal giocatore: più memoria e legami, e la sua storia (e quella dei suoi) sopravvive alla morte.
+  const know=(pop,id)=>flag(pop,id,KNOWN)>=0;
   function influence(pop,id,patch){
-    if(typeof id!=='string'||!pop.idMap.has(id)||!object(patch))return false;
-    const R=pop.R,i=pop.idMap.get(id);
-    if(!R.alive[i])return false;
+    if(!object(patch))return false;
+    const i=flag(pop,id,KNOWN|SWAYED),R=pop.R;
+    if(i<0)return false;
     if(object(patch.traits))TRAITS.forEach((t,k)=>{const v=patch.traits[t];if(Number.isFinite(v))R.traits[i*5+k]=clamp(Math.round(v),0,100);});
     if(object(patch.needs))NEEDS.forEach((t,k)=>{const v=patch.needs[t];if(Number.isFinite(v))R.needs[i*4+k]=clamp(Math.round(v),0,100);});
-    if(object(patch.goals)){
-      const l=GOALS_L.indexOf(patch.goals.long),s=GOALS_S.indexOf(patch.goals.short);
-      if(l>0&&kStage[keyOf(R,i)]>=1)R.goalL[i]=l;
-      if(s>=0)R.goalS[i]=s;
-    }
+    if(object(patch.goals)){const l=GOALS_L.indexOf(patch.goals.long);if(l>0&&R.stage[i]>0)R.goalL[i]=l;}
     return true;
   }
   function stats(pop){
-    const ci=getCensus(pop),R=pop.R,places={};
+    const R=pop.R,places={},t=pop.totals;
     let anon=0,cellsN=0,alive=0;
-    pop.places.forEach((P,ix)=>{
-      const a=anonTotal(P);anon+=a;
-      const keys=new Set([...P.anon.keys(),...ci[ix].cells.keys()]);cellsN+=keys.size;
-      alive+=a+ci[ix].list.length;
-      places[P.id]={anonymous:a,records:ci[ix].list.length,materialized:P.materialized,cells:keys.size};
-    });
-    let living=0;for(let i=0;i<R.n;i++)if(R.alive[i])living++;
-    let relN=0;for(const m of pop.rel.values())relN+=m.size;
-    let memN=0;for(const m of pop.mem.values())memN+=m.length;
+    for(const P of pop.places){
+      let n=0;for(const G of P.lin.values()){for(const x of G.h)if(x)n++;for(const x of G.c)if(x)n++;}
+      const a=P.alive-P.list.length;
+      anon+=a;alive+=P.alive;cellsN+=n;
+      places[P.id]={anonymous:a,records:P.list.length,materialized:P.materialized,cells:n,capacity:P.capacity};
+    }
     let bytes=0;for(const [k] of COLS)bytes+=R[k].byteLength;
-    bytes+=relN*48+pop.rel.size*80+memN*56+pop.mem.size*48+R.n*64+cellsN*40+pop.log.length*160;
-    const t=pop.totals;
-    return {week:pop.week,places,
-      totals:{alive,births:t.births,deaths:t.deaths,marriages:t.marriages,migrations:t.migrations,arrivals:t.arrivals,careers:t.careers,
-        departures:t.departures,expeditionDeaths:t.expeditionDeaths,matured:t.matured,loot:String(t.loot),wages:String(t.wages),spend:String(t.spend),tax:String(t.tax)},
-      records:{total:R.n,alive:living,dead:R.n-living,marriages:pop.rtotals.marriages,bondMarriages:pop.rtotals.bondMarriages,births:pop.rtotals.births},
-      cohorts:{cells:cellsN,anonymous:anon},memoryBytes:bytes};
+    bytes+=pop.idMap.size*64+cellsN*4+pop.places.length*600+pop.log.length*160+pop.tombs.size*120;
+    const totals={alive};
+    for(const k of TOTALS)totals[k]=t[k];
+    for(const k of BIGS)totals[k]=String(t[k]);
+    return {week:pop.week,places,totals,records:{total:pop.idMap.size,alive:pop.idMap.size,dead:0,tombs:pop.tombs.size,...pop.rtotals},
+      choices:JSON.parse(JSON.stringify(pop.choices)),cohorts:{cells:cellsN,anonymous:anon},memoryBytes:bytes};
+  }
+  // Verifica interna: margini coerenti e record che li proiettano esattamente (lista di problemi, vuota se tutto torna).
+  function audit(pop){
+    const R=pop.R,cur=pop.week-1,bad=[];
+    let rows=0;
+    for(const P of pop.places){
+      const say=m=>bad.push(P.id+': '+m);
+      let jobs=0,adults=0,alive=0,recW=0n;
+      for(const n of P.jobs){jobs+=n;if(n<0)say('mestieri negativi');}
+      for(const [l,G] of P.lin){
+        const g=LIN[l].g,id=LIN[l].id;
+        let a=0,e=0;
+        for(let j=0;j<g.n;j++){if(G.h[j]<0)say(id+' età negativa');if(j>=g.nK&&j<g.nK+g.nA)a+=G.h[j];else if(j>=g.nK)e+=G.h[j];}
+        for(const x of G.c)if(x<0)say(id+' classe negativa');
+        if(a!==adultsOf(G)||e!==eldersOf(G))say(id+' classi ≠ età');
+        if(G.c[AA]%2||G.c[EE]%2||G.c[AE]!==G.c[EA])say(id+' coppie spaiate');
+        if(G.n!==kidsOf(G,g)+a+e)say(id+' totale');
+        adults+=a;alive+=G.n;
+        const kid=new Array(g.nK).fill(0),cls=new Array(8).fill(0);
+        for(const i of P.list){
+          if(R.lin[i]!==l)continue;
+          if(R.stage[i]===0){const b=bucketOf(l,R.born[i],cur);if(b<0||b>=g.nK)say('bambino fuori fascia '+idOf(pop,i));else kid[b]++;}
+          else cls[(R.stage[i]-1)*4+R.cls[i]]++;
+        }
+        kid.forEach((n,j)=>{if(P.materialized?n!==G.h[j]:n>G.h[j])say(`${id} bambini ${j}: ${n}/${G.h[j]}`);});
+        cls.forEach((n,q)=>{if(P.materialized?n!==G.c[q]:n>G.c[q])say(`${id} classe ${q}: ${n}/${G.c[q]}`);});
+      }
+      if(jobs!==adults)say(`mestieri ${jobs} ≠ adulti ${adults}`);
+      if(alive!==P.alive)say('vivi');
+      const hist=new Array(NP).fill(0);
+      P.list.forEach((i,t)=>{
+        rows++;recW+=R.wealth[i];
+        if(R.place[i]!==P.ix||!R.alive[i]||pop.idMap.get(uidOf(R,i))!==i)say('record fuori posto');
+        if(t&&!before(R,P.list[t-1],i))say('elenco non ordinato');
+        if(!P.lin.has(R.lin[i]))say('record di stirpe assente');
+        if(R.stage[i]===1)hist[R.prof[i]]++;else if(R.prof[i])say('mestiere a un non adulto');
+        if(R.stage[i]&&(R.cls[i]===1||R.cls[i]===2)){
+          const s=rowOf(pop,R.spouse[i]);
+          if(s<0||R.place[s]!==P.ix||R.spouse[s]!==uidOf(R,i)||R.stage[s]!==R.cls[i])say('coniuge incoerente '+idOf(pop,i));
+        }
+      });
+      hist.forEach((n,p)=>{if(P.materialized?n!==P.jobs[p]:n>P.jobs[p])say(`mestiere ${PROFS[p]}: ${n}/${P.jobs[p]}`);});
+      if(recW!==P.recW)say('somma delle ricchezze');
+      if(P.recW>P.wealth+P.due.out)say('record più ricchi del luogo');
+      if(P.wealth<0n)say('ricchezza negativa');
+    }
+    if(rows!==pop.idMap.size)bad.push('record senza luogo');
+    return bad.slice(0,20);
   }
 
   // ——— Salvataggio ———
-  const SKIP=new Set(['hid']);
-  function serialize(pop){
-    const R=pop.R,rec={n:R.n};
-    for(const [k,,m] of COLS){
-      if(SKIP.has(k))continue;
-      const a=R[k].subarray(0,R.n*m);
-      rec[k]=k==='wealth'?Array.from(a,String):Array.from(a);
-    }
-    const sortObj=o=>Object.fromEntries(Object.keys(o).sort().map(k=>[k,o[k]]));
-    return {schema:SCHEMA,seed:pop.seed,week:pop.week,
-      places:pop.places.map(P=>{
-        const anon=[];
-        for(const k of [...P.anon.keys()].sort((a,b)=>a-b))anon.push(k,P.anon.get(k));
-        return {id:P.id,kind:P.kind,continent:P.continent,links:P.linkIds.slice(),capacity:P.capacity,anon,pool:String(P.pool),
-          carry:sortObj(P.carry),/*RIPORTO*/minted:P.minted,materialized:P.materialized};
-      }),
-      records:rec,
-      mem:[...pop.mem.keys()].sort((a,b)=>a-b).map(i=>[i,pop.mem.get(i).map(x=>x.slice())]),
-      rel:[...pop.rel.keys()].sort((a,b)=>a-b).map(i=>[i,[...pop.rel.get(i)]]),
-      log:pop.log.map(e=>({...e})),
-      totals:Object.fromEntries(Object.entries(pop.totals).map(([k,v])=>[k,typeof v==='bigint'?String(v):v])),
-      rtotals:{...pop.rtotals}};
+  const B64='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/',B64IX=new Map([...B64].map((ch,k)=>[ch,k]));
+  function toText(a){
+    const out=[];
+    for(let i=0;i<a.length;i+=3){const x=a[i]<<16|(a[i+1]||0)<<8|(a[i+2]||0);out.push(B64[x>>>18]+B64[x>>>12&63]+(i+1<a.length?B64[x>>>6&63]:'')+(i+2<a.length?B64[x&63]:''));}
+    return out.join('');
   }
-  const CARRY=/^(age|death|depart|career|migrate|marry:[0-7]|birth:[0-7])$/;
+  function fromText(t){
+    if(typeof t!=='string'||t.length%4===1)throw new Error('testo non valido');
+    const out=[];
+    for(let i=0;i<t.length;i+=4){
+      const k=[0,1,2,3].map(q=>i+q<t.length?B64IX.get(t[i+q]):0);
+      if(k.includes(undefined))throw new Error('carattere non valido');
+      const x=k[0]<<18|k[1]<<12|k[2]<<6|k[3];
+      out.push(x>>>16&255);if(i+2<t.length)out.push(x>>>8&255);if(i+3<t.length)out.push(x&255);
+    }
+    return out;
+  }
+  const check=(a,n)=>{let h=2166136261;for(let i=0;i<n;i++)h=Math.imul(h^a[i],16777619);return mix(h);};
+  const MATE=-2;
+  const UIDKIND=new Set([3,4,5,10,14,15,17,18]);
+  // Record di un luogo in forma compatta (un testo per luogo, con controllo): un guasto riguarda solo quel luogo.
+  function encodeRecs(pop,P){
+    if(!P.list.length)return '';
+    const R=pop.R,cur=pop.week,rows=P.list.slice().sort((a,b)=>R.origin[a]-R.origin[b]||R.serial[a]-R.serial[b]),at=new Map(rows.map((i,t)=>[uidOf(R,i),t])),out=[];
+    const v=n=>{while(n>127){out.push(n%128+128);n=Math.floor(n/128);}out.push(n);},z=n=>v(n<0?-n*2-1:n*2);
+    const big=x=>{if(x<9007199254740000n)v(Number(x)+1);else{v(0);const s=String(x);v(s.length);for(const ch of s)out.push(ch.charCodeAt(0));}};
+    const ref=(u,i)=>{if(u<0){v(0);return;}const o=Math.floor(u/BASE),s=u-o*BASE;if(o===R.origin[i]){const d=s-R.serial[i];v(3+2*(d<0?-d*2-1:d*2));}else{v(2+2*o);v(s);}};
+    const tieRef=(u,i)=>{if(u>=0&&u===R.spouse[i])v(1);else ref(u,i);}; // il coniuge costa un solo byte
+    const together=i=>{const p=R.pa[i]<0?-1:rowOf(pop,R.pa[i]);return p>=0&&R.place[p]===P.ix&&R.stage[p]>0&&(R.cls[p]===1||R.cls[p]===2)&&R.pb[i]===R.spouse[p];};
+    let o=-1,s=-1;
+    v(rows.length);
+    rows.forEach((i,t)=>{
+      if(R.origin[i]!==o){o=R.origin[i];s=-1;v(0);v(o);}
+      v(R.serial[i]-s);s=R.serial[i];
+      out.push(R.stage[i]|R.cls[i]<<2|R.flags[i]<<4|(R.wounds[i]?128:0),R.prof[i]|R.goalL[i]<<5);
+      v(P.order.indexOf(R.lin[i])*4+R.moves[i]);v(cur-R.born[i]);big(R.wealth[i]);
+      if(R.wounds[i])v(R.wounds[i]);
+      if(R.stage[i]){
+        v(R.xp[i]);v(R.kids[i]);v(R.proj[i]);
+        if(R.cls[i]===1||R.cls[i]===2){const q=at.get(R.spouse[i]);if(q>t)v(q-t);}else ref(R.spouse[i],i);
+        if(R.cls[i]===3)v(cur-R.since[i]);
+      }
+      const pair=together(i);
+      out.push(R.relN[i]|R.memN[i]<<3|(pair?128:0)); // bit 7: l'altro genitore è il coniuge del primo
+      ref(R.pa[i],i);if(!pair)ref(R.pb[i],i);
+      for(let k=0;k<R.relN[i];k++){tieRef(R.relU[i*6+k],i);z(R.relS[i*6+k]);}
+      for(let k=0;k<R.memN[i];k++){const kind=R.memK[i*8+k],a=R.memA[i*8+k];v((cur-R.memW[i*8+k])*32+kind);if(UIDKIND.has(kind))tieRef(a,i);else v(a+1);}
+      if(R.flags[i]&SWAYED){for(let k=0;k<5;k++)out.push(R.traits[i*5+k]);for(let k=0;k<4;k++)out.push(R.needs[i*4+k]);}
+    });
+    const h=check(out,out.length);
+    out.push(h>>>24,h>>>16&255,h>>>8&255,h&255);
+    return toText(out);
+  }
   function need(ok,msg){if(!ok)throw new Error(msg);}
-  function plain(o){need(object(o)&&!own(o,'__proto__')&&!own(o,'constructor')&&!own(o,'prototype'),'oggetto non valido');return o;}
+  function decodeRecs(pop,P,text){
+    const a=fromText(text),n=a.length-4,R=pop.R,cur=pop.week;
+    need(n>0&&check(a,n)===((a[n]<<24|a[n+1]<<16|a[n+2]<<8|a[n+3])>>>0),'controllo non valido');
+    let p=0;
+    const b=()=>{need(p<n,'record incompleti');return a[p++];};
+    const v=()=>{let x=0,m=1;for(;;){const q=b();x+=(q&127)*m;if(q<128)break;m*=128;need(m<2**56,'numero troppo grande');}return x;};
+    const z=()=>{const x=v();return x%2?-(x+1)/2:x/2;};
+    const big=()=>{const x=v();if(x)return BigInt(x-1);const len=v();need(len<=20,'ricchezza non valida');let s='';for(let k=0;k<len;k++)s+=String.fromCharCode(b());need(canonical(s)&&BigInt(s)<=MAXW,'ricchezza non valida');return BigInt(s);};
+    const rows=[],count=v();
+    need(count<=n,'troppi record');
+    let o=-1,s=-1;
+    const ref=i=>{
+      const x=v();
+      if(!x)return NOID;
+      if(x===1)return MATE;
+      if(x%2){const d=(x-3)/2,u=R.serial[i]+(d%2?-(d+1)/2:d/2);need(u>=0&&u<BASE,'riferimento non valido');return R.origin[i]*BASE+u;}
+      const or=(x-2)/2,u=v();
+      need(or<pop.places.length&&u<BASE,'riferimento non valido');
+      return or*BASE+u;
+    };
+    const pair=new Map(),joint=[];
+    for(let t=0;t<count;t++){
+      const i=newRow(pop);
+      rows.push(i);R.alive[i]=0;
+      let d=v();
+      if(!d){o=v();need(o<pop.places.length,'origine non valida');s=-1;d=v();need(d>0,'serie non valida');}
+      s+=d;need(o>=0&&s<BASE,'serie non valida');
+      const b0=b(),b1=b(),lm=v(),li=Math.floor(lm/4);
+      need(li<P.order.length,'stirpe non valida');
+      R.place[i]=P.ix;R.origin[i]=o;R.serial[i]=s;R.lin[i]=P.order[li];R.moves[i]=lm%4;
+      R.stage[i]=b0&3;R.cls[i]=b0>>2&3;R.flags[i]=b0>>4&7;R.prof[i]=b1&31;R.goalL[i]=b1>>5;
+      need(R.stage[i]<=2&&R.prof[i]<NP&&R.goalL[i]<GOALS_L.length&&(R.stage[i]>0||R.cls[i]===0)&&(R.stage[i]===1||R.prof[i]===0),'record non valido');
+      R.born[i]=cur-v();R.wealth[i]=big();R.wounds[i]=b0&128?v():0;
+      R.xp[i]=0;R.kids[i]=0;R.proj[i]=0;R.spouse[i]=NOID;R.since[i]=0;
+      if(R.stage[i]){
+        R.xp[i]=Math.min(4e9,v());R.kids[i]=Math.min(255,v());R.proj[i]=Math.min(100,v());
+        if(R.cls[i]===1||R.cls[i]===2){if(pair.has(t)){const q=pair.get(t);R.spouse[i]=uidOf(R,q);R.spouse[q]=uidOf(R,i);pair.delete(t);}else{const q=t+v();need(q>t&&q<count&&!pair.has(q),'coppia non valida');pair.set(q,i);}}
+        else R.spouse[i]=ref(i);
+        if(R.cls[i]===3)R.since[i]=cur-v();
+      }
+      const m=b();
+      R.pa[i]=ref(i);R.pb[i]=NOID;
+      if(m&128)joint.push(i);else R.pb[i]=ref(i);
+      need(R.pa[i]!==MATE&&R.pb[i]!==MATE&&R.spouse[i]!==MATE,'genitore non valido');
+      R.relN[i]=m&7;R.memN[i]=m>>3&15;
+      need(R.relN[i]<=6&&R.memN[i]<=8,'legami non validi');
+      for(let k=0;k<R.relN[i];k++){R.relU[i*6+k]=ref(i);const q=z();need(q!==0&&Math.abs(q)<=LIMITS.bond&&R.relU[i*6+k]!==NOID,'legame non valido');R.relS[i*6+k]=q;}
+      for(let k=0;k<R.memN[i];k++){const x=v();R.memK[i*8+k]=x%32;R.memW[i*8+k]=cur-Math.floor(x/32);R.memA[i*8+k]=UIDKIND.has(x%32)?ref(i):v()-1;}
+      derive(pop,i);
+      if(R.flags[i]&SWAYED){for(let k=0;k<5;k++)R.traits[i*5+k]=Math.min(100,b());for(let k=0;k<4;k++)R.needs[i*4+k]=Math.min(100,b());}
+      need(!pop.idMap.has(uidOf(R,i)),'identità duplicata');
+      pop.idMap.set(uidOf(R,i),i);R.alive[i]=1;
+    }
+    need(p===n&&!pair.size,'record in eccesso');
+    for(const i of rows){
+      for(let k=0;k<R.relN[i];k++)if(R.relU[i*6+k]===MATE){R.relU[i*6+k]=R.spouse[i];need(R.spouse[i]>=0,'legame non valido');}
+      for(let k=0;k<R.memN[i];k++)if(R.memA[i*8+k]===MATE)R.memA[i*8+k]=R.spouse[i];
+    }
+    for(const i of joint){const p=rowOf(pop,R.pa[i]);need(p>=0&&R.spouse[p]>=0,'genitori non validi');R.pb[i]=R.spouse[p];}
+    for(const i of rows)if(R.stage[i]&&(R.cls[i]===1||R.cls[i]===2)){const q=pop.idMap.get(R.spouse[i]);need(R.stage[q]===R.cls[i]&&R.cls[q]===R.stage[i]&&R.lin[q]===R.lin[i],'coniugi incoerenti');}
+    return rows;
+  }
+  const dueOf=P=>P.due.w.size||P.due.out?{w:Object.fromEntries([...P.due.w].sort((x,y)=>x[0]-y[0]).map(([p,v])=>[PROFS[p],String(v)])),out:String(P.due.out)}:null;
+  function serialize(pop){
+    settle(pop); // una settimana a metà si completa: non si perde nulla
+    const geo={};
+    for(const P of pop.places)for(const l of P.order)geo[LIN[l].id]=LIN[l].g.sig;
+    return {schema:SCHEMA,seed:pop.seed,week:pop.week,geo:Object.fromEntries(Object.entries(geo).sort((a,b)=>a[0]<b[0]?-1:1)),
+      places:pop.places.map(P=>{
+        const o={id:P.id,kind:P.kind,continent:P.continent,links:P.linkIds.slice(),capacity:P.capacity,
+          lin:Object.fromEntries(P.order.map(l=>{const G=P.lin.get(l);return [LIN[l].id,{h:Array.from(G.h),c:Array.from(G.c),n:G.niche}];})),
+          jobs:Array.from(P.jobs),wealth:String(P.wealth),avg:String(P.avg),carry:Object.fromEntries(Object.entries(P.carry).sort((a,b)=>a[0]<b[0]?-1:1)),/*RIPORTO*/
+          minted:P.minted,materialized:P.materialized,sig:[P.sig.foodScarcity,P.sig.war,P.sig.disaster,P.sig.crisis]};
+        const due=dueOf(P),recs=encodeRecs(pop,P);
+        if(due)o.due=due;
+        if(recs)o.recs=recs;
+        return o;
+      }),
+      tombs:[...pop.tombs].map(([u,t])=>[Math.floor(u/BASE),u%BASE,LIN[t.l].id,t.b,t.d,t.c,t.p,t.s<0?-1:Math.floor(t.s/BASE),t.s<0?0:t.s%BASE,t.k,t.f]),
+      log:pop.log.map(e=>({...e})),
+      totals:Object.fromEntries(Object.entries(pop.totals).map(([k,x])=>[k,typeof x==='bigint'?String(x):x])),rtotals:{...pop.rtotals}};
+  }
+  const CARRY=/^(death|depart|career|found|(marry|mourn|birth|migrate|family):[a-z][a-z0-9_-]{0,31})$/i;
+  const plain=o=>object(o)&&!own(o,'__proto__')&&!own(o,'constructor')&&!own(o,'prototype');
+  // Istogramma salvato con un'altra tabella biologica: ogni stadio si ripartisce sulle nuove fasce nella stessa posizione relativa.
+  function rebucket(old,sig,g){
+    const [,nK,,nA,,nE]=sig.split(',').map(Number),h=new Int32Array(g.n);
+    const move=(from,n,to,m)=>{for(let j=0;j<n;j++)h[to+Math.min(m-1,Math.floor((j+.5)/n*m))]+=old[from+j];};
+    move(0,nK,0,g.nK);move(nK,nA,g.nK,g.nA);move(nK+nA,nE,g.nK+g.nA,g.nE);
+    return h;
+  }
+  function readPlace(pop,P,d,raw,note){
+    const ints=(a,n)=>Array.isArray(a)&&a.length===n;
+    let fixed=false;
+    const int=(x,hi=1e9)=>{if(intIn(x,0,hi))return x;fixed=true;return Number.isFinite(x)?clamp(Math.floor(x),0,hi):0;};
+    P.capacity=intIn(d.capacity,0,1e9)?d.capacity:(fixed=true,ROOM[P.kind]);
+    P.minted=intIn(d.minted,0,4294967295)?d.minted:(fixed=true,0);
+    P.materialized=d.materialized===true;
+    if(!plain(d.lin)){if(d.lin!==undefined)fixed=true;}
+    else for(const [id,x] of Object.entries(d.lin)){
+      if(!linId(id)||!object(x)||!Array.isArray(x.h)||!ints(x.c,8)){fixed=true;continue;}
+      const l=linOf(id),g=LIN[l].g,sig=object(raw.geo)&&typeof raw.geo[id]==='string'&&/^\d+(,\d+){5}$/.test(raw.geo[id])?raw.geo[id]:g.sig,q=sig.split(',').map(Number);
+      if(x.h.length!==q[1]+q[3]+q[5]||x.h.length>400){fixed=true;continue;}
+      const h=x.h.map(n=>int(n)),c=x.c.map(n=>int(n)),G=linIn(P,l,intIn(x.n,1,1e9)?x.n:0);
+      if(sig===g.sig)G.h.set(h);else{G.h.set(rebucket(h,sig,g));P.rebucket=P.rebucket||new Map();P.rebucket.set(l,{h,q});}
+      let A=0,E=0;
+      for(let j=g.nK;j<g.n;j++)if(j<g.nK+g.nA)A+=G.h[j];else E+=G.h[j];
+      const ae=Math.min(c[AE],c[EA]);
+      G.c.set([c[A0],c[AA]-c[AA]%2,ae,c[AW],c[E0],ae,c[EE]-c[EE]%2,c[EW]]);
+      const da=A-adultsOf(G),de=E-eldersOf(G);
+      if(da||de||c[AE]!==c[EA]||c[AA]%2||c[EE]%2)fixed=true;
+      if(G.c[A0]+da>=0&&G.c[E0]+de>=0){G.c[A0]+=da;G.c[E0]+=de;}else classes(G,A,E);
+    }
+    recount(P);
+    for(const l of P.order.slice())if(P.lin.get(l).n===0){if(d.lin&&own(d.lin,LIN[l].id))fixed=true;dropLin(P,l);}
+    let adults=0;for(const G of P.lin.values())adults+=adultsOf(G);
+    if(ints(d.jobs,NP)){d.jobs.forEach((n,p)=>{P.jobs[p]=int(n);});}else fixed=true;
+    let diff=adults;for(const n of P.jobs)diff-=n;
+    if(diff){fixed=true;if(diff>0)P.jobs[NONE]+=diff;else for(let p=0;p<NP&&diff<0;p++){const t=Math.min(P.jobs[p],-diff);P.jobs[p]-=t;diff+=t;}}
+    P.wealth=canonical(d.wealth)?BigInt(d.wealth):(fixed=true,-1n);
+    P.avg=canonical(d.avg)?BigInt(d.avg):(fixed=true,P.alive&&P.wealth>0n?P.wealth/BigInt(P.alive):0n);
+    if(ints(d.sig,4)&&d.sig.every(x=>intIn(x,0,1000)))P.sig={...NEUTRAL,foodScarcity:d.sig[0],war:d.sig[1]?1:0,disaster:d.sig[2]?1:0,crisis:d.sig[3]?1:0};else fixed=true;
+    if(plain(d.carry))for(const [k,x] of Object.entries(d.carry)){if(CARRY.test(k)&&intIn(x,0,M-1))P.carry[k]=x;else fixed=true;}else fixed=true;
+    if(d.due!==undefined){
+      if(plain(d.due)&&plain(d.due.w)&&canonical(d.due.out)){
+        P.due.out=BigInt(d.due.out);
+        for(const [k,x] of Object.entries(d.due.w)){const p=PROFS.indexOf(k);if(p>0&&canonical(x))P.due.w.set(p,BigInt(x));else fixed=true;}
+      }else fixed=true;
+    }
+    if(fixed)note(`${P.id}: dati riparati`);
+  }
+  // Record del luogo: se non sono leggibili o non proiettano i margini, il luogo torna aggregato (nessuna persona si perde).
+  function readRecs(pop,P,d,note){
+    if(d.recs===undefined||d.recs===''){if(P.materialized&&P.alive){P.materialized=false;note(`${P.id}: residenti noti mancanti`);}return;}
+    const R=pop.R,n0=pop.idMap.size;
+    let rows=[];
+    try{
+      rows=decodeRecs(pop,P,d.recs);
+      const cur=pop.week-1;
+      if(P.rebucket)for(const [l,old] of P.rebucket){ // tabella cambiata: i bambini noti decidono le proprie fasce
+        const g=LIN[l].g,[Lk,nK]=old.q,oldN=old.h.slice(0,nK),mine=rows.filter(i=>R.lin[i]===l),G=P.lin.get(l);
+        for(const i of mine)if(R.stage[i]===0){const b=Math.floor(cur/Lk)-Math.floor(R.born[i]/Lk);need(b>=0&&b<nK&&oldN[b]>0,'fascia');oldN[b]--;}
+        const h=rebucket(oldN.concat(old.h.slice(nK)),old.q.join(),g);
+        for(const i of mine){
+          if(R.stage[i]===0){let b=bucketOf(l,R.born[i],cur);if(b>=g.nK){R.born[i]=(Math.floor(cur/g.Lk)-g.nK+1)*g.Lk;b=g.nK-1;}h[b]++;}
+          else R.born[i]=Math.min(R.born[i],cur-(R.stage[i]===1?g.a0:g.e0));
+        }
+        G.h.set(h);
+      }
+      const kid=new Map(),cls=new Map(),hist=new Array(NP).fill(0);
+      for(const i of rows){
+        const l=R.lin[i];
+        if(R.stage[i]===0){const b=bucketOf(l,R.born[i],cur);need(b>=0&&b<LIN[l].g.nK,'bambino fuori fascia');kid.set(l*1000+b,(kid.get(l*1000+b)||0)+1);}
+        else{const q=l*8+(R.stage[i]-1)*4+R.cls[i];cls.set(q,(cls.get(q)||0)+1);if(R.stage[i]===1)hist[R.prof[i]]++;}
+      }
+      for(const [l,G] of P.lin){
+        const g=LIN[l].g;
+        for(let j=0;j<g.nK;j++){const n=kid.get(l*1000+j)||0;need(P.materialized?n===G.h[j]:n<=G.h[j],'bambini ≠ margini');}
+        for(let q=0;q<8;q++){const n=cls.get(l*8+q)||0;need(P.materialized?n===G.c[q]:n<=G.c[q],'classi ≠ margini');}
+      }
+      let moved=false;
+      for(const i of rows){ // mestieri riparati: chi è di troppo passa a un posto libero
+        if(R.stage[i]!==1||hist[R.prof[i]]<=P.jobs[R.prof[i]])continue;
+        let p=0;while(p<NP&&hist[p]>=P.jobs[p])p++;
+        need(p<NP,'mestieri');
+        hist[R.prof[i]]--;R.prof[i]=p;hist[p]++;moved=true;
+      }
+      if(moved)note(`${P.id}: mestieri riallineati`);
+    }catch(e){
+      for(const i of pop.idMap.size>n0||rows.length?[...pop.idMap].filter(([,i])=>R.place[i]===P.ix).map(x=>x[1]):[]){pop.idMap.delete(uidOf(R,i));R.alive[i]=0;pop.free.push(i);}
+      P.materialized=false;P.due.w.clear();P.due.out=0n;
+      note(`${P.id}: residenti noti illeggibili, il luogo torna aggregato (${String(e&&e.message||e).slice(0,40)})`);
+      return;
+    }
+    let sum=0n;
+    for(const i of rows){joinGroup(P,R,i);sum+=R.wealth[i];if(R.flags[i]&(KNOWN|SWAYED))pop.flagged.add(uidOf(R,i));const O=pop.places[R.origin[i]];if(R.serial[i]>=O.minted)O.minted=R.serial[i]+1;}
+    P.list=rows.sort((x,y)=>before(R,x,y)?-1:1);P.recW=sum;
+    if(P.wealth<0n)P.wealth=sum;
+  }
   function build(raw,places,now){
-    plain(raw);
-    need(raw.schema===SCHEMA,'schema sconosciuto');
+    need(plain(raw)&&raw.schema===SCHEMA,'schema sconosciuto');
     need(intIn(raw.seed,0,4294967295),'seme non valido');
     need(intIn(raw.week,0,2e8),'settimana non valida');
-    const pop=blank(raw.seed,raw.week);
     need(Array.isArray(raw.places)&&raw.places.length<=65535,'luoghi non validi');
-    for(const d of raw.places){
-      plain(d);
-      need(safeId(d.id)&&!pop.index.has(d.id),'luogo non valido');
-      need(KINDS.includes(d.kind)&&typeof d.continent==='string'&&Array.isArray(d.links)&&d.links.every(safeId),'descrizione del luogo non valida');
-      const P=newPlace(pop,d,pop.places.length);
-      need(intIn(d.capacity,1,1e9)&&canonical(d.pool)&&intIn(d.minted,0,4294967295)&&typeof d.materialized==='boolean','campi del luogo non validi');
-      P.capacity=d.capacity;P.pool=BigInt(d.pool);P.minted=d.minted;P.materialized=d.materialized;P.linkIds=d.links.slice();
-      need(Array.isArray(d.anon)&&d.anon.length%2===0,'coorti non valide');
-      for(let t=0;t<d.anon.length;t+=2){
-        const k=d.anon[t],n=d.anon[t+1];
-        need(intIn(k,0,KEYS-1)&&kStage[k]>=0&&intIn(n,1,1e9)&&!P.anon.has(k),'cella non valida');
-        P.anon.set(k,n);
-      }
-      need(!P.materialized||P.anon.size===0,'anonimi in un luogo materializzato');
-      plain(d.carry);
-      for(const [k,v] of Object.entries(d.carry)){need(CARRY.test(k)&&intIn(v,0,M-1),'riporto non valido');P.carry[k]=v;}
+    const pop=blank(raw.seed,raw.week),descs=validDescs(places),byId=new Map(descs.map(d=>[d.id,d])),notes=[],note=m=>{if(!notes.includes(m))notes.push(m);};
+    const ok=raw.places.map((d,j)=>plain(d)&&safeId(d.id)&&raw.places.findIndex(x=>object(x)&&x.id===d.id)===j),have=new Set(raw.places.filter((d,j)=>ok[j]).map(d=>d.id)),missing=descs.filter(d=>!have.has(d.id));
+    const fresh=[];
+    raw.places.forEach((d,j)=>{
+      let desc=ok[j]?d:missing.shift();
+      if(!ok[j]){note(`luogo ${j} illeggibile: ${desc?desc.id+' ripopolato dal seme':'perduto'}`);if(!desc)desc={id:'perduto-'+j,kind:'interior',links:[],population:0};fresh.push(j);}
+      const kind=ok[j]&&!KINDS.includes(d.kind)?(note(`${d.id}: tipo sconosciuto`),byId.get(d.id)?.kind):desc.kind,P=newPlace({...desc,kind},pop.places.length);
+      P.linkIds=Array.isArray(desc.links)?desc.links.filter(safeId):[];
       pop.places.push(P);pop.index.set(P.id,P.ix);
-    }
-    const r=plain(raw.records),n=r.n;
-    need(intIn(n,0,5e6),'numero di record non valido');
-    const R=pop.R;
-    if(n>R.cap)grow(R,n);
-    const range={place:[0,pop.places.length-1],origin:[0,pop.places.length-1],serial:[0,4294967295],lin:[0,NL-1],band:[0,MAXB-1],prof:[0,NP-1],
-      wed:[0,2],alive:[0,1],notable:[0,1],cause:[0,CAUSES.length-1],wounds:[0,100],goalS:[0,GOALS_S.length-1],goalL:[0,GOALS_L.length-1],
-      moves:[0,255],born:[-2e9,raw.week],died:[-1,raw.week],spouse:[-1,n-1],pa:[-1,n-1],pb:[-1,n-1],xp:[0,4e9],kids:[0,65535],traits:[0,100],needs:[0,100]};
-    for(const [k,,m] of COLS){
-      if(SKIP.has(k))continue;
-      const a=r[k];
-      need(Array.isArray(a)&&a.length===n*m,'colonna non valida: '+k);
-      if(k==='wealth'){for(let i=0;i<n;i++){need(canonical(a[i])&&BigInt(a[i])<=MAXW,'ricchezza non valida');R.wealth[i]=BigInt(a[i]);}continue;}
-      const [lo,hi]=range[k];
-      for(let i=0;i<a.length;i++){need(intIn(a[i],lo,hi),'valore non valido: '+k);R[k][i]=a[i];}
-    }
-    R.n=n;
-    for(let i=0;i<n;i++){
-      const k=keyOf(R,i),P=pop.places[R.origin[i]];
-      need(kStage[k]>=0,'cella del record non valida');
-      need(R.alive[i]?R.died[i]===-1:R.died[i]>=0,'stato vitale incoerente');
-      need(R.spouse[i]!==i&&R.pa[i]!==i&&R.pb[i]!==i,'riferimento a sé stesso');
-      need(R.serial[i]<P.minted,'identità fuori serie');
-      const id=P.id+':'+R.serial[i];
-      need(!pop.idMap.has(id),'identità duplicata');
-      pop.idMap.set(id,i);
-      R.hid[i]=hash(pop.seed,P.h,C.MINT,R.serial[i],0);
-    }
-    need(Array.isArray(raw.mem),'memoria non valida');
-    for(const e of raw.mem){
-      need(Array.isArray(e)&&e.length===2&&intIn(e[0],0,n-1)&&!pop.mem.has(e[0])&&Array.isArray(e[1])&&e[1].length<=LIMITS.memories,'memoria non valida');
-      need(e[1].every(x=>Array.isArray(x)&&x.length===3&&intIn(x[0],-2e9,raw.week)&&intIn(x[1],1,15)&&intIn(x[2],-1,Math.max(n,pop.places.length))),'ricordo non valido');
-      pop.mem.set(e[0],e[1].map(x=>x.slice()));
-    }
-    need(Array.isArray(raw.rel),'relazioni non valide');
-    for(const e of raw.rel){
-      need(Array.isArray(e)&&e.length===2&&intIn(e[0],0,n-1)&&!pop.rel.has(e[0])&&Array.isArray(e[1])&&e[1].length<=LIMITS.relations,'relazioni non valide');
-      const m=new Map();
-      for(const x of e[1]){need(Array.isArray(x)&&x.length===2&&intIn(x[0],0,n-1)&&x[0]!==e[0]&&!m.has(x[0])&&intIn(x[1],1,1000),'relazione non valida');m.set(x[0],x[1]);}
-      pop.rel.set(e[0],m);
-    }
-    need(Array.isArray(raw.log)&&raw.log.length<=LIMITS.events,'registro non valido');
-    for(const e of raw.log){plain(e);need(intIn(e.week,0,2e8)&&typeof e.kind==='string'&&e.kind.length<=16&&typeof e.place==='string'&&typeof e.text==='string'&&e.text.length<=300,'voce non valida');}
-    pop.log=raw.log.map(e=>({week:e.week,kind:e.kind,place:e.place,text:e.text}));
-    plain(raw.totals);plain(raw.rtotals);
+    });
+    pop.places.forEach((P,j)=>{if(ok[j])readPlace(pop,P,raw.places[j],raw,note);});
+    pop.places.forEach((P,j)=>{if(ok[j])readRecs(pop,P,raw.places[j],note);});
+    for(const P of pop.places){delete P.rebucket;if(P.wealth<0n)P.wealth=BigInt(P.alive)*BigInt(PER_CAPITA[P.kind]||800);}
+    for(const j of fresh)populate(pop,pop.places[j],byId.get(pop.places[j].id)||{population:0});
+    for(const P of pop.places)for(const i of P.list)if(!(pop.R.flags[i]&SWAYED))needsOf(pop,P,i);
+    // Lapidi, registro e totali: ciò che non è valido si scarta.
+    if(Array.isArray(raw.tombs))for(const t of raw.tombs){
+      if(Array.isArray(t)&&t.length===11&&intIn(t[0],0,pop.places.length-1)&&intIn(t[1],0,4294967295)&&linId(t[2])&&intIn(t[3],-2e9,raw.week)&&intIn(t[4],0,raw.week)&&intIn(t[5],0,CAUSES.length-1)
+        &&intIn(t[6],0,NP-1)&&intIn(t[7],-1,pop.places.length-1)&&intIn(t[8],0,4294967295)&&intIn(t[9],0,255)&&intIn(t[10],0,1)&&pop.tombs.size<LIMITS.tombs)
+        pop.tombs.set(t[0]*BASE+t[1],{l:linOf(t[2]),b:t[3],d:t[4],c:t[5],p:t[6],s:t[7]<0?NOID:t[7]*BASE+t[8],k:t[9],f:t[10]});
+      else note('lapidi non valide scartate');
+    }else note('lapidi mancanti');
+    if(Array.isArray(raw.log))for(const e of raw.log.slice(-LIMITS.events)){
+      if(plain(e)&&intIn(e.week,0,2e8)&&typeof e.kind==='string'&&e.kind.length<=16&&typeof e.place==='string'&&typeof e.text==='string'&&e.text.length<=400)pop.log.push({week:e.week,kind:e.kind,place:e.place,text:e.text});
+      else note('voci di registro non valide scartate');
+    }else note('registro mancante');
+    const tot=plain(raw.totals)?raw.totals:(note('totali mancanti'),{}),rt=plain(raw.rtotals)?raw.rtotals:(note('totali mancanti'),{});
     for(const k of Object.keys(pop.totals)){
-      const v=raw.totals[k];
-      if(typeof pop.totals[k]==='bigint'){need(canonical(v),'totale non valido');pop.totals[k]=BigInt(v);}
-      else{need(intIn(v,0,Number.MAX_SAFE_INTEGER),'totale non valido');pop.totals[k]=v;}
+      if(typeof pop.totals[k]==='bigint'){if(canonical(tot[k]))pop.totals[k]=BigInt(tot[k]);else note('totali riparati');}
+      else if(intIn(tot[k],0,Number.MAX_SAFE_INTEGER))pop.totals[k]=tot[k];else note('totali riparati');
     }
-    for(const k of Object.keys(pop.rtotals)){need(intIn(raw.rtotals[k],0,Number.MAX_SAFE_INTEGER),'totale non valido');pop.rtotals[k]=raw.rtotals[k];}
-    // Luoghi nuovi nel mondo: si aggiungono dal seme; quelli esistenti aggiornano tipo e collegamenti.
-    const descs=validDescs(places),added=[];
+    for(const k of RTOTALS)if(intIn(rt[k],0,Number.MAX_SAFE_INTEGER))pop.rtotals[k]=rt[k];else note('totali riparati');
+    // Luoghi nuovi nel mondo: dal seme; quelli esistenti aggiornano tipo e collegamenti.
+    const added=[];
     for(const d of descs){
       if(pop.index.has(d.id)){const P=pop.places[pop.index.get(d.id)];if(KINDS.includes(d.kind))P.kind=d.kind;continue;}
-      const P=newPlace(pop,d,pop.places.length);pop.places.push(P);pop.index.set(P.id,P.ix);added.push([P,d]);
+      if(pop.places.length>=65535)break;
+      const P=newPlace(d,pop.places.length);pop.places.push(P);pop.index.set(P.id,P.ix);added.push([P,d]);
     }
     linkUp(pop,descs);
     for(const [P,d] of added)populate(pop,P,d);
+    pop.note=notes.slice(0,8).join('; ').slice(0,600);
     return pop;
   }
   function restore(raw,places,now){
@@ -1140,6 +1740,6 @@
     }
   }
 
-  window.WorldPopulation={WEEK,create,restore,serialize,step,system,summary,transfer,materialize,residents,person,events,stats,cells,
-    decisions,influence,biology,limits:LIMITS,professions:PROFS.slice(),lineages:LINEAGES.slice()};
+  window.WorldPopulation={WEEK,yearWeeks:YW,create,restore,serialize,step,system,settle,partial,summary,transfer,materialize,residents,person,events,stats,cells,
+    decisions,influence,know,audit,biology,configureBiology,limits:LIMITS,professions:PROFS.slice(),lineages:Object.keys(TABLE)};
 })();

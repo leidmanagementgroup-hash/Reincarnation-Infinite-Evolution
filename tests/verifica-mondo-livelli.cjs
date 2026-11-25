@@ -74,7 +74,7 @@ check('1. Conti esatti fra popolazione ed economia per due anni (famiglie + cont
   for (let w = 1; w <= 104; w++) {
     X.WorldSim.tick(s, w * WEEK, { budgetMs: Infinity });
     const m = E.stats(s.eco).money, t = P.stats(s.pop).totals;
-    const expected = start + BigInt(m.minted) - BigInt(m.burned) + BigInt(t.loot);
+    const expected = start + BigInt(m.minted) - BigInt(m.burned) + BigInt(t.loot) - BigInt(t.upkeep); // contratto 2: spese delle spedizioni
     assert.equal(String(householdWealth(X, s) + accounts(X, s)), String(expected), `settimana ${w}: Scintille create o perse fra i due moduli`);
     assert.equal(t.alive, alive0 + t.births - t.deaths, `settimana ${w}: vivi ≠ iniziali + nascite − morti`);
     assert(E.audit(s.eco).ok, `settimana ${w}: registro dell'economia non in pari: ` + E.audit(s.eco).problems.slice(0, 2).join('; '));
@@ -132,7 +132,7 @@ check('5. Ritorno dopo cinque anni: una sola risoluzione, conti in pari, nessun 
   X.WorldSim.resolveAll(s, 260 * WEEK);
   const ms = performance.now() - t0, m = X.LivingEconomy.stats(s.eco).money, t = X.WorldPopulation.stats(s.pop).totals;
   assert.equal(X.WorldSim.failures(s).length, 0, 'sistemi guasti: ' + json(X.WorldSim.failures(s)));
-  assert.equal(String(householdWealth(X, s) + accounts(X, s)), String(start + BigInt(m.minted) - BigInt(m.burned) + BigInt(t.loot)), 'conti non in pari');
+  assert.equal(String(householdWealth(X, s) + accounts(X, s)), String(start + BigInt(m.minted) - BigInt(m.burned) + BigInt(t.loot) - BigInt(t.upkeep)), 'conti non in pari');
   assert.equal(s.pop.week, 260); assert(X.LivingEconomy.audit(s.eco).ok);
   return `260 settimane in ${Math.round(ms)} ms; vivi ${t.alive}, nascite ${t.births}, morti ${t.deaths}, spedizioni concluse con la morte ${t.expeditionDeaths}`;
 });
@@ -146,7 +146,7 @@ check('7. Luoghi reali del gioco: giro dei cinque continenti con materializzazio
   const G = context(true), L = G.WorldLod, P = G.WorldPopulation;
   const lp = L.places(G.World);
   const pop = p => p.kind === 'city' ? 600 : p.kind === 'town' ? 140 : 0;
-  const places = lp.map(p => ({ id: p.id, continent: p.continent, kind: p.kind === 'interior' ? 'wild' : p.kind, population: pop(p), links: p.links }));
+  const places = lp.map(p => ({ id: p.id, continent: p.continent, kind: p.kind, population: pop(p), links: p.links }));
   const s = G.newWorld(places), still = G.newWorld(places), lod = L.create(lp, 'valley');
   const tour = ['ancient-valley', 'ardel-crypt', 'ancient-valley', 'frost-pass', 'city-filoni', 'city-filoni-larch-inn', 'city-filoni', 'frost-pass',
     'ancient-valley', 'verdant-canopy', 'city-velaris', 'city-velaris-guild', 'city-velaris', 'verdant-canopy', 'ancient-valley', 'dune-port', 'city-calis',
@@ -165,6 +165,14 @@ check('7. Luoghi reali del gioco: giro dei cinque continenti con materializzazio
   const st = P.stats(s.pop);
   assert.equal(st.totals.alive, places.reduce((n, p) => n + p.population, 0) + st.totals.births - st.totals.deaths);
   return `${places.length} luoghi (${places.filter(p => p.population).length} abitati), ${tour.length} viaggi in ${Math.round(now / WEEK)} settimane, ${promotions} promozioni, ${ids.length} identità uniche, vivi ${st.totals.alive}`;
+});
+
+check('8. Assenza oltre dieci anni (600 settimane): una sola risoluzione uguale al passo settimanale, i due moduli sempre alternati', () => {
+  const small = PLACES.filter(p => ['filoni', 'hadrin'].includes(p.id)).map(p => ({ ...p, links: p.links.filter(l => ['filoni', 'hadrin'].includes(l)) }));
+  const a = X.newWorld(small), b = X.newWorld(small);
+  for (let w = 1; w <= 600; w++) X.WorldSim.tick(a, w * WEEK, { budgetMs: Infinity });
+  X.WorldSim.resolveAll(b, 600 * WEEK);
+  assert.equal(fingerprint(X, b, small), fingerprint(X, a, small), 'il recupero lungo dà un mondo diverso');
 });
 
 const fails = results.filter(r => r[0] === 'FAIL').length;

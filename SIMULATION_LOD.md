@@ -165,6 +165,31 @@ residenti, ma i luoghi visitati restano a record: 55 320 record = 8,0 MB, oltre 
 (3) materializzare in modo sincrono durante un viaggio costa fino a 212 ms con 100 000: serve il caricamento progressivo di
 `world-lod.js`. Orchestratore: 10 000 mondi creati e scartati, heap fermo a 4,22 MB (script di sessione).
 
+**Dopo la seconda fase (2026-11-25, stesso banco, moduli ancora in ombra)**
+
+| Residenti | Settimana intera (mediana / max) | Chiamata più lunga con budget 1 ms (mediana / max) | Un anno di recupero | Viaggio (mediana / max) | Salvataggio prima / dopo i viaggi (record) | Scrittura / ripristino |
+|---:|---:|---:|---:|---:|---:|---:|
+| 95 | 0,8 / 5,9 ms | 0,5 / 0,7 ms | 29 ms | — | 17 / 17 KB (84) | 0,6 / 4,7 ms |
+| 500 | 1,8 / 3,4 ms | 1,0 / 1,0 ms | 79 ms | — | 47 / 47 KB (459) | 2,2 / 6,4 ms |
+| 1 000 | 2,2 / 4,5 ms | 1,0 / 1,1 ms | 98 ms | 5,2 / 5,2 ms | 53 / 63 KB (942) | 3,8 / 10,4 ms |
+| 5 000 | 4,4 / 6,6 ms | 1,1 / 1,1 ms | 203 ms | 4,7 / 20 ms | 84 / 188 KB (4 801) | 14 / 37 ms |
+| 10 000 | 6,8 / 9,9 ms | 1,1 / 1,2 ms | 306 ms | 4,8 / 28 ms | 117 / 352 KB (9 630) | 28 / 62 ms |
+| 50 000 | 23,7 / 30,6 ms | 1,5 / 1,8 ms | 1,1 s | 5,6 / 84 ms | 346 / 1 166 KB (32 587) | 93 / 212 ms |
+| 100 000 | 44,4 / 56 ms | 1,9 / 2,2 ms | 2,2 s | 15 / 146 ms | 618 / 1 927 KB (52 022) | 146 / 336 ms |
+
+Con 100 000 residenti la settimana si distribuisce su circa 40 fotogrammi. Restano in un blocco solo: un luogo da 50 000 record
+(79 ms), la materializzazione in viaggio e la serializzazione.
+
+### Simulazioni a lungo termine (`tests/simulazione-lunga.cjs`, moduli isolati, 5 semi per scenario, minimo–massimo a 100 anni di calendario)
+| Scenario | Vivi (iniziali) | Mortalità / natalità annua | Migrazioni | Moneta | Gini fra luoghi | Indice prezzi | Guerra / carestia (settimane-luogo) |
+|---|---|---|---|---|---|---|---|
+| base (13 luoghi) | 3 045–3 155 (3 080) | 1,7–1,8 % / 1,7–1,8 % | 1 747–1 903 | 99–102 % | 0,17–0,21 | 1 027–1 051 | 3–6 % / 0–0,2 % |
+| piccolo (4 villaggi) | 313–362 (360) | 1,7–1,8 % / 1,6–1,7 % | 140–182 | 97–105 % | 0,06–0,12 | 1 065–1 096 | 4–9 % / 0–0,4 % |
+| duro (guerre e calamità imposte) | 2 422–2 673 (3 080) | 2,1–2,2 % / 1,9–2,0 % | 2 034–2 104 | 99–101 % | 0,17–0,24 | 1 093–1 106 | 10–13 % / 0,7–1 % |
+
+Tutte le soglie rispettate in 15 mondi su 15; nessun luogo spopolato. Le nascite dipendono dall'affollamento del luogo (piene sotto
+il 75 % della capienza, nulle al 125 %): è il freno demografico, non un rimpiazzo dei morti.
+
 ### Gioco reale
 Node, motore vero (`tests/banco-lod.cjs`, rieseguito il 2026-11-24), 95 / 500 / 1 000 / 5 000 / 10 000 residenti: piani di un giorno
 18,6 ms / 356 ms / 1,1 s / 14,6 s / 48,2 s; posizione dagli orari 0,007 / 0,025 / 0,044 / 0,235 / 0,506 ms per fotogramma;
