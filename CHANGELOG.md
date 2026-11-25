@@ -2,6 +2,10 @@
 
 Cronologia delle modifiche. Voci più recenti in alto. Formato e regole in `AGENTS.md` §6. Ogni voce indica l'agente (`Claude`, `Codex`, `Umano`).
 
+## [2026-11-25] PERF-005 unito a `main` — Claude
+### Documentazione
+- `main` avanzato linearmente da `0bcfa34` a `e61fc13` con l'autorizzazione dell'utente; pubblicato dopo 16 prove ripetute sulla cartella di `main` (12 Node e 4 in Edge), build identica. Le voci precedenti che dicono «non unito a `main`» valgono alla loro data. Residenti, economia viva, livelli e orchestratore restano in ombra: il collegamento segue `PIANO_INTEGRAZIONE_WORLDSIM.md` dopo l'integrazione di Confluenza. Codex e le altre sessioni ripartano da `main`.
+
 ## [2026-11-25] Allineamento di `claude/perf-005` a `main` (`0bcfa34`) — Claude
 Merge di `origin/main` nel branch con l'autorizzazione dell'utente; `main` non toccato. Porta ECO-002 e ECO-003 (mercati registrabili, tendenze, mestieri e mercato) insieme a PERF-005.
 ### Modificato
